@@ -42,7 +42,25 @@ class PitchLetter extends TheoryObject {
     return 0
   }
 
+  static intervalBetween (_a, _b) {
+    const a = _a instanceof PitchLetter ? _a.name : _a
+    const b = _b instanceof PitchLetter ? _b.name : _b
+    const posOfA = PitchLetter.letters.indexOf(a)
+    const posOfB = PitchLetter.letters.indexOf(b)
+    if (posOfA === -1 || posOfB === -1) return
+    const intervalNumber = posOfB - posOfA >= 0
+      ? new IntervalNumber(posOfB - posOfA)
+      : new IntervalNumber(PitchLetter.letters.length + posOfB - posOfA)
+    const intervalNumberAsHalfSteps = intervalNumber.asHalfSteps
+    const halfStepsFromValues = posOfB - posOfA >= 0
+      ? PitchLetter.lettersValues[posOfB] - PitchLetter.lettersValues[posOfA]
+      : 12 + PitchLetter.lettersValues[posOfB] - PitchLetter.lettersValues[posOfA]
+    const alteration = new Alteration(halfStepsFromValues - intervalNumberAsHalfSteps)
+    return new Interval(`${alteration.name}${intervalNumber.name}`)
+  }
+
   static letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+  static lettersValues = [0, 2, 3, 5, 7, 8, 10]
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * 
@@ -65,6 +83,10 @@ class Alteration extends TheoryObject {
       : new Array(-1 * this.value).fill('b').join('')
   }
 
+  get asHalfSteps () {
+    return this.value
+  }
+
   static readProps (props) {
     if (typeof props === 'number') return parseInt(props, 10)
     if (typeof props === 'string') {
@@ -73,6 +95,12 @@ class Alteration extends TheoryObject {
       return sharps - flats
     }
     return 0
+  }
+
+  static intervalBetween (_a, _b) {
+    const a = _a instanceof Alteration ? _a.value : new Alteration(_a).value
+    const b = _b instanceof Alteration ? _b.value : new Alteration(_b).value
+    return Interval.fromHalfSteps(b - a)
   }
 }
 
@@ -160,6 +188,118 @@ class Pitch extends TheoryObject {
     }
     return { class: new PitchClass(), octave: new Octave() }
   }
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * 
+ *
+ * INTERVAL NUMBER
+ * --
+ * Value:
+ *
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * */
+class IntervalNumber extends TheoryObject {
+  constructor (props) {
+    super(props)
+    this.value = IntervalNumber.readProps(props)
+  }
+
+  add (_intervalNumber) {
+    const intervalNumber = _intervalNumber instanceof IntervalNumber
+      ? _intervalNumber.value
+      : _intervalNumber
+    this.value = this.value + intervalNumber
+    return this
+  }
+
+  get name () {
+    return this.value >= 0
+      ? `${this.value + 1}`
+      : `${this.value - 1}`
+  }
+
+  get asHalfSteps () {
+    const loops = Math.floor(Math.abs(this.value) / 7)
+    const normalizedValue = Math.abs(this.value % 7)
+    return this.value >= 0
+      ? loops * 12 + IntervalNumber.numbersToHalfSteps[normalizedValue]
+      : loops * -12 - IntervalNumber.numbersToHalfSteps[normalizedValue]
+  }
+
+  static readProps (props) {
+    if (typeof props === 'string') {
+      const parsed = parseInt(props, 10)
+      return parsed > 0 ? parsed - 1 : parsed === 0 ? parsed : parsed + 1
+    } else if (typeof props === 'number') {
+      return props
+    }
+    return 0
+  }
+
+  static numbersToHalfSteps = [0, 2, 4, 5, 7, 9, 11]
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * 
+ *
+ * INTERVAL
+ * --
+ * Value:
+ *
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * */
+class Interval extends TheoryObject {
+  constructor (props) {
+    super(props)
+    this.value = Interval.readProps(props)
+  }
+
+  add (_interval) {
+    // if (_interval instanceof Interval) return 
+    // const interval = _interval instanceof Interval
+    //   ? 
+    //   :
+  }
+
+  get name () {
+    return `${this.value.alteration.name}${this.value.intervalNumber.name}`
+  }
+
+  get asHalfSteps () {
+    return this.value.intervalNumber.asHalfSteps + this.value.alteration.asHalfSteps
+  }
+
+  static readProps (props) {
+    if (typeof props === 'string') {
+      const alterationMatch = props.match(/^[#|b]*/)
+      const alteration = new Alteration(alterationMatch[0])
+      const intervalNumber = new IntervalNumber(props.replace(alterationMatch[0], ''))
+      return { intervalNumber, alteration }
+    } else if (typeof props === 'number') {
+      return {
+        intervalNumber: new IntervalNumber(props),
+        alteration: new Alteration()
+      }
+    }
+    return {
+      intervalNumber: new IntervalNumber(0),
+      alteration: new Alteration()
+    }
+  }
+
+  static fromHalfSteps (halfSteps) {
+    const loops = Math.floor(Math.abs(halfSteps) / 12)
+    const normalizedValue = Math.abs(halfSteps % 12)
+    const intervalName = Interval.halfStepsToIntervalName[normalizedValue]
+    const interval = new Interval(intervalName)
+    return interval.add(loops * 12)
+    // const loops = Math.floor(Math.abs(this.value) / 7)
+    // const normalizedValue = Math.abs(this.value % 7)
+    // return this.value >= 0
+    //   ? loops * 12 + IntervalNumber.numbersToHalfSteps[normalizedValue]
+    //   : loops * -12 - IntervalNumber.numbersToHalfSteps[normalizedValue]
+  }
+
+  static halfStepsToIntervalName = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7']
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * 
