@@ -1,38 +1,45 @@
-const tests = [
+[ new TheoryObject()._ instanceof TheoryObject,
   new PitchLetter('F').value === 5,
   new PitchLetter('H').value === 0,
   new PitchLetter(2).name === 'c',
   new PitchLetter().value === 0,
-
+  PitchLetter.intervalBetween('f', 'e').name === '7',
   new Alteration('#bbb###bbbbb#').value === -3,
+  new Alteration().value === 0,
   new Alteration('#bbb###bbbbb#').name === 'bbb',
   new Alteration(-1).name === 'b',
-  new Alteration().value === 0,
-  
+  new Alteration('##').asHalfSteps === 2,
+  Alteration.intervalBetween('b', '#').name === '##1',
+  new PitchClass('##F').value.pitchLetter.name === 'f',
+  new PitchClass('##F').value.alteration.name === '##',
   new PitchClass('bbG').name === 'bbg',
   new PitchClass(123).name === 'a',
+  new PitchClass('c', 2).name === '##c',
+  new PitchClass('c', 'bb').name === 'bbc',
   new PitchClass('grae#fz#ghazB').name === '##b',
   new PitchClass().name === 'a',
-
+  PitchClass.intervalBetween('bb', '#C').name === '#2',
   new Octave(7).value === 7,
   new Octave('7.3').value === 7,
   new Octave().value === 4,
-
+  new Octave('4').name === '4',
+  Octave.intervalBetween(2, 4).name === '15',
   new Pitch('bB3').name === 'bb3',
   new Pitch().name === 'a4',
-
-  // new FundamentalFrequency(420).value === 420,
-  // new FundamentalFrequency('420.3').value === 420.3,
-  // new FundamentalFrequency('zzz').value === 440,
-  // new FundamentalFrequency().value === 440,
-
-  // new Temperament('12tet').value.join('/') === [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100].join('/'),
-  // new Temperament([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]).name === '12tet',
-  // new Temperament('jtrkzthzgvze').name === '12tet',
-  // new Temperament().name === '12tet'
-]
-
-tests.forEach((test, i) => {
-  if (test === false) console.error(`Test ${i+1} failed.`)
-  else if (test !== true) console.error(`Test ${i+1} failed: ${test}`)
-})
+  new Pitch('#c', 4).name === '#c4',
+  Pitch.intervalBetween('c4', '#f5').name === '#11',
+  new IntervalNumber(4).value === 4,
+  new IntervalNumber(40).name === '41',
+  new IntervalNumber('0').value === 0,
+  new IntervalNumber('1').value === 0,
+  new IntervalNumber(0).value === 0,
+  new IntervalNumber(1).value === 1,
+  new IntervalNumber(6).asHalfSteps === 11,
+  new Interval(0).name === '1',
+  new Interval(1).name === 'b2',
+  new Interval('0').name === '1',
+  new Interval('1').name === '1',
+  new Interval('#-1').name === '#1',
+  new Interval('7').asHalfSteps === 11,
+  Interval.sum('b2', 'b4').name === 'bb5',
+].forEach((test, i) => test ? console.info('test', i + 1, 'success') : console.error('test', i + 1, 'failed'))
