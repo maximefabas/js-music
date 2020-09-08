@@ -349,7 +349,7 @@ class Interval extends TheoryObject {
  * SCALE
  * --
  * Value:
- * <BitArray>
+ * steps: [...<Interval>]
  *
  * * * * * * * * * * * * * * * * * * * * * * * */
 // new Scale('x-x-xx-x-x-x')
@@ -388,13 +388,23 @@ class Scale extends TheoryObject {
   static fromPattern (pattern) {
     const positionsList = pattern.split('').map((e, i) => e === 'x' ? i : e).filter(e => e !== '-')
     const intervalsList = positionsList.map(e => new Interval(e))
-    const stepsMap = [[], [], [], [], [], [], []]
-    intervalsList.forEach(interval => { 
+    const intervalsMap = [[], [], [], [], [], [], []]
+    intervalsList.forEach(interval => {
       const pos = interval.value.intervalNumber.value
-      stepsMap[pos].push(interval.name)
+      intervalsMap[pos].push(interval)
     })
-    // [WIP] maybe a static allocateIntervalNumbers here
-    console.table(stepsMap)
+    let spaceBelow = 0
+    let pressureUp = 0
+    
+
+
+    // const stepsMap = [[], [], [], [], [], [], []]
+    // intervalsList.forEach(interval => { 
+    //   const pos = interval.value.intervalNumber.value
+    //   stepsMap[pos].push(interval.name)
+    // })
+    // // [WIP] maybe a static allocateIntervalNumbers here
+    // console.table(stepsMap)
     return ['1', '2', '3', '4', '5', '6', '7'].map(e => new Interval(e)) 
   }
 
