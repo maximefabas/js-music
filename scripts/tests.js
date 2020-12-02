@@ -1,4 +1,8 @@
-[ new TheoryObject()._ instanceof TheoryObject,
+const tests = [
+  new TheoryObject()._ instanceof TheoryObject,
+  TheoryObject.toX(5, 4) === 1,
+  TheoryObject.toX(-41, 12) === 7,
+  TheoryObject.toX(10, 10) === 0,
   new PitchLetter('F').value === 5,
   new PitchLetter('H').value === 0,
   new PitchLetter(2).name === 'c',
@@ -10,6 +14,7 @@
   new Alteration(-1).name === 'b',
   new Alteration('##').asHalfSteps === 2,
   Alteration.intervalBetween('b', '#').name === '##1',
+  Alteration.sum('#', 'bb').value === -1,
   new PitchClass('##F').value.pitchLetter.name === 'f',
   new PitchClass('##F').value.alteration.name === '##',
   new PitchClass('bbG').name === 'bbg',
@@ -23,7 +28,9 @@
   new Octave('7.3').value === 7,
   new Octave().value === 4,
   new Octave('4').name === '4',
+  new Octave('4').asHalfSteps === 48,
   Octave.intervalBetween(2, 4).name === '15',
+  Octave.sum(2, 3).value === 5,
   new Pitch('bB3').name === 'bb3',
   new Pitch().name === 'a4',
   new Pitch('#c', 4).name === '#c4',
@@ -35,11 +42,31 @@
   new IntervalNumber(0).value === 0,
   new IntervalNumber(1).value === 1,
   new IntervalNumber(6).asHalfSteps === 11,
+  IntervalNumber.intervalBetween(1, 2).name === '2',
+  IntervalNumber.intervalBetween(0, -1).name === '-2',
+  IntervalNumber.intervalBetween(0, 101).name === '102',
+  IntervalNumber.sum(0, 2).value === 2,
+  IntervalNumber.sum(-1, 3).value === 2,
   new Interval(0).name === '1',
   new Interval(1).name === 'b2',
+  new Interval(-1).name === '#-2',
+  new Interval(7).name === '5',
   new Interval('0').name === '1',
   new Interval('1').name === '1',
+  new Interval('-1').name === '1',
+  new Interval('7').name === '7',
   new Interval('#-1').name === '#1',
   new Interval('7').asHalfSteps === 11,
+  Interval.intervalBetween('b2', 'b4').name === 'b3',
+  Interval.intervalBetween('7', '5').name === '-3',
   Interval.sum('b2', 'b4').name === 'bb5',
-].forEach((test, i) => test ? console.info('test', i + 1, 'success') : console.error('test', i + 1, 'failed'))
+  Interval.liftNumber('b2', 1).name === 'bbb3',
+  Interval.liftNumber('3', 1).name === 'b4',
+  Interval.liftNumber('b8', -1).name === '7',
+  Scale.allocateIntervals(['1', 'b2', '2', 'b3', '3'].map(e => new Interval(e))).map(interval => interval.name).join(',') === '1,b2,bb3,bb4,bbb5',
+  Scale.allocateIntervals(['6', '#6', 'b7', '7', '#7', '##7'].map(e => new Interval(e))).map(interval => interval.name).join(',') === '########2,#####3,########4,#####5,##6,b7'
+]
+
+tests.forEach((test, i) => test
+  ? console.info('test', i + 1, 'success')
+  : console.error('test', i + 1, 'failed'))

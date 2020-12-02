@@ -1,5 +1,12 @@
 'use strict'
 
+const debug_mode = true
+function log () {
+  if (debug_mode) {
+    console.log(...arguments)
+  }
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * 
  *
  * THEORY OBJECT
@@ -7,7 +14,7 @@
  * * * * * * * * * * * * * * * * * * * * * * * */
 class TheoryObject {
   constructor () {
-    this.instrument = new Tone.PolySynth().connect(Tone.Master)
+    // this.instrument = new Tone.PolySynth().connect(Tone.Master)
     this.id = Array(4).fill(0).map(e => Math.random().toString(36).slice(2)).join('-')
     this.value = arguments[0] instanceof this.constructor
       ? arguments[0]._.value
@@ -20,6 +27,12 @@ class TheoryObject {
 
   static readProps () {
     return
+  }
+
+  static toX (val, x) {
+    const mod = val % x
+    const result = mod < 0 ? (mod + x) : mod
+    return result
   }
 }
 
@@ -43,7 +56,7 @@ class PitchLetter extends TheoryObject {
   static readProps () {
     if (arguments.length === 1) {
       const letters = PitchLetter.letters
-      if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10) % letters.length
+      if (typeof arguments[0] === 'number') return TheoryObject.toX(parseInt(arguments[0], 10), letters.length)
       if (typeof arguments[0] === 'string'
         && letters.includes(arguments[0].toLowerCase()))
         return letters.indexOf(arguments[0].toLowerCase())
@@ -67,6 +80,16 @@ class PitchLetter extends TheoryObject {
     const alteration = new Alteration(halfStepsFromValues - intervalNumberAsHalfSteps)
     return new Interval(intervalNumber, alteration)
   }
+
+  // [WIP] probably to delete
+  // static sum (_a, _b) {
+  //   const a = new PitchLetter(_a).value
+  //   const b = new PitchLetter(_b).value
+  //   console.log(a, b)
+  //   const newVal = TheoryObject.toX(a + b, PitchLetter.letters.length)
+  //   const pitchLetter = new PitchLetter(newVal)
+  //   return pitchLetter
+  // }
 
   static letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
   static lettersValues = [0, 2, 3, 5, 7, 8, 10]
@@ -112,6 +135,13 @@ class Alteration extends TheoryObject {
     const b = new Alteration(_b).value
     const interval = new Interval(0, b - a)
     return interval
+  }
+
+  static sum (_a, _b) {
+    const a = new Alteration(_a).value
+    const b = new Alteration(_b).value
+    const alteration = new Alteration(a + b)
+    return alteration
   }
 }
 
@@ -176,6 +206,10 @@ class Octave extends TheoryObject {
     return `${this.value}`
   }
 
+  get asHalfSteps () {
+    return 12 * this.value
+  }
+
   static readProps () {
     if (arguments.length === 1) {
       if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10)
@@ -191,6 +225,13 @@ class Octave extends TheoryObject {
     const a = new Octave(_a)
     const b = new Octave(_b)
     return new Interval(12 * (b.value - a.value))
+  }
+
+  static sum (_a, _b) {
+    const a = new Octave(_a).value
+    const b = new Octave(_b).value
+    const octave = new Octave(a + b)
+    return octave
   }
 }
 
@@ -277,6 +318,21 @@ class IntervalNumber extends TheoryObject {
     return 0
   }
 
+  static sum (_a, _b) {
+    const a = new IntervalNumber(_a)
+    const b = new IntervalNumber(_b)
+    const intervalNumber = new IntervalNumber(a.value + b.value)
+    return intervalNumber
+  }
+
+  static intervalBetween (_a, _b) {
+    const a = new IntervalNumber(_a)
+    const b = new IntervalNumber(_b)
+    const diff = b.value - a.value
+    const interval = new Interval(diff, 0)
+    return interval
+  }
+
   static numbersToHalfSteps = [0, 2, 4, 5, 7, 9, 11]
 }
 
@@ -333,12 +389,34 @@ class Interval extends TheoryObject {
     }
   }
 
+  static intervalBetween (_a, _b) {
+    const a = new Interval(_a)
+    const b = new Interval(_b)
+    const numberInterval = IntervalNumber.intervalBetween(a.value.intervalNumber, b.value.intervalNumber)
+    const halfStepsDiff = b.asHalfSteps - a.asHalfSteps
+    const alterationVal = halfStepsDiff - numberInterval.asHalfSteps
+    const alteration = new Alteration(alterationVal)
+    const interval = new Interval(numberInterval.value.intervalNumber.value, alteration)
+    return interval
+  }
+
   static sum (_a, _b) {
     const a = new Interval(_a)
     const b = new Interval(_b)
-    const alteration = new Alteration(a.value.alteration.value + b.value.alteration.value)
-    const intervalNumber = new IntervalNumber(a.value.intervalNumber.value + b.value.intervalNumber.value)
+    const alteration = Alteration.sum(a.value.alteration, b.value.alteration)
+    const intervalNumber = IntervalNumber.sum(a.value.intervalNumber, b.value.intervalNumber)
     return new Interval(intervalNumber, alteration)
+  }
+
+  static liftNumber (_a, _b) {
+    const a = new Interval(_a)
+    const b = new IntervalNumber(_b)
+    const newIntervalNumber = IntervalNumber.sum(a.value.intervalNumber, b)
+    const newInterval = new Interval(newIntervalNumber, a.value.alteration)
+    const diffAlteration = new Alteration(-1 * (newInterval.asHalfSteps - a.asHalfSteps))
+    const alteration = Alteration.sum(a.value.alteration, diffAlteration)
+    const interval = new Interval(newIntervalNumber, alteration)
+    return interval
   }
 
   static halfStepsToIntervalName = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7']
@@ -386,30 +464,106 @@ class Scale extends TheoryObject {
   }
 
   static fromPattern (pattern) {
-    const positionsList = pattern.split('').map((e, i) => e === 'x' ? i : e).filter(e => e !== '-')
-    const intervalsList = positionsList.map(e => new Interval(e))
-    const intervalsMap = [[], [], [], [], [], [], []]
-    intervalsList.forEach(interval => {
-      const pos = interval.value.intervalNumber.value
-      intervalsMap[pos].push(interval)
-    })
-    let spaceBelow = 0
-    let pressureUp = 0
-    
+    const numbersList = pattern
+      .split('')
+      .map((e, i) => e === 'x' ? i : null)
+      .filter(e => typeof e === 'number')
 
-
-    // const stepsMap = [[], [], [], [], [], [], []]
-    // intervalsList.forEach(interval => { 
-    //   const pos = interval.value.intervalNumber.value
-    //   stepsMap[pos].push(interval.name)
-    // })
-    // // [WIP] maybe a static allocateIntervalNumbers here
-    // console.table(stepsMap)
-    return ['1', '2', '3', '4', '5', '6', '7'].map(e => new Interval(e)) 
+    // Transform number into interval, assign a slot to it
+    const rawIntervals = numbersList.map(number => new Interval(number))
+    const intervals = Scale.allocateIntervals(rawIntervals, pattern.length - 1)
+    return intervals
   }
 
   static fromName (name) {
     return ['1', '2', '3', '4', '5', '6', '7'].map(e => new Interval(e)) 
+  }
+
+  static allocateIntervals (intervals, length) {
+    const intervalsWithSlots = intervals.map((interval, i) => {
+      const intervalNumber = interval.value.intervalNumber
+      const slot = intervalNumber.value
+      return { interval, slot }
+    })
+
+    // Find how many slots we need
+    const maxSlot = new Interval(length).value.intervalNumber.value
+    const nbSlots = Math.max(7, maxSlot + 1)
+    
+    // Find how many steps per slot we're looking for
+    const steps = intervals.length
+    const room = nbSlots - steps
+    const maxPerSlot = Math.ceil(steps / nbSlots)
+    const minPerSlot = Math.floor(steps / nbSlots)
+    const slots = new Array(nbSlots).fill(null).map(e => ([]))
+
+    // Push intervals in slots
+    intervalsWithSlots.forEach(n => slots[n.slot].push(n.interval))
+
+    // From bottom to top, find oversized slots and move
+    // greater intervals to upper slot if there is room above it
+    for (let i = 0 ; i < slots.length ; i++) {
+      const slot = slots[i]
+      const restOfSlots = slots.slice(i)
+      if (slot.length > maxPerSlot) {
+        const nextVacantPosInRest = restOfSlots.findIndex(slot => slot.length <= minPerSlot)
+        if (nextVacantPosInRest > -1) {
+          const slotsToLift = restOfSlots.slice(0, nextVacantPosInRest + 1)
+          const liftedSlots = slotsToLift.map(e => ([]))
+          slotsToLift.forEach((slot, j) => {
+            if (j === 0) {
+              const minIntervalValue = Math.min(...slot.map(int => int.asHalfSteps))
+              const minInterval = slot.find(interval => interval.asHalfSteps === minIntervalValue)
+              const toLift = slot.filter(interval => interval !== minInterval)
+              const lifted = toLift.map(interval => Interval.liftNumber(interval, 1))
+              liftedSlots[j].push(minInterval)
+              liftedSlots[j + 1].push(...lifted)
+            } else if (j < slotsToLift.length - 1) {
+              const lifted = slot.map(interval => Interval.liftNumber(interval, 1))
+              liftedSlots[j + 1].push(...lifted)
+            } else {
+              liftedSlots[j].push(...slot)
+            }
+          })
+          liftedSlots.forEach((slot, j) => { slots[j + i] = slot })
+        }
+      }
+    }
+
+    // From top to bottom, find oversized slots and move
+    // lesser intervals to lower slot if there is room below it
+    slots.reverse()
+    for (let i = 0 ; i < slots.length ; i++) {
+      const slot = slots[i]
+      const restOfSlots = slots.slice(i)
+      if (slot.length > maxPerSlot) {
+        const nextVacantPosInRest = restOfSlots.findIndex(slot => slot.length <= minPerSlot)
+        if (nextVacantPosInRest > -1) {
+          const slotsToDrop = restOfSlots.slice(0, nextVacantPosInRest + 1)
+          const droppedSlots = slotsToDrop.map(e => ([]))
+          slotsToDrop.forEach((slot, j) => {
+            if (j === 0) {
+              const minIntervalValue = Math.min(...slot.map(int => int.asHalfSteps))
+              const minInterval = slot.find(interval => interval.asHalfSteps === minIntervalValue)
+              const toDrop = slot.filter(interval => interval !== minInterval)
+              const dropped = toDrop.map(interval => Interval.liftNumber(interval, -1))
+              droppedSlots[j].push(minInterval)
+              droppedSlots[j + 1].push(...dropped)
+            } else if (j < slotsToDrop.length - 1) {
+              const dropped = slot.map(interval => Interval.liftNumber(interval, -1))
+              droppedSlots[j + 1].push(...dropped)
+            } else {
+              droppedSlots[j].push(...slot)
+            }
+          })
+          droppedSlots.forEach((slot, j) => { slots[j + i] = slot })
+        }
+      }
+    }
+    slots.reverse()
+    const result = []
+    slots.forEach(s => s.forEach(i => result.push(i)))
+    return result
   }
 }
 
