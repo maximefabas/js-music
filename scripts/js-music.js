@@ -7,6 +7,58 @@ function log () {
   }
 }
 
+// alteration = {}
+// alteration.regexp = /[#b]*/
+// alteartion.catch = str => str.match(new RegExp(`^${alteration.regexp.source}$`))[0]
+
+// pitchLetter = {}
+// pitchLetter.regexp = /[abcdefg]/
+// pitchLetter.catch = str => str.match(new RegExp(`^${pitchLetter.regexp.source}$`))[0]
+
+// pitchClass = {}
+// pitchClass.regexp = new RegExp(`${alteration.regexp.source}${pitchLetter.regexp.source}`)
+// pitchClass.catch = str => {
+//   const altRegexp = new RegExp(`^${alteration.regexp.source}`)
+//   const alteration = str.match(altRegexp)[0]
+//   const letterRegexp = new RegExp(`${pitchLetter.regexp.source}$`)
+//   const letter = str.match(letterRegexp)[0]
+//   return letter
+//     ? `${alteration}${letter}`
+//     : `${alteration.slice(0, -1)}b`
+// }
+
+// octave = {}
+// octave.regexp = /\^[0-9]+/
+// octave.catch = str => str.match(new RegExp(`^${octave.regexp.source}$`))[0]
+
+// pitch = {}
+// pitch.regexp = new RegExp(`${pitchClass.regexp.source}(${octave.regexp.source})?`)
+// pitch.catch = str => {
+//   const pitchClassRegexp = new RegExp(`^${pitchClass.regexp.source}`)
+//   const pitchClass = str.match(pitchClassRegexp)[0]
+//   const octaveRegexp = new RegExp(`${octave.regexp.source}$`)
+//   const octave = str.match(octaveRegexp)[0] || '^4'
+//   return `${pitchClass}${octave}`
+// }
+
+// intervalNumber = {}
+// intervalNumber.regexp = /[0-9]+/
+// intervalNumber.catch = str => str.match(new RegExp(`^${intervalNumber.regexp.source}$`))[0]
+
+// interval = {}
+// interval.regexp = new RegExp(`${alteration.regexp.source}${intervalNumber.regexp.source}`)
+// interval.catch = str => {
+//   const altRegexp = new RegExp(`^${alteration.regexp.source}`)
+//   const alteration = str.match(altRegexp)[0]
+//   const numberRegexp = new RegExp(`${intervalNumber.regexp.source}$`)
+//   const number = str.match(numberRegexp)[0]
+//   return `${alteration}${number}`
+// }
+
+// scale = {}
+// scale.regexp = /[\s\S]*/
+// scale.catch = str => str.match(new Regexp(`^${scale.regexp.source}$`))
+
 /* * * * * * * * * * * * * * * * * * * * * * * * 
  *
  * THEORY OBJECT
@@ -15,20 +67,38 @@ function log () {
 class TheoryObject {
   constructor () {
     // this.instrument = new Tone.PolySynth().connect(Tone.Master)
+    console.log('Theory Object - constructor')
+    this.init = this.init.bind(this)
     this.id = Array(4).fill(0).map(e => Math.random().toString(36).slice(2)).join('-')
-    this.value = arguments[0] instanceof this.constructor
-      ? arguments[0]._.value
-      : this.constructor.readProps(...arguments)
+    this.value = this.init(...arguments)
   }
 
+  /* _ */
   get _ () {
+    console.log('Theory Object - copy')
     return new this.constructor(this.name)
   }
 
-  static readProps () {
-    return
+  init () {
+    console.log('Theory Object - init')
+    const instanceInArgs = arguments.length === 1 && arguments[0] instanceof this.constructor
+    if (instanceInArgs) return arguments[0]._.value
+    const isLiteral = arguments.length === 1 && typeof arguments[0] === 'string'
+    if (isLiteral) return TheoryObject.readLiteral(arguments[0], this.constructor)
+    return this.constructor.readProps(...arguments)
   }
 
+  /* readProps */
+  static readProps () {
+    return arguments[0]
+  }
+  
+  /* readLiteral */
+  static readLiteral (literal, asConstructor) {
+    return asConstructor.readProps(literal)
+  }
+
+  /* toX */
   static toX (val, x) {
     const mod = val % x
     const result = mod < 0 ? (mod + x) : mod
@@ -47,13 +117,17 @@ class TheoryObject {
 class PitchLetter extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('PitchLetter - constructor')
   }
 
+  /* name */
   get name () {
     return PitchLetter.letters[this.value]
   }
 
+  /* readProps */
   static readProps () {
+    console.log('PitchLetter - readProps')
     if (arguments.length === 1) {
       const letters = PitchLetter.letters
       if (typeof arguments[0] === 'number') return TheoryObject.toX(parseInt(arguments[0], 10), letters.length)
@@ -64,6 +138,7 @@ class PitchLetter extends TheoryObject {
     return 0
   }
 
+  /* intervalBetween */
   static intervalBetween (_a, _b) {
     const a = new PitchLetter(_a).name
     const b = new PitchLetter(_b).name
@@ -106,6 +181,7 @@ class PitchLetter extends TheoryObject {
 class Alteration extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('Alteration - constructor')
   }
 
   get name () {
@@ -119,6 +195,7 @@ class Alteration extends TheoryObject {
   }
 
   static readProps () {
+    console.log('Alteration - readProps')
     if (arguments.length === 1) {
       if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10)
       if (typeof arguments[0] === 'string') {
@@ -156,6 +233,7 @@ class Alteration extends TheoryObject {
 class PitchClass extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('PitchClass - constructor')
   }
 
   get name () {
@@ -163,6 +241,7 @@ class PitchClass extends TheoryObject {
   }
 
   static readProps () {
+    console.log('PitchClass - readProps')
     if (arguments.length === 2) {
       const pitchLetter = new PitchLetter(arguments[0])
       const alteration = new Alteration(arguments[1])
@@ -200,6 +279,7 @@ class PitchClass extends TheoryObject {
 class Octave extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('Octave - constructor')
   }
 
   get name () {
@@ -211,6 +291,7 @@ class Octave extends TheoryObject {
   }
 
   static readProps () {
+    console.log('Octave - readProps')
     if (arguments.length === 1) {
       if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10)
       if (typeof arguments[0] === 'string') {
@@ -246,6 +327,7 @@ class Octave extends TheoryObject {
 class Pitch extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('Pitch - constructor')
   }
 
   get name () {
@@ -253,6 +335,7 @@ class Pitch extends TheoryObject {
   }
 
   static readProps () {
+    console.log('Pitch - readProps')
     if (arguments.length === 2) {
       const pitchClass = new PitchClass(arguments[0])
       const octave = new Octave(arguments[1])
@@ -290,6 +373,7 @@ class Pitch extends TheoryObject {
 class IntervalNumber extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('IntervalNumber - constructor')
   }
 
   get name () {
@@ -307,6 +391,7 @@ class IntervalNumber extends TheoryObject {
   }
 
   static readProps () {
+    console.log('IntervalNumber - readProps')
     if (arguments.length === 1) {
       if (typeof arguments[0] === 'string') {
         const parsed = parseInt(arguments[0], 10)
@@ -347,6 +432,7 @@ class IntervalNumber extends TheoryObject {
 class Interval extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('Interval - constructor')
   }
 
   get name () {
@@ -358,6 +444,7 @@ class Interval extends TheoryObject {
   }
 
   static readProps () {
+    console.log('Interval - readProps')
     if (arguments.length === 2) {
       const intervalNumber = new IntervalNumber(arguments[0])
       const alteration = new Alteration(arguments[1])
@@ -438,6 +525,7 @@ class Interval extends TheoryObject {
 class Scale extends TheoryObject {
   constructor () {
     super(...arguments)
+    console.log('Scale - constructor')
   }
 
   get lol () {
@@ -445,6 +533,7 @@ class Scale extends TheoryObject {
   }
 
   static readProps () {
+    console.log('Scale - readProps')
     if (arguments.length === 1) {
       if (Array.isArray(arguments[0])) {
         return arguments[0].map(e => new Interval(e))

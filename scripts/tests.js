@@ -1,5 +1,6 @@
 const tests = [
   new TheoryObject()._ instanceof TheoryObject,
+  new TheoryObject(new TheoryObject('lol')) instanceof TheoryObject,
   TheoryObject.toX(5, 4) === 1,
   TheoryObject.toX(-41, 12) === 7,
   TheoryObject.toX(10, 10) === 0,
