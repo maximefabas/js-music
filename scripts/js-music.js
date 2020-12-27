@@ -1,63 +1,12 @@
-'use strict'
+// 'use strict'
 
-const debug_mode = true
-function log () {
-  if (debug_mode) {
-    console.log(...arguments)
+const utils = {
+  log_cnt: 0,
+  log: function (...params) {
+    utils.log_cnt++
+    console.log(utils.log_cnt, ...params)
   }
 }
-
-// alteration = {}
-// alteration.regexp = /[#b]*/
-// alteartion.catch = str => str.match(new RegExp(`^${alteration.regexp.source}$`))[0]
-
-// pitchLetter = {}
-// pitchLetter.regexp = /[abcdefg]/
-// pitchLetter.catch = str => str.match(new RegExp(`^${pitchLetter.regexp.source}$`))[0]
-
-// pitchClass = {}
-// pitchClass.regexp = new RegExp(`${alteration.regexp.source}${pitchLetter.regexp.source}`)
-// pitchClass.catch = str => {
-//   const altRegexp = new RegExp(`^${alteration.regexp.source}`)
-//   const alteration = str.match(altRegexp)[0]
-//   const letterRegexp = new RegExp(`${pitchLetter.regexp.source}$`)
-//   const letter = str.match(letterRegexp)[0]
-//   return letter
-//     ? `${alteration}${letter}`
-//     : `${alteration.slice(0, -1)}b`
-// }
-
-// octave = {}
-// octave.regexp = /\^[0-9]+/
-// octave.catch = str => str.match(new RegExp(`^${octave.regexp.source}$`))[0]
-
-// pitch = {}
-// pitch.regexp = new RegExp(`${pitchClass.regexp.source}(${octave.regexp.source})?`)
-// pitch.catch = str => {
-//   const pitchClassRegexp = new RegExp(`^${pitchClass.regexp.source}`)
-//   const pitchClass = str.match(pitchClassRegexp)[0]
-//   const octaveRegexp = new RegExp(`${octave.regexp.source}$`)
-//   const octave = str.match(octaveRegexp)[0] || '^4'
-//   return `${pitchClass}${octave}`
-// }
-
-// intervalNumber = {}
-// intervalNumber.regexp = /[0-9]+/
-// intervalNumber.catch = str => str.match(new RegExp(`^${intervalNumber.regexp.source}$`))[0]
-
-// interval = {}
-// interval.regexp = new RegExp(`${alteration.regexp.source}${intervalNumber.regexp.source}`)
-// interval.catch = str => {
-//   const altRegexp = new RegExp(`^${alteration.regexp.source}`)
-//   const alteration = str.match(altRegexp)[0]
-//   const numberRegexp = new RegExp(`${intervalNumber.regexp.source}$`)
-//   const number = str.match(numberRegexp)[0]
-//   return `${alteration}${number}`
-// }
-
-// scale = {}
-// scale.regexp = /[\s\S]*/
-// scale.catch = str => str.match(new Regexp(`^${scale.regexp.source}$`))
 
 /* * * * * * * * * * * * * * * * * * * * * * * * 
  *
@@ -66,42 +15,103 @@ function log () {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class TheoryObject {
   constructor () {
-    // this.instrument = new Tone.PolySynth().connect(Tone.Master)
-    console.log('Theory Object - constructor')
-    this.init = this.init.bind(this)
-    this.id = Array(4).fill(0).map(e => Math.random().toString(36).slice(2)).join('-')
-    this.value = this.init(...arguments)
-  }
-
-  /* _ */
-  get _ () {
-    console.log('Theory Object - copy')
-    return new this.constructor(this.name)
+    utils.log('TheoryObject.constructor() -', arguments)
+    this._id = new Array(4).fill(0).map(e => Math.random().toString(36).slice(2)).join('-')
+    this._value = undefined
+    this._value_history = []
+    this.init(...arguments)
+    utils.log('TheoryObject.constructor() - constructed', this._value)
   }
 
   init () {
-    console.log('Theory Object - init')
-    const instanceInArgs = arguments.length === 1 && arguments[0] instanceof this.constructor
-    if (instanceInArgs) return arguments[0]._.value
-    const isLiteral = arguments.length === 1 && typeof arguments[0] === 'string'
-    if (isLiteral) return TheoryObject.readLiteral(arguments[0], this.constructor)
-    return this.constructor.readProps(...arguments)
+    utils.log('TheoryObject().init()', arguments)
+    if (arguments.length === 0) this.value = this.constructor.defaultValue    
+    else if (arguments.length === 1 && (arguments[0] === null || arguments[0] === undefined)) this.value = this.constructor.defaultValue
+    else if (arguments.length === 1 && arguments[0].constructor === this.constructor) this.value = arguments[0]._.value
+    else if (arguments.length === 1 && typeof arguments[0] === 'string' && this.constructor.isNameValid(arguments[0])) this.value = this.constructor.nameToValue(arguments[0])
+    else if (arguments.length === 1) this.value = this.constructor.propsToValue(arguments[0])
+    else this.value = this.constructor.propsToValue(...arguments)
   }
 
-  /* readProps */
-  static readProps () {
-    return arguments[0]
+  get value () {
+    utils.log('TheoryObject().value - GET -', this._value)
+    return this._value
+  }
+
+  set value (value) {
+    if (!this.constructor.isValueValid(value)) {
+      utils.log('TheoryObject().value - SET - invalid value -', value)
+      return
+    }
+    this._value_history.push({ value, timestamp: Date.now() })
+    this._value = value
+    utils.log('TheoryObject().value - SET - set value -', value)
+  }
+
+  get name () {
+    const name = this.constructor.valueToName(this.value)
+    utils.log('TheoryObject().name - GET', name)
+    return this.constructor.valueToName(this.value)
+  }
+
+  set name (name) {
+    if (!this.constructor.isNameValid(name)) {
+      utils.log('TheoryObject().name - SET - invalid name -', name)
+      return
+    }
+    const newVal = this.constructor.nameToValue(name)
+    this.value = newVal
+    utils.log('TheoryObject().name - SET - set name -', name)
+  }
+
+  get _ () {
+    const copy = new this.constructor(this.name)
+    utils.log('TheoryObject()._ - GET -', copy)
+    return copy
+  }
+
+  static nameRegexp = /^$/
+
+  static get defaultValue () {
+    utils.log('TheoryObject.defaultValue - GET - set name', null)
+    return null
   }
   
-  /* readLiteral */
-  static readLiteral (literal, asConstructor) {
-    return asConstructor.readProps(literal)
+  static isNameValid (name) {
+    if (typeof name !== 'string') {
+      utils.log('TheoryObject.isNameValid() -', name, false)
+      return false
+    }
+    const match = name.match(new RegExp(`^${this.nameRegexp.source}$`))
+    const result = match ? true : false
+    utils.log('TheoryObject.isNameValid() -', name, result)
+    return result
+  }
+  
+  static nameToValue (name) {
+    utils.log('TheoryObject.nameToValue() -', name, null)
+    return null
+  }
+  
+  static propsToValue (props) {
+    utils.log('TheoryObject.propsToValue() -', props, null)
+    return null
+  }
+  
+  static isValueValid (value) {
+    utils.log('TheoryObject.isValueValid() -', value, value === null)
+    return value === null
   }
 
-  /* toX */
+  static valueToName (value) {
+    utils.log('TheoryObject.valueToName() -', value, '')
+    return ''
+  }
+
   static toX (val, x) {
     const mod = val % x
     const result = mod < 0 ? (mod + x) : mod
+    utils.log('TheoryObject.toX() -', val, x, result)
     return result
   }
 }
@@ -116,26 +126,54 @@ class TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class PitchLetter extends TheoryObject {
   constructor () {
+    utils.log('PitchLetter.constructor() -', arguments)
     super(...arguments)
-    console.log('PitchLetter - constructor')
+    utils.log('PitchLetter.constructor() - constructed -', this.value)
   }
 
-  /* name */
-  get name () {
-    return PitchLetter.letters[this.value]
-  }
-
-  /* readProps */
-  static readProps () {
-    console.log('PitchLetter - readProps')
-    if (arguments.length === 1) {
-      const letters = PitchLetter.letters
-      if (typeof arguments[0] === 'number') return TheoryObject.toX(parseInt(arguments[0], 10), letters.length)
-      if (typeof arguments[0] === 'string'
-        && letters.includes(arguments[0].toLowerCase()))
-        return letters.indexOf(arguments[0].toLowerCase())
-    }
+  static nameRegexp = /[abcdefg]/
+  
+  static get defaultValue () {
+    utils.log('PitchLetter.defaultValue -', 0)
     return 0
+  }
+  
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) {
+      utils.log('PitchLetter.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
+    const index = PitchLetter.letters.indexOf(name)
+    const result = index !== -1 ? index : this.defaultValue
+    utils.log('PitchLetter.nameToValue() -', name, result)
+    return result
+  }
+  
+  static propsToValue (...props) {
+    if (props.length === 1) {
+      if (typeof props[0] === 'number') {
+        const result = TheoryObject.toX(parseInt(props[0], 10), PitchLetter.letters.length)
+        utils.log('PitchLetter.propsToValue() -', props, result)
+        return result
+      }
+      utils.log('PitchLetter.propsToValue() -', props, this.defaultValue)
+      return this.defaultValue
+    } else {
+      utils.log('PitchLetter.propsToValue() -', props, this.defaultValue)
+      return this.defaultValue
+    }
+  }
+
+  static isValueValid (value) {
+    const result = Number.isInteger(value) && value >= 0 && value <= 6
+    utils.log('PitchLetter.isValueValid() -', value, result)
+    return result
+  }
+  
+  static valueToName (value) {
+    const result = this.isValueValid(value) ? PitchLetter.letters[value] : undefined
+    utils.log('PitchLetter.valueToName() -', value, result)
+    return result
   }
 
   /* intervalBetween */
@@ -144,7 +182,10 @@ class PitchLetter extends TheoryObject {
     const b = new PitchLetter(_b).name
     const posOfA = PitchLetter.letters.indexOf(a)
     const posOfB = PitchLetter.letters.indexOf(b)
-    if (posOfA === -1 || posOfB === -1) return
+    if (posOfA === -1 || posOfB === -1) {
+      utils.log('PitchLetter.intervalBetween() -', _a, _b, undefined)
+      return
+    }
     const intervalNumber = posOfB - posOfA >= 0
       ? new IntervalNumber(posOfB - posOfA)
       : new IntervalNumber(PitchLetter.letters.length + posOfB - posOfA)
@@ -153,18 +194,10 @@ class PitchLetter extends TheoryObject {
       ? PitchLetter.lettersValues[posOfB] - PitchLetter.lettersValues[posOfA]
       : 12 + PitchLetter.lettersValues[posOfB] - PitchLetter.lettersValues[posOfA]
     const alteration = new Alteration(halfStepsFromValues - intervalNumberAsHalfSteps)
-    return new Interval(intervalNumber, alteration)
+    const result = new Interval(intervalNumber, alteration)
+    utils.log('PitchLetter.intervalBetween() -', _a, _b, result)
+    return result
   }
-
-  // [WIP] probably to delete
-  // static sum (_a, _b) {
-  //   const a = new PitchLetter(_a).value
-  //   const b = new PitchLetter(_b).value
-  //   console.log(a, b)
-  //   const newVal = TheoryObject.toX(a + b, PitchLetter.letters.length)
-  //   const pitchLetter = new PitchLetter(newVal)
-  //   return pitchLetter
-  // }
 
   static letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
   static lettersValues = [0, 2, 3, 5, 7, 8, 10]
@@ -180,37 +213,66 @@ class PitchLetter extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class Alteration extends TheoryObject {
   constructor () {
+    utils.log('Alteration.constructor() -', arguments)
     super(...arguments)
-    console.log('Alteration - constructor')
-  }
-
-  get name () {
-    return this.value >= 0
-      ? new Array(this.value).fill('#').join('')
-      : new Array(-1 * this.value).fill('b').join('')
+    utils.log('Alteration.constructor() - constructed -', this.value)
   }
 
   get asHalfSteps () {
+    utils.log('Alteration().asHalfSteps() -', this.value)
     return this.value
   }
 
-  static readProps () {
-    console.log('Alteration - readProps')
-    if (arguments.length === 1) {
-      if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10)
-      if (typeof arguments[0] === 'string') {
-        const flats = arguments[0].length - arguments[0].split('b').join('').length
-        const sharps = arguments[0].length - arguments[0].split('#').join('').length
-        return sharps - flats
-      }
-    }
+  static nameRegexp = /[#b]*/
+  
+  static get defaultValue () {
+    utils.log('Alteration.defaultValue -', 0)
     return 0
+  }
+
+  static nameToValue (name) {
+    if (!this.isNameValid(name)){
+      utils.log('Alteration.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
+    const flats = name.length - name.split('b').join('').length
+    const sharps = name.length - name.split('#').join('').length
+    const value = sharps - flats
+    utils.log('Alteration.nameToValue() -', name, value)
+    return value 
+  }
+  
+  static propsToValue (...props) {
+    if (props.length === 1) {
+      const value = typeof props[0] === 'number'
+        ? parseInt(props[0], 10)
+        : this.defaultValue
+      utils.log('Alteration.propsToValue() -', props, value)
+      return value
+    } else {
+      utils.log('Alteration.propsToValue() -', props, this.defaultValue)
+      return this.defaultValue
+    }
+  }
+
+  static isValueValid (value) {
+    utils.log('Alteration.isValueValid() -', value, true)
+    return true
+  }
+
+  static valueToName (value) {
+    const name = value >= 0
+      ? new Array(value).fill('#').join('')
+      : new Array(-1 * value).fill('b').join('')
+    utils.log('Alteration.valueToName() -', value, name)
+    return name
   }
 
   static intervalBetween (_a, _b) {
     const a = new Alteration(_a).value
     const b = new Alteration(_b).value
     const interval = new Interval(0, b - a)
+    utils.log('Alteration.intervalBetween() -', _a, _b, interval)
     return interval
   }
 
@@ -218,6 +280,7 @@ class Alteration extends TheoryObject {
     const a = new Alteration(_a).value
     const b = new Alteration(_b).value
     const alteration = new Alteration(a + b)
+    utils.log('Alteration.sum() -', _a, _b, alteration)
     return alteration
   }
 }
@@ -232,31 +295,67 @@ class Alteration extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class PitchClass extends TheoryObject {
   constructor () {
+    utils.log('PitchClass.constructor() -', arguments)
     super(...arguments)
-    console.log('PitchClass - constructor')
+    utils.log('PitchClass.constructor() - constructed -', this.value)
   }
 
-  get name () {
-    return `${this.value.alteration.name}${this.value.pitchLetter.name}`
+  static nameRegexp = new RegExp(`${Alteration.nameRegexp.source}${PitchLetter.nameRegexp.source}`)
+  
+  static get defaultValue () {
+    const defaultValue = {
+      pitchLetter: new PitchLetter(),
+      alteration: new Alteration()
+    }
+    utils.log('PitchClass.defaultValue -', defaultValue)
+    return defaultValue
   }
 
-  static readProps () {
-    console.log('PitchClass - readProps')
-    if (arguments.length === 2) {
-      const pitchLetter = new PitchLetter(arguments[0])
-      const alteration = new Alteration(arguments[1])
-      return { pitchLetter, alteration }
-    } else if (arguments.length === 1) {
-      if (typeof arguments[0] === 'string') {
-        const alteration = new Alteration(arguments[0].slice(0, -1))
-        const pitchLetter = new PitchLetter(arguments[0].slice(-1))
-        return { pitchLetter, alteration }
-      }
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) {
+      utils.log('PitchClass.nameToValue() - invalid name -', name, undefined)
+      return undefined
     }
-    return {
-      pitchLetter: new PitchLetter('a'),
-      alteration: new Alteration('')
+    const altRegexp = new RegExp(`^${Alteration.nameRegexp.source}`)
+    const alterationMatch = name.match(altRegexp)
+    const alteration = alterationMatch ? alterationMatch[0] : ''
+    const letterRegexp = new RegExp(`${PitchLetter.nameRegexp.source}$`)
+    const letterMatch = name.slice(alteration.length).match(letterRegexp)
+    const letter = letterMatch ? letterMatch[0] : ''
+    const value = {
+      pitchLetter: new PitchLetter(letter ? letter : 'b'),
+      alteration: new Alteration(letter ? alteration : alteration.slice(0, 1))
     }
+    utils.log('PitchClass.nameToValue() -', name, value)
+    return value
+  }
+
+  static propsToValue (...props) {
+    if (props.length === 2) {
+      const pitchLetter = new PitchLetter(props[0])
+      const alteration = new Alteration(props[1])
+      const value = { pitchLetter, alteration }
+      utils.log('PitchClass.propsToValue() -', props, value)
+      return value
+    } else if (props.length === 1) {
+      const value = this.defaultValue
+      utils.log('PitchClass.propsToValue() -', props, this.defaultValue)
+      return this.defaultValue
+    } else {
+      utils.log('PitchClass.propsToValue() -', props, this.defaultValue)
+      return this.defaultValue
+    }
+  }
+
+  static isValueValid (value) {
+    utils.log('PitchClass.isValueValid() -', value, true)
+    return true
+  }
+
+  static valueToName (value) {
+    const name = `${value.alteration.name}${value.pitchLetter.name}`
+    utils.log('PitchClass.valueToName() -', value, name)
+    return name
   }
 
   static intervalBetween (_a, _b) {
@@ -279,27 +378,37 @@ class PitchClass extends TheoryObject {
 class Octave extends TheoryObject {
   constructor () {
     super(...arguments)
-    console.log('Octave - constructor')
-  }
-
-  get name () {
-    return `${this.value}`
   }
 
   get asHalfSteps () {
     return 12 * this.value
   }
 
-  static readProps () {
-    console.log('Octave - readProps')
-    if (arguments.length === 1) {
-      if (typeof arguments[0] === 'number') return parseInt(arguments[0], 10)
-      if (typeof arguments[0] === 'string') {
-        const parsed = parseInt(arguments[0], 10)
-        return Number.isNaN(parsed) ? 4 : parsed
-      }
+  static nameRegexp = /\^[0-9]+/
+
+  static get defaultValue () { return 4 }
+
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) return undefined
+    const match = name.match(new RegExp(`^${Octave.nameRegexp.source}$`))
+    const strValue = match[0].slice(1)
+    return parseInt(strValue, 10)
+  }
+
+  static propsToValue (...props) {
+    if (props.length === 1) {
+      if (typeof props[0] === 'number') return parseInt(props[0], 10)
+      else return this.defaultValue
     }
-    return 4
+    return this.defaultValue
+  }
+
+  static isValueValid (value) {
+    return true
+  }
+
+  static valueToName (value) {
+    return `^${value}`
   }
 
   static intervalBetween (_a, _b) {
@@ -321,36 +430,51 @@ class Octave extends TheoryObject {
  * PITCH
  * --
  * Value:
- * { class: <PitchClass>, octave: <Octave> }
+ * { pitchClass: <PitchClass>, octave: <Octave> }
  *
  * * * * * * * * * * * * * * * * * * * * * * * */
 class Pitch extends TheoryObject {
   constructor () {
     super(...arguments)
-    console.log('Pitch - constructor')
   }
 
-  get name () {
-    return `${this.value.pitchClass.name}${this.value.octave.value}`
-  }
+  static nameRegexp = new RegExp(`${PitchClass.nameRegexp.source}(${Octave.nameRegexp.source})?`)
 
-  static readProps () {
-    console.log('Pitch - readProps')
-    if (arguments.length === 2) {
-      const pitchClass = new PitchClass(arguments[0])
-      const octave = new Octave(arguments[1])
-      return { pitchClass, octave }
-    } else if (arguments.length === 1) {
-      if (typeof arguments[0] === 'string') {
-        const octaveMatch = arguments[0].match(/[0-9]+$/)
-        const octave = octaveMatch ? new Octave(octaveMatch[0]) : new Octave()
-        const octaveStrIndex = octaveMatch ? octaveMatch.index : arguments[0].length
-        const propsWithoutOctave = arguments[0].slice(0, octaveStrIndex)
-        const pitchClass = new PitchClass(propsWithoutOctave)
-        return { pitchClass, octave }
-      }
+  static get defaultValue () {
+    return {
+      pitchClass: new PitchClass(),
+      octave: new Octave()
     }
-    return { pitchClass: new PitchClass(), octave: new Octave() }
+  }
+  
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) return undefined
+    const pitchClassMatch = name.match(new RegExp(`^${PitchClass.nameRegexp.source}`))
+    const octaveMatch = name.match(new RegExp(`${Octave.nameRegexp.source}$`))
+    const pitchClassMatched = pitchClassMatch ? pitchClassMatch[0] : undefined
+    const octaveMatched = octaveMatch ? octaveMatch[0] : undefined
+    const pitchClass = new PitchClass(pitchClassMatched)
+    const octave = new Octave(octaveMatched)
+    return { pitchClass, octave }
+  }
+
+  static propsToValue (...props) {
+    if (props.length === 2) {
+      const pitchClass = new PitchClass(props[0])
+      const octave = new Octave(props[1])
+      return { pitchClass, octave }
+    } else if (props.length === 1) {
+      return this.defaultValue
+    }
+    return this.defaultValue
+  }
+
+  static isValueValid (value) {
+    return true
+  }
+
+  static valueToName (value) {
+    return `${value.pitchClass.name}${value.octave.name}`
   }
 
   static intervalBetween (_a, _b) {
@@ -373,13 +497,6 @@ class Pitch extends TheoryObject {
 class IntervalNumber extends TheoryObject {
   constructor () {
     super(...arguments)
-    console.log('IntervalNumber - constructor')
-  }
-
-  get name () {
-    return this.value >= 0
-      ? `${this.value + 1}`
-      : `${this.value - 1}`
   }
 
   get asHalfSteps () {
@@ -390,17 +507,33 @@ class IntervalNumber extends TheoryObject {
       : loops * -12 - IntervalNumber.numbersToHalfSteps[normalizedValue]
   }
 
-  static readProps () {
-    console.log('IntervalNumber - readProps')
-    if (arguments.length === 1) {
-      if (typeof arguments[0] === 'string') {
-        const parsed = parseInt(arguments[0], 10)
-        return parsed > 0 ? parsed - 1 : parsed === 0 ? parsed : parsed + 1
-      } else if (typeof arguments[0] === 'number') {
-        return arguments[0]
-      }
+  static nameRegexp = /-?[0-9]+/
+
+  static get defaultValue () { return 0 }
+  
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) return undefined
+    const parsed = parseInt(name, 10)
+    const value = parsed > 0 ? parsed - 1 : parsed === 0 ? parsed : parsed + 1
+    return value
+  }
+
+  static propsToValue (...props) {
+    if (props.length === 1) {
+      if (typeof props[0] === 'number') return parseInt(props[0], 10)
+      else return this.defaultValue
     }
-    return 0
+    return this.defaultValue
+  }
+
+  static isValueValid (value) {
+    return true
+  }
+
+  static valueToName (value) {
+    return value >= 0
+      ? `${value + 1}`
+      : `${value - 1}`
   }
 
   static sum (_a, _b) {
@@ -432,48 +565,64 @@ class IntervalNumber extends TheoryObject {
 class Interval extends TheoryObject {
   constructor () {
     super(...arguments)
-    console.log('Interval - constructor')
-  }
-
-  get name () {
-    return `${this.value.alteration.name}${this.value.intervalNumber.name}`
   }
 
   get asHalfSteps () {
     return this.value.intervalNumber.asHalfSteps + this.value.alteration.asHalfSteps
   }
 
-  static readProps () {
-    console.log('Interval - readProps')
-    if (arguments.length === 2) {
-      const intervalNumber = new IntervalNumber(arguments[0])
-      const alteration = new Alteration(arguments[1])
+  static nameRegexp = new RegExp(`${Alteration.nameRegexp.source}${IntervalNumber.nameRegexp.source}`)
+
+  static get defaultValue () {
+    return {
+      intervalNumber: new IntervalNumber(),
+      alteration: new Alteration()
+    }
+  }
+  
+  static nameToValue (name) {
+    if (!this.isNameValid(name)) return undefined
+    const alterationMatch = name.match(new RegExp(`^${Alteration.nameRegexp.source}`))
+    const intervalNumberMatch = name.match(new RegExp(`${IntervalNumber.nameRegexp.source}$`))
+    const alterationMatched = alterationMatch ? alterationMatch[0] : undefined
+    const intervalNumberMatched = intervalNumberMatch ? intervalNumberMatch[0] : undefined
+    const alteration = new Alteration(alterationMatched)
+    const intervalNumber = new IntervalNumber(intervalNumberMatched)
+    return { alteration, intervalNumber }
+  }
+
+  static propsToValue (...props) {
+    if (props.length === 2) {
+      const intervalNumber = new IntervalNumber(props[0])
+      const alteration = new Alteration(props[1])
       return { intervalNumber, alteration }
-    } else if (arguments.length === 1) {
-      if (typeof arguments[0] === 'string') {
-        const alterationMatch = arguments[0].match(/^[#|b]*/)
-        const alteration = new Alteration(alterationMatch[0])
-        const intervalNumber = new IntervalNumber(arguments[0].replace(alterationMatch[0], ''))
-        return { intervalNumber, alteration }
-      } else if (typeof arguments[0] === 'number') {
-        const loops = Math.floor(Math.abs(arguments[0]) / 12)
-        const normalizedValue = Math.abs(arguments[0] % 12)
+    } else if (props.length === 1) {
+      if (typeof props[0] === 'number') {
+        const loops = Math.floor(Math.abs(props[0]) / 12)
+        const normalizedValue = Math.abs(props[0] % 12)
         const intervalName = Interval.halfStepsToIntervalName[normalizedValue]
         const alterationMatch = intervalName.match(/^[#|b]*/)
         const alteration = new Alteration(alterationMatch[0])
         const intervalNumber = new IntervalNumber(intervalName.replace(alterationMatch[0], ''))
         intervalNumber.value += loops * 7
-        if (arguments[0] < 0) {
+        if (props[0] < 0) {
           intervalNumber.value *= - 1
           alteration.value *= - 1
         }
         return { intervalNumber, alteration }
+      } else {
+        return this.defaultValue
       }
     }
-    return {
-      intervalNumber: new IntervalNumber(0),
-      alteration: new Alteration()
-    }
+    return this.defaultValue
+  }
+
+  static isValueValid (value) {
+    return true
+  }
+
+  static valueToName (value) {
+    return `${value.alteration.name}${value.intervalNumber.name}`
   }
 
   static intervalBetween (_a, _b) {
@@ -525,15 +674,25 @@ class Interval extends TheoryObject {
 class Scale extends TheoryObject {
   constructor () {
     super(...arguments)
-    console.log('Scale - constructor')
   }
 
-  get lol () {
-    return this.value.map(e => e.name).join(',')
-  }
+  static romanNumeralRegexp = /([IVXLCDM]+|[ivxlcdm]+)/;
+  static scaleNameRegexp = /(major|minor|mixolydian|phrygian)/;
+  static qualityRegexp = /(m|M|sus24|sus2|sus4|dim7|dim|aug|7|M7)/;
+  static modifierRegexp = Interval.nameRegexp;
+  static addFunctionParametersRegexp = new RegExp(`(${Interval.nameRegexp.source})(,(${Interval.nameRegexp.source}))*`);
+  static noFunctionParametersRegexp = new RegExp(`(${Interval.nameRegexp.source})(,(${Interval.nameRegexp.source}))*`);
+  static functionRegexp = new RegExp(`(add\((${this.addFunctionParametersRegexp.source})\)|no\((${this.noFunctionParametersRegexp.source})\))`);
+  static pitchClassRegexp = PitchClass.nameRegexp;
+  static localScaleIntervalRegexp = Interval.nameRegexp;
+  static contextScaleIntervalRegexp = new RegExp(`{(${Interval.nameRegexp.source})}`);
+  static localScaleStepRegexp = new RegExp(`{{(${IntervalNumber.nameRegexp.source})}}`);
+  static contextScaleStepRegexp = new RegExp(`{{{(${IntervalNumber.nameRegexp.source})}}}`);
+  static inversionRegexp = new RegExp(`\/((${this.pitchClassRegexp.source})|(${this.localScaleIntervalRegexp.source})|(${this.contextScaleIntervalRegexp.source})|(${this.localScaleStepRegexp.source})|(${this.contextScaleStepRegexp.source}))`);
+  static shifterRegexp = new RegExp(`\|((${this.romanNumeralRegexp})|(${this.pitchClassRegexp.source})|(${this.contextScaleIntervalRegexp.source})|(${this.localScaleStepRegexp.source}))`);
+  static nameRegexp = new RegExp(`^(${this.romanNumeralRegexp.source},?)?(((${this.scaleNameRegexp.source})|(${this.qualityRegexp.source})|(${this.modifierRegexp.source})|(${this.functionRegexp.source})),?)*(${this.inversionRegexp})?(${this.shifterRegexp})?$`)
 
   static readProps () {
-    console.log('Scale - readProps')
     if (arguments.length === 1) {
       if (Array.isArray(arguments[0])) {
         return arguments[0].map(e => new Interval(e))
@@ -542,11 +701,11 @@ class Scale extends TheoryObject {
         const completion = '000000000000'
         const binary = (rawBinary + completion.slice(rawBinary.length)).slice(0, 12)
         const pattern = binary.replace(/1/igm, 'x').replace(/0/igm, '-')
-        return Scale.fromPattern(pattern)
+        return this.fromPattern(pattern)
       } else if (typeof arguments[0] === 'string' && arguments[0].match(/^[x-]+$/igm)) {
-        return Scale.fromPattern(arguments[0])
+        return this.fromPattern(arguments[0])
       } else if (typeof arguments[0] === 'string') {
-        return Scale.fromName(arguments[0])
+        return this.fromName(arguments[0])
       }
     }
     return ['1', '2', '3', '4', '5', '6', '7'].map(e => new Interval(e))
@@ -560,7 +719,7 @@ class Scale extends TheoryObject {
 
     // Transform number into interval, assign a slot to it
     const rawIntervals = numbersList.map(number => new Interval(number))
-    const intervals = Scale.allocateIntervals(rawIntervals, pattern.length - 1)
+    const intervals = this.allocateIntervals(rawIntervals, pattern.length - 1)
     return intervals
   }
 
@@ -655,6 +814,67 @@ class Scale extends TheoryObject {
     return result
   }
 }
+
+/*
+
+Key = C major
+
+Accord / note - D/A
+Accord / intervalle dans l'accord - D/5
+Accord / intervalle de scale - D/{6}
+Accord / position de note dans l'accord - D/{{3}}
+
+Accord relatif / intervalle dans l'accord - II/5
+Accord relatif / intervalle de scale - II/{6}
+Accord relatif / position de note dans l'accord - II/{{3}}
+
+V/5|5 —> V = G —> V/5 = G/D —> V/5|5 —> D/A
+V/{6}|{6} —> V = G —> V/{2} = G/D —> V/{2}|{6} = D/A
+V/{{3}}|{{3}} —> V = G -> V/{{3}} = G/D -> V/{{3}}|{{3}} = A/E (impossible d'obtenir D/A dans cette forme)
+
+
+const romanNumeralRegexp = /([IVXLCDM]+|[ivxlcdm]+)/
+const scaleNameRegexp = /(major|minor|mixolydian|phrygian)/
+const qualityRegexp = /(m|M|sus24|sus2|sus4|dim7|dim|aug|7|M7)/
+const modifierRegexp = any interval —> Add or move
+
+const addFunctionParametersRegexp = `(${Interval.nameRegexp.source})(,(${Interval.nameRegexp.source}))*`
+const noFunctionParametersRegexp = `(${Interval.nameRegexp.source})(,(${Interval.nameRegexp.source}))*`
+
+const functionRegexp = /(add\((${addFunctionParamsRegexp.source})\)|no\((${noFunctionParamsRegexp.source})\))/
+
+const pitchClassRegexp = `${PitchClass.nameRegexp.source}`
+const contextScaleIntervalRegexp = `{(${Interval.nameRegexp.source})}`
+const localScaleStepRegexp = `{{(IntervalNumber.nameRegexp.source)}}`
+const inversionRegexp = /\/((${pitchClassRegexp.source})|(${contextScaleIntervalRegexp.source})|(${localScaleStepRegexp.source}))/
+const shifterRegexp = /|((${romanNumeralRegexp})|(${pitchClassRegexp.source})|(${contextScaleIntervalRegexp.source})|(${localScaleStepRegexp.source}))/
+
+/4 —> 4,5,8,10
+
+m/4 —> 4,5,8,b10
+
+m/4|4 —> 4,5,8,b10 —> b7,8,11,13
+
+---
+romanNumeral 
+scaleName | qualityRegexp | modifierRegexp | functionRegexp
+inversionRegexp
+shifterRegexp
+---
+
+const scaleNameRegexp = /
+  ((${romanNumeralRegexp.source}(,)?)?
+  ((${scaleNameRegexp.source}|${qualityRegexp.source}|${modifierRegexp.source}|${functionRegexp.source})(,)?)*
+  (${inversionRegexp})?
+  (${shifterRegexp})?
+/
+
+
+
+
+
+*/
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * 
  *
@@ -833,6 +1053,62 @@ class Scale extends TheoryObject {
 --- 7
 --- M7
 dim7
+
+
+m
+M
+sus2
+sus4
+sus24
+dim
+dim7
+aug
+
+b2
+2
+#2
+... any interval name
+
+add(<In>)
+
+
+7
+M7
+
+
+Altered roman - /[#b]* / i,ii,iii,iv,v,vi,vii
+
+
+I
+II
+III
+IV
+V
+VI
+VII
+VIII
+IX
+X
+XI
+XII
+XIII
+XIV
+XV
+XVI
+XVII
+XVIII
+XIX
+
+units = /I{1,3}/
+
+
+
+
+
+
+m,sus4,sus2,M7,dim,dim7,#5,
+
+
 
 
 */
