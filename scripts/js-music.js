@@ -5,6 +5,12 @@ const utils = {
   log: function (...params) {
     utils.log_cnt++
     console.log(utils.log_cnt, ...params)
+  },
+  info: function (...params) {
+    console.info(...params)
+  },
+  error: function (...params) {
+    console.error(...params)
   }
 }
 
@@ -15,16 +21,16 @@ const utils = {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class TheoryObject {
   constructor () {
-    utils.log('TheoryObject.constructor() -', arguments)
+    utils.log(`${this.constructor.name}.__proto__.constructor() -`, arguments)
     this._id = new Array(4).fill(0).map(e => Math.random().toString(36).slice(2)).join('-')
     this._value = undefined
     this._value_history = []
     this.init(...arguments)
-    utils.log('TheoryObject.constructor() - constructed', this._value)
+    utils.log(`${this.constructor.name}.__proto__.constructor() - constructed`, this._value)
   }
 
   init () {
-    utils.log('TheoryObject().init()', arguments)
+    utils.log(`${this.constructor.name}().__proto__.init()`, arguments)
     if (arguments.length === 0) this.value = this.constructor.defaultValue    
     else if (arguments.length === 1 && (arguments[0] === null || arguments[0] === undefined)) this.value = this.constructor.defaultValue
     else if (arguments.length === 1 && arguments[0].constructor === this.constructor) this.value = arguments[0]._.value
@@ -34,84 +40,88 @@ class TheoryObject {
   }
 
   get value () {
-    utils.log('TheoryObject().value - GET -', this._value)
+    utils.log(`${this.constructor.name}().__proto__.value - GET -`, this._value)
     return this._value
   }
 
   set value (value) {
     if (!this.constructor.isValueValid(value)) {
-      utils.log('TheoryObject().value - SET - invalid value -', value)
+      utils.log(`${this.constructor.name}().__proto__.value - SET - invalid value -`, value)
       return
     }
     this._value_history.push({ value, timestamp: Date.now() })
     this._value = value
-    utils.log('TheoryObject().value - SET - set value -', value)
+    utils.log(`${this.constructor.name}().__proto__.value - SET -`, value)
   }
 
   get name () {
     const name = this.constructor.valueToName(this.value)
-    utils.log('TheoryObject().name - GET', name)
+    utils.log(`${this.constructor.name}().__proto__.name - GET`, name)
     return this.constructor.valueToName(this.value)
   }
 
   set name (name) {
     if (!this.constructor.isNameValid(name)) {
-      utils.log('TheoryObject().name - SET - invalid name -', name)
+      utils.log(`${this.constructor.name}().__proto__.name - SET - invalid name -`, name)
       return
     }
     const newVal = this.constructor.nameToValue(name)
     this.value = newVal
-    utils.log('TheoryObject().name - SET - set name -', name)
+    utils.log(`${this.constructor.name}().__proto__.name - SET -`, name)
   }
 
   get _ () {
     const copy = new this.constructor(this.name)
-    utils.log('TheoryObject()._ - GET -', copy)
+    utils.log(`${this.constructor.name}().__proto__._ - GET -`, copy)
     return copy
   }
 
-  static nameRegexp = /^$/
+  static get nameRegexp () {
+    const regexp = /^$/
+    utils.log(`${this.constructor.name}().__proto__.nameRegexp - GET -`, regexp)
+    return regexp
+  }
 
   static get defaultValue () {
-    utils.log('TheoryObject.defaultValue - GET - set name', null)
+    utils.log(`${this.constructor.name}.__proto__.defaultValue - GET -`, null)
     return null
   }
   
   static isNameValid (name) {
     if (typeof name !== 'string') {
-      utils.log('TheoryObject.isNameValid() -', name, false)
+      utils.log(`${this.constructor.name}.__proto__.isNameValid() -`, name, false)
       return false
     }
     const match = name.match(new RegExp(`^${this.nameRegexp.source}$`))
     const result = match ? true : false
-    utils.log('TheoryObject.isNameValid() -', name, result)
+    utils.log(`${this.constructor.name}.__proto__.isNameValid() -`, name, result)
     return result
   }
   
   static nameToValue (name) {
-    utils.log('TheoryObject.nameToValue() -', name, null)
+    utils.log(`${this.constructor.name}.__proto__.nameToValue() -`, name, null)
     return null
   }
   
   static propsToValue (props) {
-    utils.log('TheoryObject.propsToValue() -', props, null)
+    utils.log(`${this.constructor.name}.__proto__.propsToValue() -`, props, null)
     return null
   }
   
   static isValueValid (value) {
-    utils.log('TheoryObject.isValueValid() -', value, value === null)
+    utils.log(`${this.constructor.name}.__proto__.isValueValid() -`, value, value === null)
     return value === null
   }
 
   static valueToName (value) {
-    utils.log('TheoryObject.valueToName() -', value, '')
+    utils.log(`${this.constructor.name}.__proto__.valueToName() -`, value, '')
     return ''
   }
 
   static toX (val, x) {
     const mod = val % x
     const result = mod < 0 ? (mod + x) : mod
-    utils.log('TheoryObject.toX() -', val, x, result)
+    utils.log(`${this.constructor.name}.__proto__.toX() -`, val, x, result)
     return result
   }
 }
@@ -131,7 +141,11 @@ class PitchLetter extends TheoryObject {
     utils.log('PitchLetter.constructor() - constructed -', this.value)
   }
 
-  static nameRegexp = /[abcdefg]/
+  static get nameRegexp () {
+    const regexp = /[abcdefg]/
+    utils.log('PitchLetter.defaultValue -', /[abcdefg]/)
+    return regexp
+  }
   
   static get defaultValue () {
     utils.log('PitchLetter.defaultValue -', 0)
@@ -150,17 +164,18 @@ class PitchLetter extends TheoryObject {
   }
   
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 1) {
       if (typeof props[0] === 'number') {
         const result = TheoryObject.toX(parseInt(props[0], 10), PitchLetter.letters.length)
         utils.log('PitchLetter.propsToValue() -', props, result)
         return result
       }
-      utils.log('PitchLetter.propsToValue() -', props, this.defaultValue)
-      return this.defaultValue
+      utils.log('PitchLetter.propsToValue() -', props, defaultValue)
+      return defaultValue
     } else {
-      utils.log('PitchLetter.propsToValue() -', props, this.defaultValue)
-      return this.defaultValue
+      utils.log('PitchLetter.propsToValue() -', props, defaultValue)
+      return defaultValue
     }
   }
 
@@ -199,8 +214,16 @@ class PitchLetter extends TheoryObject {
     return result
   }
 
-  static letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-  static lettersValues = [0, 2, 3, 5, 7, 8, 10]
+  static get letters () {
+    const result = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    utils.log('PitchLetter.letters - GET -', result)
+    return result
+  }
+  static get lettersValues () {
+    const result = [0, 2, 3, 5, 7, 8, 10]
+    utils.log('PitchLetter.lettersValues - GET -', result)
+    return result
+  }
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * 
@@ -223,7 +246,11 @@ class Alteration extends TheoryObject {
     return this.value
   }
 
-  static nameRegexp = /[#b]*/
+  static get nameRegexp () { 
+    const regexp = /[#b]*/
+    utils.log('Alteration().nameRegexp - GET -', regexp)
+    return regexp
+  }
   
   static get defaultValue () {
     utils.log('Alteration.defaultValue -', 0)
@@ -243,15 +270,16 @@ class Alteration extends TheoryObject {
   }
   
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 1) {
       const value = typeof props[0] === 'number'
         ? parseInt(props[0], 10)
-        : this.defaultValue
+        : defaultValue
       utils.log('Alteration.propsToValue() -', props, value)
       return value
     } else {
-      utils.log('Alteration.propsToValue() -', props, this.defaultValue)
-      return this.defaultValue
+      utils.log('Alteration.propsToValue() -', props, defaultValue)
+      return defaultValue
     }
   }
 
@@ -300,7 +328,11 @@ class PitchClass extends TheoryObject {
     utils.log('PitchClass.constructor() - constructed -', this.value)
   }
 
-  static nameRegexp = new RegExp(`${Alteration.nameRegexp.source}${PitchLetter.nameRegexp.source}`)
+  static get nameRegexp () {
+    const regexp = new RegExp(`${Alteration.nameRegexp.source}${PitchLetter.nameRegexp.source}`)
+    utils.log('PitchClass().nameRegexp - GET -', regexp)
+    return regexp
+  }
   
   static get defaultValue () {
     const defaultValue = {
@@ -331,6 +363,7 @@ class PitchClass extends TheoryObject {
   }
 
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 2) {
       const pitchLetter = new PitchLetter(props[0])
       const alteration = new Alteration(props[1])
@@ -338,12 +371,11 @@ class PitchClass extends TheoryObject {
       utils.log('PitchClass.propsToValue() -', props, value)
       return value
     } else if (props.length === 1) {
-      const value = this.defaultValue
-      utils.log('PitchClass.propsToValue() -', props, this.defaultValue)
-      return this.defaultValue
+      utils.log('PitchClass.propsToValue() -', props, defaultValue)
+      return defaultValue
     } else {
-      utils.log('PitchClass.propsToValue() -', props, this.defaultValue)
-      return this.defaultValue
+      utils.log('PitchClass.propsToValue() -', props, defaultValue)
+      return defaultValue
     }
   }
 
@@ -363,7 +395,9 @@ class PitchClass extends TheoryObject {
     const b = new PitchClass(_b).value
     const pitchLetterInterval = PitchLetter.intervalBetween(a.pitchLetter, b.pitchLetter)
     const alterationInterval = Alteration.intervalBetween(a.alteration, b.alteration)
-    return Interval.sum(pitchLetterInterval, alterationInterval)
+    const interval = Interval.sum(pitchLetterInterval, alterationInterval)
+    utils.log('PitchClass.intervalBetween() -', _a, _b, interval)
+    return interval
   }
 }
 
@@ -377,50 +411,81 @@ class PitchClass extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class Octave extends TheoryObject {
   constructor () {
+    utils.log('Octave.constructor() -', arguments)
     super(...arguments)
+    utils.log('Octave.constructor() - constructed -', this.value)
   }
 
   get asHalfSteps () {
-    return 12 * this.value
+    const halfSteps = 12 * this.value
+    utils.log('Octave().asHalfSteps - GET -', halfSteps)
+    return halfSteps
   }
 
-  static nameRegexp = /\^[0-9]+/
+  static get nameRegexp () {
+    const regexp = /\^[0-9]+/
+    utils.log('Octave.nameRegexp - GET -', regexp)
+    return regexp
+  }
 
-  static get defaultValue () { return 4 }
+  static get defaultValue () {
+    const value = 4
+    utils.log('Octave.defaultValue - GET -', value)
+    return 4
+  }
 
   static nameToValue (name) {
-    if (!this.isNameValid(name)) return undefined
+    if (!this.isNameValid(name)) {
+      utils.log('Octave.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
     const match = name.match(new RegExp(`^${Octave.nameRegexp.source}$`))
     const strValue = match[0].slice(1)
-    return parseInt(strValue, 10)
+    const value = parseInt(strValue, 10)
+    utils.log('Octave.nameToValue() -', name, value)
+    return value
   }
 
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 1) {
-      if (typeof props[0] === 'number') return parseInt(props[0], 10)
-      else return this.defaultValue
+      if (typeof props[0] === 'number') {
+        const value = parseInt(props[0], 10)
+        utils.log('Octave.propsToValue() -', props, value)
+        return value
+      } else {
+        utils.log('Octave.propsToValue() -', props, defaultValue)
+        return defaultValue
+      }
     }
-    return this.defaultValue
+    utils.log('Octave.propsToValue() -', props, defaultValue)
+    return defaultValue
   }
 
   static isValueValid (value) {
+    utils.log('Octave.isValueValid() -', value, true)
     return true
   }
 
   static valueToName (value) {
-    return `^${value}`
+    const name = `^${value}`
+    utils.log('Octave.valueToName() -', value, name)
+    return name
   }
 
   static intervalBetween (_a, _b) {
     const a = new Octave(_a)
     const b = new Octave(_b)
-    return new Interval(12 * (b.value - a.value))
+    const interval = new Interval(12 * (b.value - a.value))
+    utils.log('Octave.intervalBetween() -', _a, _b, interval)
+    return interval
   }
 
   static sum (_a, _b) {
     const a = new Octave(_a).value
     const b = new Octave(_b).value
     const octave = new Octave(a + b)
+    utils.log('Octave.sum() -', _a, _b, octave)
     return octave
   }
 }
@@ -435,46 +500,64 @@ class Octave extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class Pitch extends TheoryObject {
   constructor () {
+    utils.log('Pitch.constructor() -', arguments)
     super(...arguments)
+    utils.log('Pitch.constructor() - constructed -', this.value)
   }
 
-  static nameRegexp = new RegExp(`${PitchClass.nameRegexp.source}(${Octave.nameRegexp.source})?`)
+  static get nameRegexp () {
+    const regexp = new RegExp(`${PitchClass.nameRegexp.source}(${Octave.nameRegexp.source})?`)
+    utils.log('Pitch.nameRegexp - GET -', regexp)
+    return regexp
+  }
 
   static get defaultValue () {
-    return {
-      pitchClass: new PitchClass(),
-      octave: new Octave()
-    }
+    const value = { pitchClass: new PitchClass(), octave: new Octave() }
+    utils.log('Pitch.defaultValue - GET -', value)
+    return value
   }
   
   static nameToValue (name) {
-    if (!this.isNameValid(name)) return undefined
+    if (!this.isNameValid(name)) {
+      utils.log('Pitch.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
     const pitchClassMatch = name.match(new RegExp(`^${PitchClass.nameRegexp.source}`))
     const octaveMatch = name.match(new RegExp(`${Octave.nameRegexp.source}$`))
     const pitchClassMatched = pitchClassMatch ? pitchClassMatch[0] : undefined
     const octaveMatched = octaveMatch ? octaveMatch[0] : undefined
     const pitchClass = new PitchClass(pitchClassMatched)
     const octave = new Octave(octaveMatched)
-    return { pitchClass, octave }
+    const value = { pitchClass, octave }
+    utils.log('Pitch.nameToValue() -', name, value)
+    return value
   }
 
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 2) {
       const pitchClass = new PitchClass(props[0])
       const octave = new Octave(props[1])
-      return { pitchClass, octave }
+      const value = { pitchClass, octave }
+      utils.log('Pitch.propsToValue() -', props, value)
+      return value
     } else if (props.length === 1) {
-      return this.defaultValue
+      utils.log('Pitch.propsToValue() -', props, defaultValue)
+      return defaultValue
     }
-    return this.defaultValue
+    utils.log('Pitch.propsToValue() -', props, defaultValue)
+    return defaultValue
   }
 
   static isValueValid (value) {
+    utils.log('Pitch.isValueValid() -', value, true)
     return true
   }
 
   static valueToName (value) {
-    return `${value.pitchClass.name}${value.octave.name}`
+    const name = `${value.pitchClass.name}${value.octave.name}`
+    utils.log('Pitch.valueToName() -', value, name)
+    return name
   }
 
   static intervalBetween (_a, _b) {
@@ -482,7 +565,9 @@ class Pitch extends TheoryObject {
     const b = new Pitch(_b)
     const betweenClasses = PitchClass.intervalBetween(a.value.pitchClass, b.value.pitchClass)
     const betweenOctaves = Octave.intervalBetween(a.value.octave, b.value.octave)
-    return Interval.sum(betweenClasses, betweenOctaves)
+    const interval = Interval.sum(betweenClasses, betweenOctaves)
+    utils.log('Pitch.intervalBetween() -', _a, _b, interval)
+    return interval
   }
 }
 
@@ -496,50 +581,77 @@ class Pitch extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class IntervalNumber extends TheoryObject {
   constructor () {
+    utils.log('IntervalNumber.constructor() -', arguments)
     super(...arguments)
+    utils.log('IntervalNumber.constructor() - constructed -', this.value)
   }
 
   get asHalfSteps () {
     const loops = Math.floor(Math.abs(this.value) / 7)
     const normalizedValue = Math.abs(this.value % 7)
-    return this.value >= 0
+    const halfSteps = this.value >= 0
       ? loops * 12 + IntervalNumber.numbersToHalfSteps[normalizedValue]
       : loops * -12 - IntervalNumber.numbersToHalfSteps[normalizedValue]
+    utils.log('IntervalNumber().asHalfSteps - GET -', halfSteps)
+    return halfSteps
   }
 
-  static nameRegexp = /-?[0-9]+/
+  static get nameRegexp () {
+    const regexp = /-?[0-9]+/
+    utils.log('IntervalNumber.nameRegexp - GET -', regexp)
+    return regexp
+  }
 
-  static get defaultValue () { return 0 }
+  static get defaultValue () {
+    utils.log('IntervalNumber.defaultValue - GET -', 0)
+    return 0
+  }
   
   static nameToValue (name) {
-    if (!this.isNameValid(name)) return undefined
+    if (!this.isNameValid(name)) {
+      utils.log('IntervalNumber.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
     const parsed = parseInt(name, 10)
     const value = parsed > 0 ? parsed - 1 : parsed === 0 ? parsed : parsed + 1
+    utils.log('IntervalNumber.nameToValue() -', name, value)
     return value
   }
 
   static propsToValue (...props) {
+    const defaultValue = this.defaultValue
     if (props.length === 1) {
-      if (typeof props[0] === 'number') return parseInt(props[0], 10)
-      else return this.defaultValue
+      if (typeof props[0] === 'number') {
+        const value = parseInt(props[0], 10)
+        utils.log('IntervalNumber.propsToValue() -', props, value)
+        return value
+      } else {
+        utils.log('IntervalNumber.propsToValue() -', props, defaultValue)
+        return defaultValue
+      }
     }
-    return this.defaultValue
+    utils.log('IntervalNumber.propsToValue() -', props, defaultValue)
+    return defaultValue
   }
 
   static isValueValid (value) {
+    utils.log('IntervalNumber.isValueValid() -', value, true)
     return true
   }
 
   static valueToName (value) {
-    return value >= 0
+    const name = value >= 0
       ? `${value + 1}`
       : `${value - 1}`
+    utils.log('IntervalNumber.valueToName() -', value, name)
+    return name
   }
 
   static sum (_a, _b) {
     const a = new IntervalNumber(_a)
     const b = new IntervalNumber(_b)
     const intervalNumber = new IntervalNumber(a.value + b.value)
+    utils.log('IntervalNumber.sum() -', _a, _b, intervalNumber)
     return intervalNumber
   }
 
@@ -548,6 +660,7 @@ class IntervalNumber extends TheoryObject {
     const b = new IntervalNumber(_b)
     const diff = b.value - a.value
     const interval = new Interval(diff, 0)
+    utils.log('IntervalNumber.intervalBetween() -', _a, _b, interval)
     return interval
   }
 
@@ -564,31 +677,46 @@ class IntervalNumber extends TheoryObject {
  * * * * * * * * * * * * * * * * * * * * * * * */
 class Interval extends TheoryObject {
   constructor () {
+    utils.log('Interval.constructor() -', arguments)
     super(...arguments)
+    utils.log('Interval.constructor() - constructed -', this.value)
   }
 
   get asHalfSteps () {
-    return this.value.intervalNumber.asHalfSteps + this.value.alteration.asHalfSteps
+    const halfSteps = this.value.intervalNumber.asHalfSteps + this.value.alteration.asHalfSteps
+    utils.log('Interval().asHalfSteps - GET -', halfSteps)
+    return halfSteps
   }
 
-  static nameRegexp = new RegExp(`${Alteration.nameRegexp.source}${IntervalNumber.nameRegexp.source}`)
+  static get nameRegexp () {
+    const regexp = new RegExp(`${Alteration.nameRegexp.source}${IntervalNumber.nameRegexp.source}`)
+    utils.log('Interval.nameRegexp - GET -', regexp)
+    return regexp
+  }
 
   static get defaultValue () {
-    return {
+    const value = {
       intervalNumber: new IntervalNumber(),
       alteration: new Alteration()
     }
+    utils.log('IntervalNumber.defaultValue - GET -', value)
+    return value
   }
   
   static nameToValue (name) {
-    if (!this.isNameValid(name)) return undefined
+    if (!this.isNameValid(name)) {
+      utils.log('Interval.nameToValue() - invalid name -', name, undefined)
+      return undefined
+    }
     const alterationMatch = name.match(new RegExp(`^${Alteration.nameRegexp.source}`))
     const intervalNumberMatch = name.match(new RegExp(`${IntervalNumber.nameRegexp.source}$`))
     const alterationMatched = alterationMatch ? alterationMatch[0] : undefined
     const intervalNumberMatched = intervalNumberMatch ? intervalNumberMatch[0] : undefined
     const alteration = new Alteration(alterationMatched)
     const intervalNumber = new IntervalNumber(intervalNumberMatched)
-    return { alteration, intervalNumber }
+    const value = { alteration, intervalNumber }
+    utils.log('Interval.nameToValue() -', name, value)
+    return value
   }
 
   static propsToValue (...props) {

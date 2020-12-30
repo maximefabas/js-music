@@ -132,5 +132,5 @@ const tests = [
 ]
 
 tests.forEach((test, i) => test
-  ? console.info('test', i + 1, 'success')
-  : console.error('test', i + 1, 'failed'))
+  ? utils.info('test', i + 1, 'success')
+  : utils.error('test', i + 1, 'failed'))
