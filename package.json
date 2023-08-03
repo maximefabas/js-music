@@ -1,0 +1,23 @@
+{
+  "devDependencies": {
+    "esbuild": "^0.18.17",
+    "typescript": "^5.1.6"
+  },
+  "name": "js-music",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --watch --minify"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maximefabas/js-music.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/maximefabas/js-music/issues"
+  },
+  "homepage": "https://github.com/maximefabas/js-music#readme",
+  "description": ""
+}
