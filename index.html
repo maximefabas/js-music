@@ -66,19 +66,47 @@
       /* SimpleInterval */
       console.log('-- SimpleInterval --')
       assert('SimpleInterval with value 3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 3, alteration: -2 }) === 'ßß4')
-      assert('SimpleInterval with value -3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: -3, alteration: -2 }) === 'ßß4')
-      assert('SimpleInterval with value 55/4 name is ####56', m.simpleIntervalValueToName({ simpleIntervalClass: 55, alteration: 4 }) === '####56')
+      assert('SimpleInterval with value -3/-2 name is ßß5', m.simpleIntervalValueToName({ simpleIntervalClass: -3, alteration: -2 }) === 'ßß5')
+      assert('SimpleInterval with value 55/4 name is ####7', m.simpleIntervalValueToName({ simpleIntervalClass: 55, alteration: 4 }) === '####7')
       assert('SimpleInterval with name ß7 has value 6/-1', () => {
         const { simpleIntervalClass, alteration } = m.simpleIntervalNameToValue('ß7')
         return simpleIntervalClass === 6 && alteration === -1
       })
-      assert('SimpleIntervalClass of 0 inversion is 7', m.simpleIntervalClassInvert(0) === 7)
-      assert('SimpleIntervalClass of 7 inversion is 0', m.simpleIntervalClassInvert(7) === 0)
-      assert('SimpleIntervalClass of 8 inversion is -1', m.simpleIntervalClassInvert(8) === -1)
-      assert('SimpleIntervalClass of 0 is 0 semitones', m.simpleIntervalClassToSemitones(0) === 0)
-      assert('SimpleIntervalClass of 6 is 11 semitones', m.simpleIntervalClassToSemitones(6) === 11)
-      assert('SimpleInterval of ß7 is 10 semitones', m.simpleIntervalToSemitones(m.simpleIntervalNameToValue('ß7')) === 10)
-      assert('SimpleInterval of ###4 is 8 semitones', m.simpleIntervalToSemitones(m.simpleIntervalNameToValue('###4')) === 8)
+      assert('SimpleInterval with name #9 has value 1/1', () => {
+        const { simpleIntervalClass, alteration } = m.simpleIntervalNameToValue('#9')
+        return simpleIntervalClass === 1 && alteration === 1
+      })
+      assert('SimpleInterval with value 1/1 inversion has value 6/-2', () => {
+        const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({
+          simpleIntervalClass: 1,
+          alteration: 1
+        })
+        return simpleIntervalClass === 6 && alteration === -2
+      })
+      assert('SimpleInterval with value -2/4 inversion has value 2/-5', () => {
+        const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({
+          simpleIntervalClass: -2,
+          alteration: 4
+        })
+        return simpleIntervalClass === 2 && alteration === -5
+      })
+      assert('SimpleInterval with value 8/0 inversion has value 6/-1', () => {
+        const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({
+          simpleIntervalClass: 8,
+          alteration: 0
+        })
+        return simpleIntervalClass === 6 && alteration === -1
+      })
+
+      
+      
+      // simpleIntervalValueToName
+      // simpleIntervalNameToValue
+      // simpleIntervalInvert
+      
+      
+      
+      
       // assert('SimpleInterval of ß2 invertion is 7', m.simpleIntervalValueToName(
       //   m.simpleIntervalInvert(
       //     m.simpleIntervalNameToValue('ß2')
