@@ -7,7 +7,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --watch --minify"
+    "start": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --watch --minify --sourcemap=inline"
   },
   "repository": {
     "type": "git",

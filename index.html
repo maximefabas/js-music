@@ -2,7 +2,130 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <script type="module" src="./dist/index.js"></script>
+    <script type="module">
+      import * as m from './dist/index.js'
+
+      function assert (label, assertion) {
+        if (Array.isArray(assertion)) assertion.forEach(innerAssertion => assert(label, innerAssertion))
+        else if (typeof assertion === 'function') {
+          if (assertion() === false) throw new Error(`🚫 FAILURE: "${label}""`)
+          else console.info(`✅ SUCCESS: "${label}"`)
+        }
+        else if (assertion === false) throw new Error(`🚫 FAILURE: "${label}""`)
+        else console.info(`✅ SUCCESS: "${label}"`)
+      }
+
+      /* PitchClassLetter */
+      console.log('-- PitchClassLetter --')
+      assert('PitchClassLetter amount is named 7', m.pitchClassLettersNamesArr.length === 7)
+      assert('PitchClassLetter value 0 is named c', m.pitchClassLetterValueToName(0) === 'c')
+      assert('PitchClassLetter value 3 is named f', m.pitchClassLetterValueToName(3) === 'f')
+      assert('PitchClassLetter any value above 7 is named c', () => new Array(100)
+        .fill(null)
+        .map((_, pos) => (pos + 8))
+        .every(value => m.pitchClassLetterValueToName(value) === 'c')
+      )
+      assert('PitchClassLetter g value is 4', m.pitchClassLetterNameToValue('g') === 4)
+      assert('PitchClassLetter b value is 6', m.pitchClassLetterNameToValue('b') === 6)
+      assert('PitchClassLetter ehzrtè!her!hearhaa value is 6', m.pitchClassLetterNameToValue('ehzrtè!her!hearhaa') === 5)
+      assert('PitchClassLetter h value is undefined', m.pitchClassLetterNameToValue('h') === undefined)
+      
+      /* Alteration */
+      console.log('-- Alteration --')
+      assert('Alteration of -2 is named ßß', m.alterationValueToName(-2) === 'ßß')
+      assert('Alteration of 3 is named ###', m.alterationValueToName(3) === '###')
+      
+      /* PitchClass */
+      console.log('-- PitchClass --')
+      assert('PitchClass value { alt: 2, ptch: 2 } is named ##e', m.pitchClassValueToName({ alteration: 2, pitchClassLetter: 2 }) === '##e')
+      assert('PitchClass value { alt: -1, ptch: 20 } is named ßc', m.pitchClassValueToName({ alteration: -1, pitchClassLetter: 20 }) === 'ßc')
+      assert('PitchClass name ßßf has value { alt: -2, ptch: 3 }', () => {
+        const { alteration, pitchClassLetter } = m.pitchClassNameToValue('ßßf')
+        return alteration === -2 && pitchClassLetter === 3
+      })
+      assert('PitchClass name z has value undefined', m.pitchClassNameToValue('z') === undefined)
+      
+      /* Octave */
+      console.log('-- Octave --')
+      assert('Octave with value 4 has name 4', m.octaveValueToName(4) === '4')
+      assert('Octave with name 4 has value 4', m.octaveNameToValue('4') === 4)
+      
+      /* Pitch */
+      console.log('-- Pitch --')
+      assert('Pitch with value { oct: 4, ptch: { ptch: 0, alt: 1 } } has name #c^4', m.pitchValueToName({
+        pitchClass: { pitchClassLetter: 0, alteration: 1 },
+        octave: 4
+      }) === '#c^4')
+      assert('Pitch name ßßg^-2 has value of { oct: -2, ptch: { ptch: 4, alt: -2 } }', () => {
+        const { pitchClass: { pitchClassLetter, alteration }, octave } = m.pitchNameToValue('ßßg^-2')
+        return pitchClassLetter === 4
+          && alteration === -2
+          && octave === -2
+      })
+      
+      /* SimpleInterval */
+      console.log('-- SimpleInterval --')
+      assert('SimpleInterval with value 3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 3, alteration: -2 }) === 'ßß4')
+      assert('SimpleInterval with value -3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: -3, alteration: -2 }) === 'ßß4')
+      assert('SimpleInterval with value 55/4 name is ####56', m.simpleIntervalValueToName({ simpleIntervalClass: 55, alteration: 4 }) === '####56')
+      assert('SimpleInterval with name ß7 has value 6/-1', () => {
+        const { simpleIntervalClass, alteration } = m.simpleIntervalNameToValue('ß7')
+        return simpleIntervalClass === 6 && alteration === -1
+      })
+      assert('SimpleIntervalClass of 0 inversion is 7', m.simpleIntervalClassInvert(0) === 7)
+      assert('SimpleIntervalClass of 7 inversion is 0', m.simpleIntervalClassInvert(7) === 0)
+      assert('SimpleIntervalClass of 8 inversion is -1', m.simpleIntervalClassInvert(8) === -1)
+      assert('SimpleIntervalClass of 0 is 0 semitones', m.simpleIntervalClassToSemitones(0) === 0)
+      assert('SimpleIntervalClass of 6 is 11 semitones', m.simpleIntervalClassToSemitones(6) === 11)
+      assert('SimpleInterval of ß7 is 10 semitones', m.simpleIntervalToSemitones(m.simpleIntervalNameToValue('ß7')) === 10)
+      assert('SimpleInterval of ###4 is 8 semitones', m.simpleIntervalToSemitones(m.simpleIntervalNameToValue('###4')) === 8)
+      // assert('SimpleInterval of ß2 invertion is 7', m.simpleIntervalValueToName(
+      //   m.simpleIntervalInvert(
+      //     m.simpleIntervalNameToValue('ß2')
+      //   )
+      // ) === '7')
+      // assert('SimpleInterval of #8 invertion is ß1', m.simpleIntervalValueToName(
+      //   m.simpleIntervalInvert(
+      //     m.simpleIntervalNameToValue('#8')
+      //   )
+      // ) === 'ß1')
+
+      // console.log(m.simpleIntervalValueToName(
+      //   m.simpleIntervalInvert(
+      //     m.simpleIntervalNameToValue('12')
+      //   )
+      // ))
+
+      // assert('SimpleInterval of ß9 invertion is 2', m.simpleIntervalValueToName(
+      //   m.simpleIntervalInvert(
+      //     m.simpleIntervalNameToValue('ß9')
+      //   )
+      // ) === '2')
+      
+      // assert('SimpleInterval of 9 invertion is -1', m.simpleIntervalValueToName(
+      //   m.simpleIntervalInvert(
+      //     m.simpleIntervalNameToValue('9')
+      //   )
+      // ) === '-1')
+
+      // console.log(m.simpleIntervalInvert(m.simpleIntervalNameToValue('1')))
+      // assert('SimpleInterval #5 inversion is ß4', () => {
+      //   const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({ simpleIntervalClass: 4, alteration: 1 })
+      //   return simpleIntervalClass === 3 && alteration === -1
+      // })
+      // console.log(m.simpleIntervalValueToName(m.simpleIntervalInvert({ simpleIntervalClass: 1, alteration: -1 })))
+      // assert('SimpleInterval ß2 inversion is 7', () => {
+      //   const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({ simpleIntervalClass: 1, alteration: -1 })
+      //   return simpleIntervalClass === 6 && alteration === 0
+      // })
+      // assert('SimpleInterval with value 300/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 300, alteration: -2 }) === 'ßß4')
+      // assert('SimpleInterval with value -3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 3, alteration: -2 }) === 'ßß4')
+      // assert('', m.simpleIntervalNameToValue)
+      // console.log(m.simpleIntervalValueToName)
+      // console.log(m.simpleIntervalNameToValue)
+      // console.log(m.simpleIntervalValueAsSemitones)
+      // console.log(m.intervalValueToName)
+    </script>
   </head>
   <body></body>
 </html>

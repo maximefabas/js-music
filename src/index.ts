@@ -1,50 +1,34 @@
 /* Absolute modulo (should be a dependency) */
-function absoluteModulo (nbr: number, modulo: number): number {
+export function absoluteModulo (nbr: number, modulo: number): number {
   return ((nbr % modulo) + modulo) % modulo
 }
 
 /* PitchClassLetter */
 
-type PitchClassLetterValue = number
-type PitchClassLetterName = string
-
-const pitchClassLettersValuesAndNamesArr: Array<[PitchClassLetterValue, PitchClassLetterName]> = [
-  [0, 'a'],
-  [2, 'b'],
-  [4, 'c'],
-  [5, 'd'],
-  [7, 'e'],
-  [9, 'f'],
-  [11, 'g']
-]
-const pitchClassLettersValuesToNamesMap = new Map<PitchClassLetterValue, PitchClassLetterName>(pitchClassLettersValuesAndNamesArr)
-const pitchClassLettersNamesToValuesMap = new Map<PitchClassLetterName, PitchClassLetterValue>(pitchClassLettersValuesAndNamesArr.map(pair => ([pair[1], pair[0]])))
-
-function pitchClassLetterValueToName (value: PitchClassLetterValue): PitchClassLetterName {
-  return pitchClassLettersValuesToNamesMap.get(value) ?? 'c'
+export type PitchClassLetterValue = number
+export type PitchClassLetterName = string
+export const pitchClassLettersNamesArr: Array<PitchClassLetterName> = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
+export function pitchClassLetterValueToName (value: PitchClassLetterValue): PitchClassLetterName {
+  return pitchClassLettersNamesArr[value] ?? 'c'
 }
-
-function pitchClassLetterNameToValue (name: PitchClassLetterName): PitchClassLetterValue|undefined {
-  const validLetters = [...pitchClassLettersNamesToValuesMap.keys()]
-  const lastFoundValidLetter = name.split('')
-    .filter(char => validLetters.includes(char))
-    .at(-1)
-  if (lastFoundValidLetter === undefined) return undefined
-  return pitchClassLettersNamesToValuesMap.get(lastFoundValidLetter)
+export function pitchClassLetterNameToValue (name: PitchClassLetterName): PitchClassLetterValue | undefined {
+  const validLetters = name.split('').filter(char => pitchClassLettersNamesArr.includes(char))
+  const lastFoundValidLetter = validLetters.at(-1)
+  const position = (pitchClassLettersNamesArr as Array<string | undefined>).indexOf(lastFoundValidLetter)
+  if (position === -1) return undefined
+  return position
 }
 
 /* Alteration */
 
-type AlterationValue = number
-type AlterationName = string
-
-function alterationValueToName (value: AlterationValue): AlterationName {
+export type AlterationValue = number
+export type AlterationName = string
+export function alterationValueToName (value: AlterationValue): AlterationName {
   if (value > 0) return new Array(value).fill('#').join('')
   if (value < 0) return new Array(-1 * value).fill('ß').join('')
   return ''
 }
-
-function alterationNameToValue (name: AlterationName): AlterationValue {
+export function alterationNameToValue (name: AlterationName): AlterationValue {
   const chars = name.split('')
   const sharps = chars.filter(char => char === '#').length
   const flats = chars.filter(char => char === 'ß').length
@@ -53,19 +37,17 @@ function alterationNameToValue (name: AlterationName): AlterationValue {
 
 /* PitchClass */
 
-type PitchClassValue = {
+export type PitchClassValue = {
   alteration: AlterationValue
   pitchClassLetter: PitchClassLetterValue
 }
-type PitchClassName = string
-
-function pitchClassValueToName (value: PitchClassValue): PitchClassName {
+export type PitchClassName = string
+export function pitchClassValueToName (value: PitchClassValue): PitchClassName {
   const alterationName = alterationValueToName(value.alteration)
   const letterName = pitchClassLetterValueToName(value.pitchClassLetter)
   return `${alterationName}${letterName}`
 }
-
-function pitchClassNameToValue (name: PitchClassName): PitchClassValue|undefined {
+export function pitchClassNameToValue (name: PitchClassName): PitchClassValue | undefined {
   const alterationValue = alterationNameToValue(name)
   const pitchClassLetterValue = pitchClassLetterNameToValue(name)
   if (pitchClassLetterValue === undefined) return undefined
@@ -77,16 +59,12 @@ function pitchClassNameToValue (name: PitchClassName): PitchClassValue|undefined
 
 /* Octave */
 
-type OctaveValue = number
-type OctaveName = string
-
-function octaveValueToName (value: OctaveValue): OctaveName {
-  return `${value}`
-}
-
-function octaveNameToValue (name: OctaveName): OctaveValue|undefined {
+export type OctaveValue = number
+export type OctaveName = string
+export function octaveValueToName (value: OctaveValue): OctaveName { return `${value}` }
+export function octaveNameToValue (name: OctaveName): OctaveValue | undefined {
   const chars = name.split('')
-  const numberChars = chars.filter(char => !Number.isNaN(parseInt(char)))
+  const numberChars = chars.filter(char => !Number.isNaN(parseInt(char) || char === '-'))
   const strValue = numberChars.join('')
   const parsedValue = parseInt(strValue)
   if (!Number.isInteger(parsedValue)) return undefined
@@ -95,19 +73,17 @@ function octaveNameToValue (name: OctaveName): OctaveValue|undefined {
 
 /* Pitch */
 
-type PitchValue = {
+export type PitchValue = {
   pitchClass: PitchClassValue,
   octave: OctaveValue
 }
-type PitchName = string
-
-function pitchValueToName (value: PitchValue): PitchName {
+export type PitchName = string
+export function pitchValueToName (value: PitchValue): PitchName {
   const pitchClassName = pitchClassValueToName(value.pitchClass)
   const octaveName = octaveValueToName(value.octave)
   return `${pitchClassName}^${octaveName}`
 }
-
-function pitchNameToValue (name: PitchName): PitchValue|undefined {
+export function pitchNameToValue (name: PitchName): PitchValue | undefined {
   const [pitchClassName, ...octaveNameArr] = name.split('^')
   const octaveName = octaveNameArr.join('^')
   const pitchClassValue = pitchClassNameToValue(pitchClassName)
@@ -121,14 +97,14 @@ function pitchNameToValue (name: PitchName): PitchValue|undefined {
 }
 
 /* SimpleInterval */
-
-type SimpleIntervalValue = {
-  simpleIntervalClass: number
+export type SimpleIntervalClass = number
+export type SimpleIntervalValue = {
+  simpleIntervalClass: SimpleIntervalClass
   alteration: AlterationValue
 }
-type SimpleIntervalName = string
+export type SimpleIntervalName = string
 
-function simpleIntervalValueToName (value: SimpleIntervalValue): SimpleIntervalName {
+export function simpleIntervalValueToName (value: SimpleIntervalValue): SimpleIntervalName {
   const { simpleIntervalClass, alteration } = value
   const alterationName = alterationValueToName(alteration)
   let simpleIntervalClassName: string
@@ -138,7 +114,7 @@ function simpleIntervalValueToName (value: SimpleIntervalValue): SimpleIntervalN
   return `${alterationName}${simpleIntervalClassName}`
 }
 
-function simpleIntervalNameToValue (name: SimpleIntervalName): SimpleIntervalValue|undefined {
+export function simpleIntervalNameToValue (name: SimpleIntervalName): SimpleIntervalValue | undefined {
   const nameChars = name.split('')
   const simpleIntervalClassNameChars = nameChars.filter(char => char === '-' || !Number.isNaN(parseInt(char)))
   const parsedSimpleIntervalClassValue = parseInt(simpleIntervalClassNameChars.join(''))
@@ -151,22 +127,88 @@ function simpleIntervalNameToValue (name: SimpleIntervalName): SimpleIntervalVal
   return { simpleIntervalClass, alteration }
 }
 
-function simpleIntervalValueAsSemitones (value: SimpleIntervalValue): number {
-  const { simpleIntervalClass, alteration } = value
-  return simpleIntervalClass + alteration
+export function simpleIntervalClassInvert (simpleIntervalClass: SimpleIntervalClass): SimpleIntervalClass {
+  console.log('simpleIntervalClassInvert - input', simpleIntervalClass)
+  console.log('simpleIntervalClassInvert - return', 7 - simpleIntervalClass)
+  return 7 - simpleIntervalClass
 }
+
+export function simpleIntervalClassToSemitones (simpleIntervalClass: SimpleIntervalClass): number | undefined {
+  console.log('simpleIntervalClassToSemitones - input', simpleIntervalClass)
+  const semitonesList = [0, 2, 4, 5, 7, 9, 11]
+  const loops = Math.floor(simpleIntervalClass / 7)
+  console.log('simpleIntervalClassToSemitones - loops', loops)
+  const absSimpleIntervalClass = absoluteModulo(simpleIntervalClass, 7)
+  console.log('simpleIntervalClassToSemitones - absSimpleIntervalClass', absSimpleIntervalClass)
+  const absSemitones = semitonesList.at(absSimpleIntervalClass)
+  console.log('simpleIntervalClassToSemitones - absSemitones', absSemitones)
+  if (absSemitones === undefined) return undefined
+  console.log('simpleIntervalClassToSemitones - return', 12 * loops + absSemitones)
+  return 12 * loops + absSemitones
+}
+
+export function simpleIntervalToSemitones (value: SimpleIntervalValue): number | undefined {
+  console.log('simpleIntervalToSemitones - input', value)
+  const { simpleIntervalClass, alteration } = value
+  const simpleIntervalClassAsSemitones = simpleIntervalClassToSemitones(simpleIntervalClass)
+  console.log('simpleIntervalToSemitones - simpleIntervalClassAsSemitones', simpleIntervalClassAsSemitones)
+  if (simpleIntervalClassAsSemitones === undefined) return undefined
+  console.log('simpleIntervalToSemitones - return', simpleIntervalClassAsSemitones + alteration)
+  return simpleIntervalClassAsSemitones + alteration
+}
+
+export function simpleIntervalInvert (value: SimpleIntervalValue): SimpleIntervalValue | undefined {
+  console.log('simpleIntervalInvert - input', value)
+  const inputAsSemitones = simpleIntervalToSemitones(value)
+  console.log('simpleIntervalInvert - inputAsSemitones', inputAsSemitones)
+  if (inputAsSemitones === undefined) return undefined
+  const outputAsSemitones = 12 - inputAsSemitones
+  console.log('simpleIntervalInvert - outputAsSemitones', outputAsSemitones)
+  const { simpleIntervalClass } = value
+  const invertedSimpleIntervalClass = simpleIntervalClassInvert(simpleIntervalClass)
+  console.log('simpleIntervalInvert - invertedSimpleIntervalClass', invertedSimpleIntervalClass)
+  const invertedSimpleIntervalClassAsSemitones = simpleIntervalClassToSemitones(invertedSimpleIntervalClass)
+  console.log('simpleIntervalInvert - invertedSimpleIntervalClassAsSemitones', invertedSimpleIntervalClassAsSemitones)
+  if (invertedSimpleIntervalClassAsSemitones === undefined) return undefined
+  const invertedAlteration = outputAsSemitones - invertedSimpleIntervalClassAsSemitones
+  console.log('simpleIntervalInvert - invertedAlteration', invertedAlteration)
+  console.log('simpleIntervalInvert - return', {
+    simpleIntervalClass: invertedSimpleIntervalClass,
+    alteration: invertedAlteration
+  })
+  return {
+    simpleIntervalClass: invertedSimpleIntervalClass,
+    alteration: invertedAlteration
+  }
+}
+
+console.log(simpleIntervalValueToName(
+  simpleIntervalInvert(
+    simpleIntervalNameToValue('9') as any
+  ) as any
+))
+
+// export function simpleIntervalValueAsSemitones (value: SimpleIntervalValue): number {
+//   const { simpleIntervalClass, alteration } = value
+//   const simpleIntervalValuesArr = [0, 2, 4, 5, 7, 9, 11]
+//   const octaves = Math.ceil(simpleIntervalClass / 7)
+//   const octavesAsSemitones = 12 * octaves
+//   const modulatedSimpleInterval = absoluteModulo(simpleIntervalClass, 7)
+
+//   return simpleIntervalClass + alteration
+// }
 
 // [WIP] from semitones ? What to do with octaves ? direct convert octave to semitones, or go through simple interval or interval ?
 
 /* Interval */
 
-type IntervalValue = {
+export type IntervalValue = {
   simpleInterval: SimpleIntervalValue
   octave: OctaveValue
 }
-type IntervalName = string
+export type IntervalName = string
 
-function intervalValueToName (value: IntervalValue): IntervalName {
+export function intervalValueToName (value: IntervalValue): IntervalName {
   
 
   // const { alteration, intervalClass } = value
@@ -178,7 +220,7 @@ function intervalValueToName (value: IntervalValue): IntervalName {
   // return `${alterationName}${intervalClassName}`
 }
 
-// function intervalNameToValue (name: IntervalName): IntervalValue|undefined {
+// function intervalNameToValue (name: IntervalName): IntervalValue | undefined {
 //   const nameChars = name.split('')
 //   const intervalClassNameChars = nameChars.filter(char => {
 //     return char === '-' || !Number.isNaN(parseInt(char))
