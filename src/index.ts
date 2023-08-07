@@ -8,6 +8,7 @@ export function absoluteModulo (nbr: number, modulo: number): number {
 export type PitchClassLetterValue = number
 export type PitchClassLetterName = string
 export const pitchClassLettersNamesArr: Array<PitchClassLetterName> = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
+export const pitchClassLettersSemitonesFromCArr: Array<number> = [0, 2, 4, 5, 7, 9, 11]
 export function pitchClassLetterValueToName (value: PitchClassLetterValue): PitchClassLetterName {
   return pitchClassLettersNamesArr[value] ?? 'c'
 }
@@ -120,8 +121,8 @@ export function simpleIntervalNameToValue (name: SimpleIntervalName): SimpleInte
   const simpleIntervalClassNameChars = nameChars.filter(char => char === '-' || !Number.isNaN(parseInt(char)))
   let parsedSimpleIntervalClassValue = parseInt(simpleIntervalClassNameChars.join(''))
   if (!Number.isInteger(parsedSimpleIntervalClassValue)) return undefined
-  if (parsedSimpleIntervalClassValue >= 1) parsedSimpleIntervalClassValue -= 1
-  else if (parsedSimpleIntervalClassValue <= -1) parsedSimpleIntervalClassValue += 1
+  if (parsedSimpleIntervalClassValue >= 1) { parsedSimpleIntervalClassValue -= 1 }
+  else if (parsedSimpleIntervalClassValue <= -1) { parsedSimpleIntervalClassValue += 1 }
   const modulatedSimpleIntervalClass = absoluteModulo(parsedSimpleIntervalClassValue, 7)  
   const simpleIntervalClass = Math.abs(modulatedSimpleIntervalClass > 0
     ? modulatedSimpleIntervalClass
@@ -131,18 +132,26 @@ export function simpleIntervalNameToValue (name: SimpleIntervalName): SimpleInte
   return { simpleIntervalClass, alteration }
 }
 
+export const simpleIntervalSemitonesValuesArr = [0, 2, 4, 5, 7, 9, 11]
+
 export function simpleIntervalInvert (value: SimpleIntervalValue): SimpleIntervalValue {
   const { simpleIntervalClass: _simpleIntervalClass, alteration } = value
   const simpleIntervalClass = absoluteModulo(_simpleIntervalClass, 7)
   const invertedSimpleIntervalClass = absoluteModulo(7 - simpleIntervalClass, 7)
-  const semitoneValuesArr = [0, 2, 4, 5, 7, 9, 11]
-  const simpleIntervalClassSemitoneValue = semitoneValuesArr[simpleIntervalClass]
-  const invertedSimpleIntervalClassSemitoneValue = semitoneValuesArr[invertedSimpleIntervalClass]
+  const simpleIntervalClassSemitoneValue = simpleIntervalSemitonesValuesArr[simpleIntervalClass]
+  const invertedSimpleIntervalClassSemitoneValue = simpleIntervalSemitonesValuesArr[invertedSimpleIntervalClass]
   const modulateedSemitonesSum = absoluteModulo(simpleIntervalClassSemitoneValue + invertedSimpleIntervalClassSemitoneValue, 12)
   return {
     simpleIntervalClass: invertedSimpleIntervalClass,
     alteration: - 1 * modulateedSemitonesSum - alteration
   }
+}
+
+export function simpleIntervalToSemitones (value: SimpleIntervalValue): number {
+  const { simpleIntervalClass, alteration } = value
+  const motulatedSimpleIntervalClass = absoluteModulo(simpleIntervalClass, 7)
+  const simpleIntervalClassAsSemitones = simpleIntervalSemitonesValuesArr[motulatedSimpleIntervalClass]
+  return simpleIntervalClassAsSemitones + alteration
 }
 
 export function simpleIntervalFromPitchClasses (
@@ -153,52 +162,120 @@ export function simpleIntervalFromPitchClasses (
   const pitchClassLetterA = absoluteModulo(_pitchClassLetterA, 7)
   const pitchClassLetterB = absoluteModulo(_pitchClassLetterB, 7)
   const simpleIntervalClass = absoluteModulo(pitchClassLetterB - pitchClassLetterA, 7)
-  const semitoneValuesArr = [0, 2, 4, 5, 7, 9, 11]
-  const pitchClassLetterAAsSemitones = semitoneValuesArr[pitchClassLetterA]
-  const pitchClassLetterBAsSemitones = semitoneValuesArr[pitchClassLetterB]
-  return { simpleIntervalClass, alteration: 0 }
+  const pitchClassLetterAAsSemitones = simpleIntervalSemitonesValuesArr[pitchClassLetterA]
+  const pitchClassLetterBAsSemitones = simpleIntervalSemitonesValuesArr[pitchClassLetterB]
+  let pitchClassLettersIntervalAsSemitone = pitchClassLetterBAsSemitones - pitchClassLetterAAsSemitones
+  if (pitchClassLettersIntervalAsSemitone < 0) { pitchClassLettersIntervalAsSemitone *= -1 }
+  const simpleIntervalClassAsSemitones = simpleIntervalToSemitones({ simpleIntervalClass, alteration: 0 })
+  const pitchClassLetterAAsSemitonesFromC = pitchClassLettersSemitonesFromCArr[pitchClassLetterA]
+  const pitchClassLetterBAsSemitonesFromC = pitchClassLettersSemitonesFromCArr[pitchClassLetterB]
+  const semitonesBetweenPitchClassLetters = absoluteModulo(pitchClassLetterBAsSemitonesFromC - pitchClassLetterAAsSemitonesFromC, 12)
+  const alteration = (semitonesBetweenPitchClassLetters - simpleIntervalClassAsSemitones)
+    + (alterationB - alterationA)
+  return { simpleIntervalClass, alteration }
 }
 
-console.log(simpleIntervalFromPitchClasses(
-  pitchClassNameToValue('#f') as PitchClassValue,
-  pitchClassNameToValue('c') as PitchClassValue
+export function simpleIntervalToInterval (
+  simpleInterval: SimpleIntervalValue,
+  octave: OctaveValue = 0
+): IntervalValue {
+  const { simpleIntervalClass, alteration } = simpleInterval
+  return {
+    intervalClass: simpleIntervalClass + 7 * octave,
+    alteration
+  }
+}
+
+export function addSimpleIntervalToPitchClass (
+  simpleInterval: SimpleIntervalValue,
+  pitchClass: PitchClassValue
+): PitchClassValue | undefined {
+  const {
+    simpleIntervalClass,
+    alteration: simpleIntervalAlteration
+  } = simpleInterval
+  const {
+    pitchClassLetter,
+    alteration: pitchClassAlteration
+  } = pitchClass
+  const newPitchClassLetterPosition = absoluteModulo(pitchClassLetter + simpleIntervalClass, 7)
+  const newPitchClassLetterName = pitchClassLettersNamesArr[newPitchClassLetterPosition]
+  const newPitchClassLetter = pitchClassLetterNameToValue(newPitchClassLetterName)
+  if (newPitchClassLetter === undefined) return
+  const simpleIntervalAsSemitones = simpleIntervalToSemitones(simpleInterval)
+  const semitonesBetweenPitchLetters = simpleIntervalToSemitones(
+    simpleIntervalFromPitchClasses(
+      { pitchClassLetter, alteration: 0 },
+      { pitchClassLetter: newPitchClassLetter, alteration: 0 }
+    )
+  )
+  return newPitchClassLetter
+  // [WIP]
+}
+
+console.log(addSimpleIntervalToPitchClass(
+  simpleIntervalNameToValue('2') as any,
+  pitchClassNameToValue('b') as any
 ))
 
 /* Interval */
 
+export type IntervalClassValue = number
 export type IntervalValue = {
-  simpleInterval: SimpleIntervalValue
-  octave: OctaveValue
+  intervalClass: IntervalClassValue
+  alteration: AlterationValue
 }
 export type IntervalName = string
 
 export function intervalValueToName (value: IntervalValue): IntervalName {
-  
-
-  // const { alteration, intervalClass } = value
-  // const alterationName = alterationValueToName(alteration)
-  // let intervalClassName: string
-  // if (intervalClass === 0) { intervalClassName = '1' }
-  // else if (intervalClass > 0) { intervalClassName = `${intervalClass + 1}` }
-  // else { intervalClassName = `${intervalClass - 1}` }
-  // return `${alterationName}${intervalClassName}`
+  const { intervalClass, alteration } = value
+  const alterationName = alterationValueToName(alteration)
+  let intervalClassName: string
+  if (intervalClass > 0) { intervalClassName = `${intervalClass + 1}` }
+  else if (intervalClass === 0) { intervalClassName = '1' }
+  else { intervalClassName = `${intervalClass - 1}` }
+  return `${alterationName}${intervalClassName}`
 }
 
-// function intervalNameToValue (name: IntervalName): IntervalValue | undefined {
-//   const nameChars = name.split('')
-//   const intervalClassNameChars = nameChars.filter(char => {
-//     return char === '-' || !Number.isNaN(parseInt(char))
-//   })
-//   const parsedIntervalClassValue = parseInt(intervalClassNameChars.join(''))
-//   if (!Number.isInteger(parsedIntervalClassValue)) return undefined
-//   let intervalClass: number
-//   if (parsedIntervalClassValue > 1) { intervalClass = parsedIntervalClassValue - 1 }
-//   else if (parsedIntervalClassValue < 1) { intervalClass = parsedIntervalClassValue + 1 }
-//   else { intervalClass = 0 }
-//   const alteration = alterationNameToValue(name)
-//   return { intervalClass, alteration }
-// }
+export function intervalNameToValue (name: IntervalName): IntervalValue | undefined {
+  const nameChars = name.split('')
+  const intervalClassNameChars = nameChars.filter(char => char === '-' || !Number.isNaN(parseInt(char)))
+  let parsedIntervalClassValue = parseInt(intervalClassNameChars.join(''))
+  if (!Number.isInteger(parsedIntervalClassValue)) return undefined
+  if (parsedIntervalClassValue >= 1) { parsedIntervalClassValue -= 1 }
+  else if (parsedIntervalClassValue <= -1) { parsedIntervalClassValue += 1 }
+  const alteration = alterationNameToValue(name)
+  return {
+    intervalClass: parsedIntervalClassValue,
+    alteration
+  }
+}
 
-// function intervalToSimpleInterval (value: IntervalValue): IntervalValue {
-  
-// }
+// export function simpleIntervalInvert ? What does it mean ?
+
+export function intervalToSimpleInterval (value: IntervalValue): SimpleIntervalValue {
+  const { intervalClass, alteration } = value
+  const simpleIntervalClass = absoluteModulo(intervalClass, 7)
+  return { simpleIntervalClass, alteration }
+}
+
+export function intervalToSemitones (value: IntervalValue): number {
+  const { intervalClass } = value
+  const simpleInterval = intervalToSimpleInterval(value)
+  const simpleIntervalAsSemitones = simpleIntervalToSemitones(simpleInterval)
+  const octaves = Math.floor(intervalClass / 7)
+  return 12 * octaves + simpleIntervalAsSemitones
+}
+
+export function intervalFromPitches (
+  pitchA: PitchValue,
+  pitchB: PitchValue): IntervalValue {
+  const { pitchClass: pitchClassA, octave: octaveA } = pitchA
+  const { pitchClass: pitchClassB, octave: octaveB } = pitchB
+  const { simpleIntervalClass, alteration } = simpleIntervalFromPitchClasses(pitchClassA, pitchClassB)
+  const octavesDiff = octaveB - octaveA
+  return {
+    intervalClass: simpleIntervalClass + 7 * octavesDiff,
+    alteration: alteration
+  }
+}

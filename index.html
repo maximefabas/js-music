@@ -27,7 +27,7 @@
       )
       assert('PitchClassLetter g value is 4', m.pitchClassLetterNameToValue('g') === 4)
       assert('PitchClassLetter b value is 6', m.pitchClassLetterNameToValue('b') === 6)
-      assert('PitchClassLetter ehzrtè!her!hearhaa value is 6', m.pitchClassLetterNameToValue('ehzrtè!her!hearhaa') === 5)
+      assert('PitchClassLetter ehzrtè!her!hearhaa value is 6', m.pitchClassLetterNameToValue('ehz!r!hearhaa') === 5)
       assert('PitchClassLetter h value is undefined', m.pitchClassLetterNameToValue('h') === undefined)
       
       /* Alteration */
@@ -37,8 +37,14 @@
       
       /* PitchClass */
       console.log('-- PitchClass --')
-      assert('PitchClass value { alt: 2, ptch: 2 } is named ##e', m.pitchClassValueToName({ alteration: 2, pitchClassLetter: 2 }) === '##e')
-      assert('PitchClass value { alt: -1, ptch: 20 } is named ßc', m.pitchClassValueToName({ alteration: -1, pitchClassLetter: 20 }) === 'ßc')
+      assert('PitchClass value { alt: 2, ptch: 2 } is named ##e', m.pitchClassValueToName({
+        alteration: 2,
+        pitchClassLetter: 2
+      }) === '##e')
+      assert('PitchClass value { alt: -1, ptch: 20 } is named ßc', m.pitchClassValueToName({
+        alteration: -1,
+        pitchClassLetter: 20
+      }) === 'ßc')
       assert('PitchClass name ßßf has value { alt: -2, ptch: 3 }', () => {
         const { alteration, pitchClassLetter } = m.pitchClassNameToValue('ßßf')
         return alteration === -2 && pitchClassLetter === 3
@@ -65,9 +71,18 @@
       
       /* SimpleInterval */
       console.log('-- SimpleInterval --')
-      assert('SimpleInterval with value 3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 3, alteration: -2 }) === 'ßß4')
-      assert('SimpleInterval with value -3/-2 name is ßß5', m.simpleIntervalValueToName({ simpleIntervalClass: -3, alteration: -2 }) === 'ßß5')
-      assert('SimpleInterval with value 55/4 name is ####7', m.simpleIntervalValueToName({ simpleIntervalClass: 55, alteration: 4 }) === '####7')
+      assert('SimpleInterval with value 3/-2 name is ßß4', m.simpleIntervalValueToName({
+        simpleIntervalClass: 3,
+        alteration: -2
+      }) === 'ßß4')
+      assert('SimpleInterval with value -3/-2 name is ßß5', m.simpleIntervalValueToName({
+        simpleIntervalClass: -3,
+        alteration: -2
+      }) === 'ßß5')
+      assert('SimpleInterval with value 55/4 name is ####7', m.simpleIntervalValueToName({
+        simpleIntervalClass: 55,
+        alteration: 4
+      }) === '####7')
       assert('SimpleInterval with name ß7 has value 6/-1', () => {
         const { simpleIntervalClass, alteration } = m.simpleIntervalNameToValue('ß7')
         return simpleIntervalClass === 6 && alteration === -1
@@ -97,62 +112,101 @@
         })
         return simpleIntervalClass === 6 && alteration === -1
       })
+      assert('simpleIntervalSemitonesValuesArr has correct values', m.simpleIntervalSemitonesValuesArr.length === 7
+        && m.simpleIntervalSemitonesValuesArr.every((value, valuePos) => [0, 2, 4, 5, 7, 9, 11][valuePos] === value))
+      assert('SimpleInterval of ß2 invertion is 7', m.simpleIntervalValueToName(
+        m.simpleIntervalInvert(
+          m.simpleIntervalNameToValue('ß2')
+        )
+      ) === '7')
+      assert('SimpleInterval of #8 invertion is ß1', m.simpleIntervalValueToName(
+        m.simpleIntervalInvert(
+          m.simpleIntervalNameToValue('#8')
+        )
+      ) === 'ß1')
+      assert('SimpleInterval of ß4 is 4 semitones', m.simpleIntervalToSemitones(
+        m.simpleIntervalNameToValue('ß4')
+      ) === 4)
+      assert('SimpleInterval of ###7 is 14 semitones', m.simpleIntervalToSemitones(
+        m.simpleIntervalNameToValue('###7')
+      ) === 14)
+      assert('SsimpleInterval between pitchClasses c and d is 2', m.simpleIntervalValueToName(
+        m.simpleIntervalFromPitchClasses(
+          m.pitchClassNameToValue('c'),
+          m.pitchClassNameToValue('ßd')
+        )
+      ) === 'ß2')
+      assert('SimpleInterval between pitchClasses b and d is ß3', m.simpleIntervalValueToName(
+        m.simpleIntervalFromPitchClasses(
+          m.pitchClassNameToValue('b'),
+          m.pitchClassNameToValue('d')
+        )
+      ) === 'ß3')
+      assert('SimpleInterval between pitchClasses a and ßßb is ßß2', m.simpleIntervalValueToName(
+        m.simpleIntervalFromPitchClasses(
+          m.pitchClassNameToValue('a'),
+          m.pitchClassNameToValue('ßßb')
+        )
+      ) === 'ßß2')
+      assert('SimpleInterval #3 becomes Interval #17 rised by 2 octaves', m.intervalValueToName(
+        m.simpleIntervalToInterval({
+          simpleIntervalClass: 2,
+          alteration: 1
+        }, 2)
+      ) === '#17')
 
-      
-      
-      // simpleIntervalValueToName
-      // simpleIntervalNameToValue
-      // simpleIntervalInvert
-      
-      
-      
-      
-      // assert('SimpleInterval of ß2 invertion is 7', m.simpleIntervalValueToName(
-      //   m.simpleIntervalInvert(
-      //     m.simpleIntervalNameToValue('ß2')
-      //   )
-      // ) === '7')
-      // assert('SimpleInterval of #8 invertion is ß1', m.simpleIntervalValueToName(
-      //   m.simpleIntervalInvert(
-      //     m.simpleIntervalNameToValue('#8')
-      //   )
-      // ) === 'ß1')
-
-      // console.log(m.simpleIntervalValueToName(
-      //   m.simpleIntervalInvert(
-      //     m.simpleIntervalNameToValue('12')
-      //   )
-      // ))
-
-      // assert('SimpleInterval of ß9 invertion is 2', m.simpleIntervalValueToName(
-      //   m.simpleIntervalInvert(
-      //     m.simpleIntervalNameToValue('ß9')
-      //   )
-      // ) === '2')
-      
-      // assert('SimpleInterval of 9 invertion is -1', m.simpleIntervalValueToName(
-      //   m.simpleIntervalInvert(
-      //     m.simpleIntervalNameToValue('9')
-      //   )
-      // ) === '-1')
-
-      // console.log(m.simpleIntervalInvert(m.simpleIntervalNameToValue('1')))
-      // assert('SimpleInterval #5 inversion is ß4', () => {
-      //   const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({ simpleIntervalClass: 4, alteration: 1 })
-      //   return simpleIntervalClass === 3 && alteration === -1
-      // })
-      // console.log(m.simpleIntervalValueToName(m.simpleIntervalInvert({ simpleIntervalClass: 1, alteration: -1 })))
-      // assert('SimpleInterval ß2 inversion is 7', () => {
-      //   const { simpleIntervalClass, alteration } = m.simpleIntervalInvert({ simpleIntervalClass: 1, alteration: -1 })
-      //   return simpleIntervalClass === 6 && alteration === 0
-      // })
-      // assert('SimpleInterval with value 300/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 300, alteration: -2 }) === 'ßß4')
-      // assert('SimpleInterval with value -3/-2 name is ßß4', m.simpleIntervalValueToName({ simpleIntervalClass: 3, alteration: -2 }) === 'ßß4')
-      // assert('', m.simpleIntervalNameToValue)
-      // console.log(m.simpleIntervalValueToName)
-      // console.log(m.simpleIntervalNameToValue)
-      // console.log(m.simpleIntervalValueAsSemitones)
-      // console.log(m.intervalValueToName)
+      /* Interval */
+      console.log('-- Interval --')
+      assert('Interval with value 3/-2 name is ßß4', m.intervalValueToName({
+        intervalClass: 3,
+        alteration: -2
+      }) === 'ßß4')
+      assert('Interval with value -3/-2 name is ßß-4', m.intervalValueToName({
+        intervalClass: -3,
+        alteration: -2
+      }) === 'ßß-4')
+      assert('Interval with value 55/4 name is ####56', m.intervalValueToName({
+        intervalClass: 55,
+        alteration: 4
+      }) === '####56')
+      assert('Interval with name ß7 has value 6/-1', () => {
+        const { intervalClass, alteration } = m.intervalNameToValue('ß7')
+        return intervalClass === 6 && alteration === -1
+      })
+      assert('Interval with name #9 has value 8/1', () => {
+        const { intervalClass, alteration } = m.intervalNameToValue('#9')
+        return intervalClass === 8 && alteration === 1
+      })
+      assert('Interval with name -14 has value -13/0', () => {
+        const { intervalClass, alteration } = m.intervalNameToValue('-14')
+        return intervalClass === -13 && alteration === 0
+      })
+      assert('Interval of ßß-17 is ßß6 as a SimpleInterval', m.simpleIntervalValueToName(
+        m.intervalToSimpleInterval(
+          m.intervalNameToValue('ßß-17')
+        )
+      ) === 'ßß6')
+      assert('Interval of -12 is -19 semitones', m.intervalToSemitones(
+        m.intervalNameToValue('-12')
+      ) === -19)
+      assert('Interval of 1 is 0 semitones', m.intervalToSemitones(
+        m.intervalNameToValue('1')
+      ) === 0)
+      assert('Interval of ßß3 is 2 semitones', m.intervalToSemitones(
+        m.intervalNameToValue('ßß3')
+      ) === 2)
+      assert('Interval between pitch b^2 and d^4 is ß17', m.intervalValueToName(
+        m.intervalFromPitches(
+          m.pitchNameToValue('b^2'),
+          m.pitchNameToValue('d^4')
+        )
+      ) === 'ß17')
+      assert('Interval between pitch a^2 and ßßb^1 is ßß-7', m.intervalValueToName(
+        m.intervalFromPitches(
+          m.pitchNameToValue('a^2'),
+          m.pitchNameToValue('ßßb^1')
+        )
+      ) === 'ßß-7')
     </script>
   </head>
   <body></body>
