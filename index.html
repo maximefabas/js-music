@@ -6,7 +6,7 @@
       import * as m from './dist/index.js'
 
       function assert (label, assertion) {
-        if (Array.isArray(assertion)) assertion.forEach(innerAssertion => assert(label, innerAssertion))
+        if (Array.isArray(assertion)) assertion.forEach((innerAssertion, pos) => assert(`${label} (${pos})`, innerAssertion))
         else if (typeof assertion === 'function') {
           if (assertion() === false) throw new Error(`🚫 FAILURE: "${label}""`)
           else console.info(`✅ SUCCESS: "${label}"`)
@@ -17,7 +17,7 @@
 
       /* PitchClassLetter */
       console.log('-- PitchClassLetter --')
-      assert('PitchClassLetter amount is named 7', m.pitchClassLettersNamesArr.length === 7)
+      assert('PitchClassLetters amount is 7', m.pitchClassLettersNamesArr.length === 7)
       assert('PitchClassLetter value 0 is named c', m.pitchClassLetterValueToName(0) === 'c')
       assert('PitchClassLetter value 3 is named f', m.pitchClassLetterValueToName(3) === 'f')
       assert('PitchClassLetter any value above 7 is named c', () => new Array(100)
@@ -27,7 +27,7 @@
       )
       assert('PitchClassLetter g value is 4', m.pitchClassLetterNameToValue('g') === 4)
       assert('PitchClassLetter b value is 6', m.pitchClassLetterNameToValue('b') === 6)
-      assert('PitchClassLetter ehzrtè!her!hearhaa value is 6', m.pitchClassLetterNameToValue('ehz!r!hearhaa') === 5)
+      assert('PitchClassLetter ehz!r!hearhaa value is 6', m.pitchClassLetterNameToValue('ehz!r!hearhaa') === 5)
       assert('PitchClassLetter h value is undefined', m.pitchClassLetterNameToValue('h') === undefined)
       
       /* Alteration */
@@ -154,6 +154,31 @@
           alteration: 1
         }, 2)
       ) === '#17')
+      assert('SimpleInterval ß2 added to PitchClass #b gives PitchClass #c', m.pitchClassValueToName(
+        m.addSimpleIntervalToPitchClass(
+          m.simpleIntervalNameToValue('ß2'),
+          m.pitchClassNameToValue('#b')
+        ) === '#c'
+      ))
+      assert('SimpleInterval #2 added to PitchClass ßßa gives PitchClass ßb', m.pitchClassValueToName(
+        m.addSimpleIntervalToPitchClass(
+          m.simpleIntervalNameToValue('#2'),
+          m.pitchClassNameToValue('ßßa')
+        ) === 'ßb'
+      ))
+
+      assert('SimpleInterval ß2 subtracted to PitchClass #c gives PitchClass #b', m.pitchClassValueToName(
+        m.subtractSimpleIntervalToPitchClass(
+          m.simpleIntervalNameToValue('ß2'),
+          m.pitchClassNameToValue('#c')
+        ) === '#b'
+      ))
+      assert('SimpleInterval #2 subtracted to PitchClass ßßb gives PitchClass ßa', m.pitchClassValueToName(
+        m.subtractSimpleIntervalToPitchClass(
+          m.simpleIntervalNameToValue('#2'),
+          m.pitchClassNameToValue('ßßb')
+        ) === 'ßa'
+      ))
 
       /* Interval */
       console.log('-- Interval --')
@@ -195,18 +220,67 @@
       assert('Interval of ßß3 is 2 semitones', m.intervalToSemitones(
         m.intervalNameToValue('ßß3')
       ) === 2)
-      assert('Interval between pitch b^2 and d^4 is ß17', m.intervalValueToName(
+      assert('Interval between pitch b^2 and d^4 is ß10', m.intervalValueToName(
         m.intervalFromPitches(
           m.pitchNameToValue('b^2'),
           m.pitchNameToValue('d^4')
         )
-      ) === 'ß17')
+      ) === 'ß10')
       assert('Interval between pitch a^2 and ßßb^1 is ßß-7', m.intervalValueToName(
         m.intervalFromPitches(
           m.pitchNameToValue('a^2'),
           m.pitchNameToValue('ßßb^1')
         )
       ) === 'ßß-7')
+      assert('Interval -2 added to Pitch c^4 gives pitch b^3', m.pitchValueToName(
+        m.addIntervalToPitch(
+          m.intervalNameToValue('-2'),
+          m.pitchNameToValue('c^4')
+        )
+      ) === 'b^3')
+      assert('Interval -ßß2 added to Pitch ßßc^4 gives pitch ßßßßb^3', m.pitchValueToName(
+        m.addIntervalToPitch(
+          m.intervalNameToValue('-ßß2'),
+          m.pitchNameToValue('ßßc^4')
+        )
+      ) === 'ßßßßb^3')
+      assert('Interval ß5 inverted is #-5', m.intervalValueToName(
+        m.intervalInvert(
+          m.intervalNameToValue('ß5')
+        )
+      ) === '#-5')
+      assert('Interval -8 inverted is 8', m.intervalValueToName(
+        m.intervalInvert(
+          m.intervalNameToValue('-8')
+        )
+      ) === '8')
+      assert('Interval 2 inverted is ß-2', m.intervalValueToName(
+        m.intervalInvert(
+          m.intervalNameToValue('2')
+        )
+      ) === 'ß-2')
+      assert('Interval -2 subtracted to Pitch b^3 gives pitch c^4', m.pitchValueToName(
+        m.subtractIntervalToPitch(
+          m.intervalNameToValue('-2'),
+          m.pitchNameToValue('b^3')
+        )
+      ) === 'c^4')
+      assert('Interval -ßß2 subtracted to Pitch ßßßßb^3 gives pitch ßßc^4', m.pitchValueToName(
+        m.subtractIntervalToPitch(
+          m.intervalNameToValue('-ßß2'),
+          m.pitchNameToValue('ßßßßb^3')
+        )
+      ) === 'ßßc^4')
+      
+      /* Scale */
+      assert('Scale named 1,#4,ß2,3,#2 orders intervals as follows 1 ß2 #2 3 #4', m.scaleNameToValue('1,#4,ß2,3,#2')
+        .map(e => m.intervalValueToName(e)).join(' ') === '1 ß2 #2 3 #4')
+      assert('Scale with values 1 ß3 5 7 is named 1,ß3,5,7', m.scaleValueToName([
+        m.intervalNameToValue('1'),
+        m.intervalNameToValue('ß3'),
+        m.intervalNameToValue('5'),
+        m.intervalNameToValue('7')
+      ]) === '1,ß3,5,7')
     </script>
   </head>
   <body></body>
