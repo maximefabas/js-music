@@ -227,6 +227,19 @@ export function subtractSimpleIntervalToPitchClass (
   )
 }
 
+export function simpleIntervalFromSimpleIntervals (
+  simpleIntervalA: SimpleIntervalValue,
+  simpleIntervalB: SimpleIntervalValue
+): SimpleIntervalValue | undefined {
+  const pretextPitchClass = pitchClassNameToValue('c')
+  if (pretextPitchClass === undefined) return undefined
+  const pretextPlusB = addSimpleIntervalToPitchClass(simpleIntervalB, pretextPitchClass)
+  if (pretextPlusB === undefined) return undefined
+  const pretextPlusBMinusA = subtractSimpleIntervalToPitchClass(simpleIntervalA, pretextPlusB)
+  if (pretextPlusBMinusA === undefined) return undefined
+  return simpleIntervalFromPitchClasses(pretextPitchClass, pretextPlusBMinusA)
+}
+
 /* Interval */
 
 export type IntervalClassValue = number
@@ -330,16 +343,21 @@ export function subtractIntervalToPitch (
   return addIntervalToPitch(invertedInterval, pitch)
 }
 
-/* Scale */
+export function intervalFromIntervals (
+  intervalA: IntervalValue,
+  intervalB: IntervalValue
+) {
+  const pretextPitch = pitchNameToValue('c^4')
+  if (pretextPitch === undefined) return undefined
+  const pretextPlusB = addIntervalToPitch(intervalB, pretextPitch)
+  if (pretextPlusB === undefined) return undefined
+  const pretextPlusBMinusA = subtractIntervalToPitch(intervalA, pretextPlusB)
+  if (pretextPlusBMinusA === undefined) return undefined
+  return intervalFromPitches(pretextPitch, pretextPlusBMinusA)
+}
 
-export type ScaleValue = Array<IntervalValue>
-export type ScaleName = string
-
-export function scaleNameToValue (name: ScaleName): ScaleValue {
-  const parsedIntervalNames = name.split(',')
-  const intervals = parsedIntervalNames.map(intervalName => intervalNameToValue(intervalName))
+export function intervalsSort (intervals: Array<IntervalValue>) {
   const sortedIntervals = intervals
-    .filter((int): int is IntervalValue => int !== undefined)
     .sort((intA, intB) => {
       const { intervalClass: intervalClassA, alteration: alterationA } = intA
       const { intervalClass: intervalClassB, alteration: alterationB } = intB
@@ -349,6 +367,306 @@ export function scaleNameToValue (name: ScaleName): ScaleValue {
   return sortedIntervals
 }
 
-export function scaleValueToName (scale: ScaleValue): ScaleName {
-  return scale.map(interval => intervalValueToName(interval)).join(',')
+export function intervalsDedupe (intervals: Array<IntervalValue>): Array<IntervalValue> {
+  const intervalsSemitonesMap = new Map<IntervalValue, number>(intervals.map(interval => [
+    interval,
+    intervalToSemitones(interval)
+  ]))
+  const semitonesSet = new Set(intervalsSemitonesMap.values())
+  const semitonesIntervalsMap = new Map<number, Array<IntervalValue>>([...semitonesSet.values()]
+    .map(semitoneValue => {
+      const intervalsForThisSemitone = [...intervalsSemitonesMap.entries()]
+        .filter(([_, sem]) => (sem === semitoneValue))
+        .map(([int]) => int)
+      return [semitoneValue, intervalsForThisSemitone]
+    })
+  )
+  const semitonesIntervalMap = new Map<number, IntervalValue>([...semitonesIntervalsMap.entries()]
+    .map(([sem, ints]) => {
+      const lesserAlterationValue = Math.min(...ints.map(({ alteration }) => Math.abs(alteration)))
+      const intervalWithLesserAltValue = ints.find(interval => Math.abs(interval.alteration) === lesserAlterationValue)
+      const chosenInterval = intervalWithLesserAltValue ?? ints[0] ?? {
+        intervalClass: 0,
+        alteration: sem
+      }
+      return [sem, chosenInterval]
+    })
+  )
+  return [...semitonesIntervalMap.values()]
 }
+
+export function intervalShiftIntervalClass (interval: IntervalValue, newIntervalClass: IntervalClassValue): IntervalValue | undefined {
+  const unalteredInputInterval: IntervalValue = { ...interval, alteration: 0 }
+  const unalteredTargetInterval: IntervalValue = { intervalClass: newIntervalClass, alteration: 0 }
+  const intervalBetweenUnalteredInputAndTarget = intervalFromIntervals(unalteredInputInterval, unalteredTargetInterval)
+  if (intervalBetweenUnalteredInputAndTarget === undefined) return undefined
+  const semitonesBeteenInputAndTarget = intervalToSemitones(intervalBetweenUnalteredInputAndTarget)
+  return {
+    intervalClass: newIntervalClass,
+    alteration: interval.alteration - semitonesBeteenInputAndTarget
+  }
+}
+
+export function intervalRationalize (
+  interval: IntervalValue,
+  forceFlatOutput: boolean = false
+): IntervalValue {
+  if (interval.alteration === 0) return interval
+  let rationalized = interval
+  const signsAreEqual = (nbr1: number, nbr2: number) => {
+    if (nbr1 === 0) return true
+    if (nbr1 > 0) return nbr2 >= 0
+    return nbr2 <= 0
+  }
+  while (true) {
+    if (rationalized.alteration === 0) break;
+    const rationalizedOnceMore = intervalShiftIntervalClass(
+      rationalized,
+      interval.alteration >= 0 // technically could just check if strictly superior
+        ? rationalized.intervalClass + 1
+        : rationalized.intervalClass - 1
+    )
+    if (rationalizedOnceMore === undefined) break
+    const alterationSignsAreEqual = signsAreEqual(interval.alteration, rationalizedOnceMore.alteration)
+    if (!forceFlatOutput || interval.alteration <= 0) {
+      if (alterationSignsAreEqual) { rationalized = rationalizedOnceMore }
+      else break;
+    } else {
+      // interval.alteration is > 0 here
+      if (alterationSignsAreEqual) { rationalized = rationalizedOnceMore }
+      else {
+        rationalized = rationalizedOnceMore;
+        break;
+      }
+    }
+  }
+  return rationalized
+}
+
+/* Scale */
+
+export type ScaleValue = Array<SimpleIntervalValue>
+export type ScaleName = string
+
+export function scaleNameToValue (name: ScaleName): ScaleValue {
+  const parsedIntervalNames = name.split(',')
+  const intervals = parsedIntervalNames
+    .map(intervalName => simpleIntervalNameToValue(intervalName))
+    .filter((int): int is SimpleIntervalValue => int !== undefined)
+  return intervals
+}
+
+export function scaleValueToName (scale: ScaleValue): ScaleName {
+  return scale.map(interval => simpleIntervalValueToName(interval)).join(',')
+}
+
+// [-, -, -, -, -, -, -]
+
+export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
+  const complexIntervalsScale = scale.map(simpleInterval => simpleIntervalToInterval(simpleInterval))
+  const sortedDedupedComplexIntervals = intervalsSort(intervalsDedupe(complexIntervalsScale))
+  const sortedDedupedIntervals = sortedDedupedComplexIntervals.map(interval => intervalToSimpleInterval(interval))
+  const nbIntervals = sortedDedupedIntervals.length
+  const nbIntervalsOverSeven = nbIntervals / 7
+  const nbIntervalsModuloSeven = nbIntervals % 7
+  const minPressureAllowed = Math.floor(nbIntervalsOverSeven)
+  const maxPressureAllowed = nbIntervalsModuloSeven === 0 ? minPressureAllowed : Math.ceil(nbIntervalsOverSeven)
+  const nbSlotsAtMaxPressure = nbIntervalsModuloSeven === 0 ? minPressureAllowed * 7 : nbIntervals - minPressureAllowed * 7
+  const intervalClassSlots = new Array(7)
+    .fill(null)
+    .map((_, pos) => ({
+      intervalClass: pos,
+      intervals: sortedDedupedIntervals
+        .filter(({ simpleIntervalClass }) => simpleIntervalClass === pos)
+    }))
+    .map(slot => ({
+      ...slot,
+      pressureForSort: slot.intervalClass === 0
+        ? -Infinity
+        : slot.intervals.length
+    }))
+    .sort((slotA, slotB) => slotB.pressureForSort - slotA.pressureForSort)
+    .map((slot, pos) => ({
+      ...slot,
+      targetPressure: pos < nbSlotsAtMaxPressure
+        ? maxPressureAllowed
+        : minPressureAllowed
+    }))
+    .sort((slotA, slotB) => slotA.intervalClass - slotB.intervalClass)
+
+  console.log('scale', scale.map(int => simpleIntervalValueToName(int)).join(','))
+  console.log('complexIntervalsScale', complexIntervalsScale)
+  console.log('sortedDedupedComplexIntervals', sortedDedupedComplexIntervals)
+  console.log('minPressureAllowed', minPressureAllowed)
+  console.log('maxPressureAllowed', maxPressureAllowed)
+  console.log('nbSlotsAtMaxPressure', nbSlotsAtMaxPressure)
+  console.log('pressureScheme:', intervalClassSlots.map(slot => slot.intervals.length).join('-'))
+  console.log('targetPressureScheme:', intervalClassSlots.map(slot => slot.targetPressure).join('-'))
+  console.log('intervalClassSlots', intervalClassSlots)
+
+  function moveIntervalToNeighbourSlot (
+    slots: typeof intervalClassSlots,
+    from: number,
+    toUp: boolean = true
+  ): typeof intervalClassSlots {
+    // console.log('\n\n    ---- move intervals to neighbour slot')
+    // console.log('    i move from', from, 'to', toUp ? from + 1 : from - 1)
+    const sourceSlot = slots.find(slot => slot.intervalClass === from)
+    const destinationSlot = slots.find(slot => slot.intervalClass === from + (toUp ? 1 : -1))
+    if (sourceSlot === undefined) return slots
+    if (destinationSlot === undefined) return slots
+    // console.log('    source', sourceSlot.intervalClass, sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
+    // console.log('    dest', destinationSlot.intervalClass, destinationSlot.intervals.map(int => simpleIntervalValueToName(int)))
+    const sourceIntervalsAsSemitones = sourceSlot.intervals.map(interval => simpleIntervalToSemitones(interval))
+    const targetIntervalSemitoneValue = toUp
+      ? Math.max(...sourceIntervalsAsSemitones)
+      : Math.min(...sourceIntervalsAsSemitones)
+    // console.log('    targetIntervalAsSemitones', targetIntervalSemitoneValue)
+    const targetInterval = sourceSlot.intervals.find(interval => simpleIntervalToSemitones(interval) === targetIntervalSemitoneValue)
+    // console.log('    targetInterval', targetInterval)
+    if (targetInterval === undefined) return slots
+    const shiftedTargetInterval = intervalShiftIntervalClass(
+      simpleIntervalToInterval(targetInterval),
+      destinationSlot.intervalClass
+    )
+    // console.log('    shiftedTargetInterval', shiftedTargetInterval)
+    if (shiftedTargetInterval === undefined) return slots
+    destinationSlot.intervals.push(intervalToSimpleInterval(shiftedTargetInterval))
+    // console.log('    destinationSlotIntervals', destinationSlot.intervals.map(int => simpleIntervalValueToName(int)))
+    const newSourceSlotIntervals = sourceSlot.intervals.filter(interval => interval !== targetInterval)
+    // console.log('    newSourceSlotIntervals', newSourceSlotIntervals.map(int => simpleIntervalValueToName(int)))
+    sourceSlot.intervals.splice(0, Infinity, ...newSourceSlotIntervals)
+    // sourceSlot.intervals.push(...newSourceSlotIntervals)
+    // console.log('sourceSlotIntervalsAfterSplice', sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
+    // for (
+    //   let step = 0;
+    //   step < sourceSlot.intervals.length - newSourceSlotIntervals.length;
+    //   step++) {
+    //   sourceSlot.intervals.pop()
+    // }
+    // console.log('sourceSlotIntervalsAfterPop', sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
+    return slots
+  }
+
+  function chineseWhisperIntervalFromSlotToSlot (
+    slots: typeof intervalClassSlots,
+    from: number,
+    to: number
+  ): typeof intervalClassSlots {
+    // console.log('\n\n\n\n\n\n-- chinese whisper from', from, 'to', to)
+    if (from === to) return slots
+    const distance = Math.abs(to - from)
+    // console.log('in', slots.map(slot => slot.intervals.map(int => simpleIntervalValueToName(int))).flat())
+    for (
+      let iteration = 0;
+      iteration < distance;
+      iteration++) {
+      moveIntervalToNeighbourSlot(
+        slots,
+        to > from
+          ? from + iteration
+          : from - iteration,
+        to > from
+      )
+    }
+    // console.log('\n\nout', slots.map(slot => slot.intervals.map(int => simpleIntervalValueToName(int))).flat())
+    return slots
+  }
+
+  for (const { intervalClass, intervals, targetPressure } of intervalClassSlots) {
+    const nbToGive = intervals.length - targetPressure
+    const slotsToFill = intervalClassSlots.reduce((acc, curr) => {
+      if (nbToGive <= acc.length) return acc
+      if (curr.targetPressure <= curr.intervals.length) return acc
+      const returnCurrSlotNTimes = Math.min(
+        nbToGive - acc.length,
+        curr.targetPressure - curr.intervals.length
+      )
+      return [...acc, ...new Array(returnCurrSlotNTimes).fill(curr)]
+    }, [] as typeof intervalClassSlots)
+    console.log('slot', intervalClass, 'gives to', slotsToFill)
+    for (const slotToFill of slotsToFill) {
+      chineseWhisperIntervalFromSlotToSlot(
+        intervalClassSlots,
+        intervalClass,
+        slotToFill.intervalClass        
+      )
+    }
+  }
+  return intervalClassSlots
+    .sort((slotA, slotB) => slotA.intervalClass - slotB.intervalClass)
+    .map(({ intervals }) => intervals.sort((intA, intB) => simpleIntervalToSemitones(intA) - simpleIntervalToSemitones(intB)))
+    .flat()
+}
+
+console.log('reallocated', scaleReallocateIntervals([
+  simpleIntervalNameToValue('1') as any,
+  simpleIntervalNameToValue('##1') as any,
+  simpleIntervalNameToValue('####1') as any,
+  simpleIntervalNameToValue('#####1') as any,
+  simpleIntervalNameToValue('#######1') as any,
+  simpleIntervalNameToValue('#########1') as any,
+  simpleIntervalNameToValue('###########1') as any,
+]).map(int => simpleIntervalValueToName(int)).join(', '))
+console.log('======')
+
+console.log('reallocated', scaleReallocateIntervals([
+  simpleIntervalNameToValue('1') as any,
+  simpleIntervalNameToValue('#1') as any,
+  simpleIntervalNameToValue('2') as any,
+  simpleIntervalNameToValue('4') as any,
+  simpleIntervalNameToValue('ß5') as any,
+  simpleIntervalNameToValue('ß6') as any,
+  simpleIntervalNameToValue('6') as any,
+  simpleIntervalNameToValue('#6') as any,
+  simpleIntervalNameToValue('7') as any,
+]).map(int => simpleIntervalValueToName(int)).join(', '))
+console.log('======')
+
+console.log('reallocated', scaleReallocateIntervals([
+  simpleIntervalNameToValue('7') as any,
+  simpleIntervalNameToValue('ßß7') as any,
+  simpleIntervalNameToValue('ßßßß7') as any,
+  simpleIntervalNameToValue('ßßßßß7') as any,
+  simpleIntervalNameToValue('ßßßßßßß7') as any,
+  simpleIntervalNameToValue('ßßßßßßßßß7') as any,
+  simpleIntervalNameToValue('ßßßßßßßßßßß7') as any,
+]).map(int => simpleIntervalValueToName(int)).join(', '))
+console.log('======')
+
+console.log('reallocated', scaleReallocateIntervals([
+  simpleIntervalNameToValue('1') as any,
+  simpleIntervalNameToValue('ß2') as any,
+  simpleIntervalNameToValue('2') as any,
+  simpleIntervalNameToValue('ß3') as any,
+  simpleIntervalNameToValue('3') as any,
+  simpleIntervalNameToValue('ßß6') as any,
+  simpleIntervalNameToValue('ß6') as any,
+  simpleIntervalNameToValue('6') as any,
+  simpleIntervalNameToValue('ß7') as any,
+  simpleIntervalNameToValue('7') as any,
+]).map(int => simpleIntervalValueToName(int)).join(', '))
+console.log('======')
+
+// console.log(scaleReallocateIntervals([
+//   simpleIntervalNameToValue('1') as any,
+//   simpleIntervalNameToValue('2') as any,
+//   simpleIntervalNameToValue('#2') as any,
+//   simpleIntervalNameToValue('3') as any,
+//   simpleIntervalNameToValue('#3') as any,
+//   simpleIntervalNameToValue('##4') as any,
+//   simpleIntervalNameToValue('#5') as any,
+//   simpleIntervalNameToValue('6') as any,
+//   simpleIntervalNameToValue('ß7') as any
+// ]).map(int => simpleIntervalValueToName(int)).join(', '))
+
+// Simple intervals
+// Reallocate
+// Get steps at
+// Get step at
+// Get triads, tetrads, pentads, at ...
+// Simple intervals ?
+// Reallocate ?
+// Subsets, supersets
+// Triads, Tetrads, Pentads, etc...
+

@@ -179,6 +179,12 @@
           m.pitchClassNameToValue('ßßb')
         ) === 'ßa'
       ))
+      assert('SimpleInterval between simple intervals ß2 and #7 is ##6', m.simpleIntervalValueToName(
+        m.simpleIntervalFromSimpleIntervals(
+          m.simpleIntervalNameToValue('ß2'),
+          m.simpleIntervalNameToValue('#7')
+        )
+      ) === '##6')
 
       /* Interval */
       console.log('-- Interval --')
@@ -271,10 +277,32 @@
           m.pitchNameToValue('ßßßßb^3')
         )
       ) === 'ßßc^4')
+      assert('Interval between intervals ß-7 and #14 is ##20', m.intervalValueToName(
+        m.intervalFromIntervals(
+          m.intervalNameToValue('ß-7'),
+          m.intervalNameToValue('#14')
+        )
+      ) === '##20')
+      assert('Intervals ßß7, #5 and 2 are sorted as 2, #5, ßß7', 
+        m.intervalsSort([
+          m.intervalNameToValue('ßß7'),
+          m.intervalNameToValue('#5'),
+          m.intervalNameToValue('2'),
+        ]).map(interval => m.intervalValueToName(interval))
+          .join(',') === '2,#5,ßß7')
+      assert('Intervals 1, ßß2, ßßßß3, ßßßßß4, 5 are deduped as 1, 5', m.intervalsDedupe([
+        m.intervalNameToValue('1'),
+        m.intervalNameToValue('ßß2'),
+        m.intervalNameToValue('ßßßß3'),
+        m.intervalNameToValue('ßßßßß4'),
+        m.intervalNameToValue('5')
+      ]).map(interval => m.intervalValueToName(interval))
+        .join(',') === '1,5')
       
       /* Scale */
-      assert('Scale named 1,#4,ß2,3,#2 orders intervals as follows 1 ß2 #2 3 #4', m.scaleNameToValue('1,#4,ß2,3,#2')
-        .map(e => m.intervalValueToName(e)).join(' ') === '1 ß2 #2 3 #4')
+      console.log('-- Scale --')
+      assert('Scale named 1,#4,ß2,3,#2 has intervals 1 #4 ß2 3 #2', m.scaleNameToValue('1,#4,ß2,3,#2')
+        .map(e => m.intervalValueToName(e)).join(' ') === '1 #4 ß2 3 #2')
       assert('Scale with values 1 ß3 5 7 is named 1,ß3,5,7', m.scaleValueToName([
         m.intervalNameToValue('1'),
         m.intervalNameToValue('ß3'),
