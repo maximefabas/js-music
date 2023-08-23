@@ -7,15 +7,15 @@ export function absoluteModulo (nbr: number, modulo: number): number {
 
 export type PitchClassLetterValue = number
 export type PitchClassLetterName = string
-export const pitchClassLettersNamesArr: Array<PitchClassLetterName> = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
-export const pitchClassLettersSemitonesFromCArr: Array<number> = [0, 2, 4, 5, 7, 9, 11]
+export const pitchClassLettersNamesArr: PitchClassLetterName[] = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
+export const pitchClassLettersSemitonesFromCArr: number[] = [0, 2, 4, 5, 7, 9, 11]
 export function pitchClassLetterValueToName (value: PitchClassLetterValue): PitchClassLetterName {
   return pitchClassLettersNamesArr[value] ?? 'c'
 }
 export function pitchClassLetterNameToValue (name: PitchClassLetterName): PitchClassLetterValue | undefined {
   const validLetters = name.split('').filter(char => pitchClassLettersNamesArr.includes(char))
   const lastFoundValidLetter = validLetters.at(-1)
-  const position = (pitchClassLettersNamesArr as Array<string | undefined>).indexOf(lastFoundValidLetter)
+  const position = (pitchClassLettersNamesArr as (string | undefined)[]).indexOf(lastFoundValidLetter)
   if (position === -1) return undefined
   return position
 }
@@ -189,7 +189,7 @@ export function simpleIntervalFromPitchClasses (
   return { simpleIntervalClass, alteration }
 }
 
-export function addSimpleIntervalToPitchClass (
+export function simpleIntervalAddToPitchClass (
   simpleInterval: SimpleIntervalValue,
   pitchClass: PitchClassValue
 ): PitchClassValue | undefined {
@@ -216,12 +216,12 @@ export function addSimpleIntervalToPitchClass (
   }
 }
 
-export function subtractSimpleIntervalToPitchClass (
+export function simpleIntervalSubtractToPitchClass (
   simpleInterval: SimpleIntervalValue,
   pitchClass: PitchClassValue
 ): PitchClassValue | undefined {
   const invertedSimpleInterval = simpleIntervalInvert(simpleInterval)
-  return addSimpleIntervalToPitchClass(
+  return simpleIntervalAddToPitchClass(
     invertedSimpleInterval,
     pitchClass
   )
@@ -233,9 +233,9 @@ export function simpleIntervalFromSimpleIntervals (
 ): SimpleIntervalValue | undefined {
   const pretextPitchClass = pitchClassNameToValue('c')
   if (pretextPitchClass === undefined) return undefined
-  const pretextPlusB = addSimpleIntervalToPitchClass(simpleIntervalB, pretextPitchClass)
+  const pretextPlusB = simpleIntervalAddToPitchClass(simpleIntervalB, pretextPitchClass)
   if (pretextPlusB === undefined) return undefined
-  const pretextPlusBMinusA = subtractSimpleIntervalToPitchClass(simpleIntervalA, pretextPlusB)
+  const pretextPlusBMinusA = simpleIntervalSubtractToPitchClass(simpleIntervalA, pretextPlusB)
   if (pretextPlusBMinusA === undefined) return undefined
   return simpleIntervalFromPitchClasses(pretextPitchClass, pretextPlusBMinusA)
 }
@@ -303,12 +303,12 @@ export function intervalFromPitches (
   }
 }
 
-export function addIntervalToPitch (
+export function intervalAddToPitch (
   interval: IntervalValue,
   pitch: PitchValue): PitchValue | undefined {
   const simpleInterval = intervalToSimpleInterval(interval)
   const { pitchClass, octave } = pitch
-  const newPitchClass = addSimpleIntervalToPitchClass(simpleInterval, pitchClass)
+  const newPitchClass = simpleIntervalAddToPitchClass(simpleInterval, pitchClass)
   if (newPitchClass === undefined) return undefined
   const newPitchClassIsOnNextOctave = newPitchClass.pitchClassLetter < pitch.pitchClass.pitchClassLetter
   const intermediatePitch: PitchValue = {
@@ -329,18 +329,18 @@ export function addIntervalToPitch (
 export function intervalInvert (interval: IntervalValue): IntervalValue | undefined {
   const pretextOriginPitch = pitchNameToValue('c^0')
   if (pretextOriginPitch === undefined) return undefined
-  const pretextDestinationPitch = addIntervalToPitch(interval, pretextOriginPitch)
+  const pretextDestinationPitch = intervalAddToPitch(interval, pretextOriginPitch)
   if (pretextDestinationPitch === undefined) return undefined
   const invertedInterval = intervalFromPitches(pretextDestinationPitch, pretextOriginPitch)
   return invertedInterval
 }
 
-export function subtractIntervalToPitch (
+export function intervalSubtractToPitch (
   interval: IntervalValue,
   pitch: PitchValue): PitchValue | undefined {
   const invertedInterval = intervalInvert(interval)
   if (invertedInterval === undefined) return undefined
-  return addIntervalToPitch(invertedInterval, pitch)
+  return intervalAddToPitch(invertedInterval, pitch)
 }
 
 export function intervalFromIntervals (
@@ -349,14 +349,14 @@ export function intervalFromIntervals (
 ) {
   const pretextPitch = pitchNameToValue('c^4')
   if (pretextPitch === undefined) return undefined
-  const pretextPlusB = addIntervalToPitch(intervalB, pretextPitch)
+  const pretextPlusB = intervalAddToPitch(intervalB, pretextPitch)
   if (pretextPlusB === undefined) return undefined
-  const pretextPlusBMinusA = subtractIntervalToPitch(intervalA, pretextPlusB)
+  const pretextPlusBMinusA = intervalSubtractToPitch(intervalA, pretextPlusB)
   if (pretextPlusBMinusA === undefined) return undefined
   return intervalFromPitches(pretextPitch, pretextPlusBMinusA)
 }
 
-export function intervalsSort (intervals: Array<IntervalValue>) {
+export function intervalsSort (intervals: IntervalValue[]) {
   const sortedIntervals = intervals
     .sort((intA, intB) => {
       const { intervalClass: intervalClassA, alteration: alterationA } = intA
@@ -367,13 +367,13 @@ export function intervalsSort (intervals: Array<IntervalValue>) {
   return sortedIntervals
 }
 
-export function intervalsDedupe (intervals: Array<IntervalValue>): Array<IntervalValue> {
+export function intervalsDedupe (intervals: IntervalValue[]): IntervalValue[] {
   const intervalsSemitonesMap = new Map<IntervalValue, number>(intervals.map(interval => [
     interval,
     intervalToSemitones(interval)
   ]))
   const semitonesSet = new Set(intervalsSemitonesMap.values())
-  const semitonesIntervalsMap = new Map<number, Array<IntervalValue>>([...semitonesSet.values()]
+  const semitonesIntervalsMap = new Map<number, IntervalValue[]>([...semitonesSet.values()]
     .map(semitoneValue => {
       const intervalsForThisSemitone = [...intervalsSemitonesMap.entries()]
         .filter(([_, sem]) => (sem === semitoneValue))
@@ -445,7 +445,7 @@ export function intervalRationalize (
 
 /* Scale */
 
-export type ScaleValue = Array<SimpleIntervalValue>
+export type ScaleValue = SimpleIntervalValue[]
 export type ScaleName = string
 
 export function scaleNameToValue (name: ScaleName): ScaleValue {
@@ -459,8 +459,6 @@ export function scaleNameToValue (name: ScaleName): ScaleValue {
 export function scaleValueToName (scale: ScaleValue): ScaleName {
   return scale.map(interval => simpleIntervalValueToName(interval)).join(',')
 }
-
-// [-, -, -, -, -, -, -]
 
 export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
   const complexIntervalsScale = scale.map(simpleInterval => simpleIntervalToInterval(simpleInterval))
@@ -481,7 +479,7 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
     }))
     .map(slot => ({
       ...slot,
-      pressureForSort: slot.intervalClass === 0
+      pressureForSort: slot.intervalClass === 0 && maxPressureAllowed !== 1
         ? -Infinity
         : slot.intervals.length
     }))
@@ -494,57 +492,29 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
     }))
     .sort((slotA, slotB) => slotA.intervalClass - slotB.intervalClass)
 
-  console.log('scale', scale.map(int => simpleIntervalValueToName(int)).join(','))
-  console.log('complexIntervalsScale', complexIntervalsScale)
-  console.log('sortedDedupedComplexIntervals', sortedDedupedComplexIntervals)
-  console.log('minPressureAllowed', minPressureAllowed)
-  console.log('maxPressureAllowed', maxPressureAllowed)
-  console.log('nbSlotsAtMaxPressure', nbSlotsAtMaxPressure)
-  console.log('pressureScheme:', intervalClassSlots.map(slot => slot.intervals.length).join('-'))
-  console.log('targetPressureScheme:', intervalClassSlots.map(slot => slot.targetPressure).join('-'))
-  console.log('intervalClassSlots', intervalClassSlots)
-
   function moveIntervalToNeighbourSlot (
     slots: typeof intervalClassSlots,
     from: number,
     toUp: boolean = true
   ): typeof intervalClassSlots {
-    // console.log('\n\n    ---- move intervals to neighbour slot')
-    // console.log('    i move from', from, 'to', toUp ? from + 1 : from - 1)
     const sourceSlot = slots.find(slot => slot.intervalClass === from)
     const destinationSlot = slots.find(slot => slot.intervalClass === from + (toUp ? 1 : -1))
     if (sourceSlot === undefined) return slots
     if (destinationSlot === undefined) return slots
-    // console.log('    source', sourceSlot.intervalClass, sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
-    // console.log('    dest', destinationSlot.intervalClass, destinationSlot.intervals.map(int => simpleIntervalValueToName(int)))
     const sourceIntervalsAsSemitones = sourceSlot.intervals.map(interval => simpleIntervalToSemitones(interval))
     const targetIntervalSemitoneValue = toUp
       ? Math.max(...sourceIntervalsAsSemitones)
       : Math.min(...sourceIntervalsAsSemitones)
-    // console.log('    targetIntervalAsSemitones', targetIntervalSemitoneValue)
     const targetInterval = sourceSlot.intervals.find(interval => simpleIntervalToSemitones(interval) === targetIntervalSemitoneValue)
-    // console.log('    targetInterval', targetInterval)
     if (targetInterval === undefined) return slots
     const shiftedTargetInterval = intervalShiftIntervalClass(
       simpleIntervalToInterval(targetInterval),
       destinationSlot.intervalClass
     )
-    // console.log('    shiftedTargetInterval', shiftedTargetInterval)
     if (shiftedTargetInterval === undefined) return slots
     destinationSlot.intervals.push(intervalToSimpleInterval(shiftedTargetInterval))
-    // console.log('    destinationSlotIntervals', destinationSlot.intervals.map(int => simpleIntervalValueToName(int)))
     const newSourceSlotIntervals = sourceSlot.intervals.filter(interval => interval !== targetInterval)
-    // console.log('    newSourceSlotIntervals', newSourceSlotIntervals.map(int => simpleIntervalValueToName(int)))
     sourceSlot.intervals.splice(0, Infinity, ...newSourceSlotIntervals)
-    // sourceSlot.intervals.push(...newSourceSlotIntervals)
-    // console.log('sourceSlotIntervalsAfterSplice', sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
-    // for (
-    //   let step = 0;
-    //   step < sourceSlot.intervals.length - newSourceSlotIntervals.length;
-    //   step++) {
-    //   sourceSlot.intervals.pop()
-    // }
-    // console.log('sourceSlotIntervalsAfterPop', sourceSlot.intervals.map(int => simpleIntervalValueToName(int)))
     return slots
   }
 
@@ -553,10 +523,8 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
     from: number,
     to: number
   ): typeof intervalClassSlots {
-    // console.log('\n\n\n\n\n\n-- chinese whisper from', from, 'to', to)
     if (from === to) return slots
     const distance = Math.abs(to - from)
-    // console.log('in', slots.map(slot => slot.intervals.map(int => simpleIntervalValueToName(int))).flat())
     for (
       let iteration = 0;
       iteration < distance;
@@ -569,11 +537,14 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
         to > from
       )
     }
-    // console.log('\n\nout', slots.map(slot => slot.intervals.map(int => simpleIntervalValueToName(int))).flat())
     return slots
   }
 
-  for (const { intervalClass, intervals, targetPressure } of intervalClassSlots) {
+  for (const {
+    intervalClass,
+    intervals,
+    targetPressure
+  } of intervalClassSlots) {
     const nbToGive = intervals.length - targetPressure
     const slotsToFill = intervalClassSlots.reduce((acc, curr) => {
       if (nbToGive <= acc.length) return acc
@@ -584,7 +555,6 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
       )
       return [...acc, ...new Array(returnCurrSlotNTimes).fill(curr)]
     }, [] as typeof intervalClassSlots)
-    console.log('slot', intervalClass, 'gives to', slotsToFill)
     for (const slotToFill of slotsToFill) {
       chineseWhisperIntervalFromSlotToSlot(
         intervalClassSlots,
@@ -595,78 +565,248 @@ export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
   }
   return intervalClassSlots
     .sort((slotA, slotB) => slotA.intervalClass - slotB.intervalClass)
-    .map(({ intervals }) => intervals.sort((intA, intB) => simpleIntervalToSemitones(intA) - simpleIntervalToSemitones(intB)))
+    .map(({ intervals }) => intervals.sort((intA, intB) => {
+      return simpleIntervalToSemitones(intA)
+        - simpleIntervalToSemitones(intB)
+    }))
     .flat()
 }
 
-console.log('reallocated', scaleReallocateIntervals([
-  simpleIntervalNameToValue('1') as any,
-  simpleIntervalNameToValue('##1') as any,
-  simpleIntervalNameToValue('####1') as any,
-  simpleIntervalNameToValue('#####1') as any,
-  simpleIntervalNameToValue('#######1') as any,
-  simpleIntervalNameToValue('#########1') as any,
-  simpleIntervalNameToValue('###########1') as any,
-]).map(int => simpleIntervalValueToName(int)).join(', '))
-console.log('======')
+export function scaleToBinaryValue (scale: ScaleValue): string {
+  const intervalsAsSemitoneValues = scale.map(interval => absoluteModulo(
+    simpleIntervalToSemitones(interval),
+    12
+  ))
+  const binArray = new Array(12)
+    .fill(null)
+    .map((_, pos) => intervalsAsSemitoneValues.includes(pos) ? 1 : 0)
+    .reverse()
+  const binStr = binArray.join('')
+  return binStr
+}
 
-console.log('reallocated', scaleReallocateIntervals([
-  simpleIntervalNameToValue('1') as any,
-  simpleIntervalNameToValue('#1') as any,
-  simpleIntervalNameToValue('2') as any,
-  simpleIntervalNameToValue('4') as any,
-  simpleIntervalNameToValue('ß5') as any,
-  simpleIntervalNameToValue('ß6') as any,
-  simpleIntervalNameToValue('6') as any,
-  simpleIntervalNameToValue('#6') as any,
-  simpleIntervalNameToValue('7') as any,
-]).map(int => simpleIntervalValueToName(int)).join(', '))
-console.log('======')
+export function scaleBinaryValueToValue (binaryValue: ReturnType<typeof scaleToBinaryValue>): ScaleValue {
+  return scaleReallocateIntervals(binaryValue
+    .split('')
+    .reverse()
+    .map((bit, pos) => {
+      if (bit === '1') return intervalToSimpleInterval(
+        intervalRationalize({
+          intervalClass: 0,
+          alteration: pos
+        }, true)
+      )
+    })
+    .filter((item): item is SimpleIntervalValue => item !== undefined)
+  )
+}
 
-console.log('reallocated', scaleReallocateIntervals([
-  simpleIntervalNameToValue('7') as any,
-  simpleIntervalNameToValue('ßß7') as any,
-  simpleIntervalNameToValue('ßßßß7') as any,
-  simpleIntervalNameToValue('ßßßßß7') as any,
-  simpleIntervalNameToValue('ßßßßßßß7') as any,
-  simpleIntervalNameToValue('ßßßßßßßßß7') as any,
-  simpleIntervalNameToValue('ßßßßßßßßßßß7') as any,
-]).map(int => simpleIntervalValueToName(int)).join(', '))
-console.log('======')
+export function scaleToDecimalValue (scale: ScaleValue): number {
+  return parseInt(scaleToBinaryValue(scale), 2)
+}
 
-console.log('reallocated', scaleReallocateIntervals([
-  simpleIntervalNameToValue('1') as any,
-  simpleIntervalNameToValue('ß2') as any,
-  simpleIntervalNameToValue('2') as any,
-  simpleIntervalNameToValue('ß3') as any,
-  simpleIntervalNameToValue('3') as any,
-  simpleIntervalNameToValue('ßß6') as any,
-  simpleIntervalNameToValue('ß6') as any,
-  simpleIntervalNameToValue('6') as any,
-  simpleIntervalNameToValue('ß7') as any,
-  simpleIntervalNameToValue('7') as any,
-]).map(int => simpleIntervalValueToName(int)).join(', '))
-console.log('======')
+export function scaleDecimalValueToValue (decimalValue: ReturnType<typeof scaleToDecimalValue>): ScaleValue {
+  return scaleBinaryValueToValue(decimalValue.toString(2))
+}
 
-// console.log(scaleReallocateIntervals([
-//   simpleIntervalNameToValue('1') as any,
-//   simpleIntervalNameToValue('2') as any,
-//   simpleIntervalNameToValue('#2') as any,
-//   simpleIntervalNameToValue('3') as any,
-//   simpleIntervalNameToValue('#3') as any,
-//   simpleIntervalNameToValue('##4') as any,
-//   simpleIntervalNameToValue('#5') as any,
-//   simpleIntervalNameToValue('6') as any,
-//   simpleIntervalNameToValue('ß7') as any
-// ]).map(int => simpleIntervalValueToName(int)).join(', '))
+export function scaleToPatternValue (scale: ScaleValue): string {
+  return scaleToBinaryValue(scale)
+    .split('')
+    .reverse()
+    .join('')
+    .replaceAll('1', 'x')
+    .replaceAll('0', '-')
+}
 
-// Simple intervals
-// Reallocate
-// Get steps at
-// Get step at
-// Get triads, tetrads, pentads, at ...
-// Simple intervals ?
-// Reallocate ?
-// Subsets, supersets
-// Triads, Tetrads, Pentads, etc...
+export function scalePatternValueToValue (pattern: ReturnType<typeof scaleToPatternValue>): ScaleValue {
+  return scaleBinaryValueToValue(pattern
+    .split('')
+    .reverse()
+    .join('')
+    .replaceAll('x', '1')
+    .replaceAll('-', '0')
+  )
+}
 
+export function scaleToRotations (scale: ScaleValue): ScaleValue[] {
+  const scalePattern = scaleToPatternValue(scale)
+  return new Array(12)
+    .fill(null)
+    .map((_, rotationPos) => {
+      try {
+        const pretextPitchClass = pitchClassNameToValue('c')
+        if (pretextPitchClass === undefined) throw new Error('This should normally never happen.')
+        const rotationPosAsInterval = intervalToSimpleInterval(
+          intervalRationalize({
+            intervalClass: 0,
+            alteration: -1 * rotationPos
+          }, true)
+        )
+        return intervalsSort(scale.map(interval => {
+          const pretextPitchPlusThisInterval = simpleIntervalAddToPitchClass(interval, pretextPitchClass)
+          if (pretextPitchPlusThisInterval === undefined) throw new Error('This should normally never happen.')
+          const pretextPitchPlusRotationInterval = simpleIntervalAddToPitchClass(rotationPosAsInterval, pretextPitchPlusThisInterval)
+          if (pretextPitchPlusRotationInterval === undefined) throw new Error('This should normally never happen.')
+          const outputInterval = simpleIntervalFromPitchClasses(pretextPitchClass, pretextPitchPlusRotationInterval)
+          return simpleIntervalToInterval(outputInterval)
+        })).map(interval => intervalToSimpleInterval(interval))
+      } catch (err) {
+        // This is a less clean way for obtaining the rotation
+        const patternBeginning = scalePattern.slice(0, rotationPos)
+        const patternEnd = scalePattern.slice(rotationPos)
+        const thisRotationPattern = `${patternEnd}${patternBeginning}`
+        const rotatedScale = scalePatternValueToValue(thisRotationPattern)
+        return rotatedScale
+      }
+    })
+}
+
+export function scaleToRotationalSymmetryAxes (scale: ScaleValue): number[] {
+  const scalePattern = scaleToPatternValue(scale)
+  const rotations = scaleToRotations(scale)
+  return rotations
+    .map(rotation => scaleToPatternValue(rotation))
+    .map((rotationPattern, rotationPos) => rotationPattern === scalePattern ? rotationPos : undefined)
+    .filter((elt): elt is number => elt !== undefined)
+}
+
+export function scaleToModes (scale: ScaleValue): ScaleValue[] {
+  const rotations = scaleToRotations(scale)
+  return rotations.filter(scale => scaleToDecimalValue(scale) % 2 !== 0)
+}
+
+export function scaleToReflections (scale: ScaleValue): ScaleValue[] {
+  const rotations = scaleToRotations(scale)
+  return rotations.map(rotation => {
+    const patternArr = scaleToPatternValue(rotation).split('')
+    const rotatedPattern = [patternArr[0], ...patternArr.slice(1).reverse()].join('')
+    const reflected = scalePatternValueToValue(rotatedPattern)
+    return reflected
+  })
+}
+
+export function scaleToReflectionSymmetryAxes (scale: ScaleValue): number[] {
+  const scalePattern = scaleToPatternValue(scale)
+  const reflections = scaleToReflections(scale)
+  return reflections
+    .map(reflection => scaleToPatternValue(reflection))
+    .map((reflectionPattern, reflectionPos) => reflectionPattern === scalePattern ? reflectionPos : undefined)
+    .filter((elt): elt is number => elt !== undefined)
+}
+
+export function scaleToNegative (scale: ScaleValue): ScaleValue {
+  const scalePattern = scaleToPatternValue(scale)
+  const negatedPattern = scalePattern
+    .replaceAll('x', 'y')
+    .replaceAll('-', 'x')
+    .replaceAll('y', '-')
+  return scalePatternValueToValue(negatedPattern)
+}
+
+export function scaleToSupersets (scale: ScaleValue): ScaleValue[] {
+  const pattern = scaleToPatternValue(scale)
+  const nbOfSupersets = parseInt(
+    pattern
+      .replaceAll('x', '')
+      .replaceAll('-', '1'),
+    2) || 0
+  return new Array(nbOfSupersets)
+    .fill(null)
+    .map((_, _supersetPos) => {
+      const supersetPos = _supersetPos + 1
+      const supersetBinaryAdditions = supersetPos.toString(2)
+      const supersetPatternAdditions = supersetBinaryAdditions
+        .split('')
+        .reverse()
+        .join('')
+        .replaceAll('1', 'x')
+        .replaceAll('0', '-')
+      const supersetPattern = supersetPatternAdditions
+        .split('')
+        .reduce((acc, curr) => acc.replace('-', curr === 'x' ? 'x' : 'y'), pattern)
+        .replaceAll('y', '-')
+      const superset = scalePatternValueToValue(supersetPattern)
+      return superset
+    })
+}
+
+export function scaleToSubsets (scale: ScaleValue): ScaleValue[] {
+  const pattern = scaleToPatternValue(scale)
+  const nbOfSubsets = parseInt(
+    pattern
+      .replaceAll('-', '')
+      .replaceAll('x', '1'),
+    2) || 0
+  return new Array(nbOfSubsets)
+    .fill(null)
+    .map((_, _subsetPos) => {
+      const subsetPos = _subsetPos + 1
+      const subsetBinaryDeletions = subsetPos.toString(2)
+      const subsetPatternDeletions = subsetBinaryDeletions
+        .split('')
+        .reverse()
+        .join('')
+        .replaceAll('1', 'x')
+        .replaceAll('0', '-')
+      const subsetPattern = subsetPatternDeletions
+        .split('')
+        .reduce((acc, curr) => acc.replace('x', curr === 'x' ? '-' : 'y'), pattern)
+        .replaceAll('y', 'x')
+      const subset = scalePatternValueToValue(subsetPattern)
+      return subset
+    })
+}
+
+console.log(
+  scaleToSubsets(
+    scalePatternValueToValue('xxxxxxxxxxxx')
+  )
+  .map(e => scaleToPatternValue(e))
+  .join('\n')
+)
+
+// CHORD NAME
+// COMMON NAMES
+
+// intervalPattern
+// semitonesPattern
+// maxInterval
+// triads
+// gender
+// distanceTo
+// scalesAt
+// hemitones
+// hemitonesPosition
+// tritones
+// tritonesPosition
+// cohemitones
+// cohemitonesPosition
+// imperfections
+// imperfectionsPosition
+// stepsWithXabove
+// stepsWithXabovePosition
+// stepsWithXbelow
+// stepsWithXbelowPosition
+// isSupersetOf
+// isSubsetOf
+// primeForm
+// rotationsToPrimeForm
+// isPalindromic
+// isChiral
+// isBalanced
+// intervalSpectrum
+// merge
+// subtract
+// rotate
+// reflect
+// modulate
+// negate
+// becomePrime
+// * DISTRIBUTION SPECTRA [WIP]
+// * SPECTRUM VARIATION [WIP]
+// * IS EQUAL [WIP]
+// * IS MAXIMALLY EVEN [WIP]
+// * HAS MYHILL'S PROPERTY [WIP]
+// * IS PROPER (IS COHERENT) [WIP]
+// * IS DEEP [WIP]
+// * FORTE NUMBER [WIP]

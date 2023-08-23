@@ -155,26 +155,26 @@
         }, 2)
       ) === '#17')
       assert('SimpleInterval ß2 added to PitchClass #b gives PitchClass #c', m.pitchClassValueToName(
-        m.addSimpleIntervalToPitchClass(
+        m.simpleIntervalAddToPitchClass(
           m.simpleIntervalNameToValue('ß2'),
           m.pitchClassNameToValue('#b')
         ) === '#c'
       ))
       assert('SimpleInterval #2 added to PitchClass ßßa gives PitchClass ßb', m.pitchClassValueToName(
-        m.addSimpleIntervalToPitchClass(
+        m.simpleIntervalAddToPitchClass(
           m.simpleIntervalNameToValue('#2'),
           m.pitchClassNameToValue('ßßa')
         ) === 'ßb'
       ))
 
       assert('SimpleInterval ß2 subtracted to PitchClass #c gives PitchClass #b', m.pitchClassValueToName(
-        m.subtractSimpleIntervalToPitchClass(
+        m.simpleIntervalSubtractToPitchClass(
           m.simpleIntervalNameToValue('ß2'),
           m.pitchClassNameToValue('#c')
         ) === '#b'
       ))
       assert('SimpleInterval #2 subtracted to PitchClass ßßb gives PitchClass ßa', m.pitchClassValueToName(
-        m.subtractSimpleIntervalToPitchClass(
+        m.simpleIntervalSubtractToPitchClass(
           m.simpleIntervalNameToValue('#2'),
           m.pitchClassNameToValue('ßßb')
         ) === 'ßa'
@@ -239,13 +239,13 @@
         )
       ) === 'ßß-7')
       assert('Interval -2 added to Pitch c^4 gives pitch b^3', m.pitchValueToName(
-        m.addIntervalToPitch(
+        m.intervalAddToPitch(
           m.intervalNameToValue('-2'),
           m.pitchNameToValue('c^4')
         )
       ) === 'b^3')
       assert('Interval -ßß2 added to Pitch ßßc^4 gives pitch ßßßßb^3', m.pitchValueToName(
-        m.addIntervalToPitch(
+        m.intervalAddToPitch(
           m.intervalNameToValue('-ßß2'),
           m.pitchNameToValue('ßßc^4')
         )
@@ -266,13 +266,13 @@
         )
       ) === 'ß-2')
       assert('Interval -2 subtracted to Pitch b^3 gives pitch c^4', m.pitchValueToName(
-        m.subtractIntervalToPitch(
+        m.intervalSubtractToPitch(
           m.intervalNameToValue('-2'),
           m.pitchNameToValue('b^3')
         )
       ) === 'c^4')
       assert('Interval -ßß2 subtracted to Pitch ßßßßb^3 gives pitch ßßc^4', m.pitchValueToName(
-        m.subtractIntervalToPitch(
+        m.intervalSubtractToPitch(
           m.intervalNameToValue('-ßß2'),
           m.pitchNameToValue('ßßßßb^3')
         )
@@ -298,17 +298,96 @@
         m.intervalNameToValue('5')
       ]).map(interval => m.intervalValueToName(interval))
         .join(',') === '1,5')
+      assert('Interval ß3 shifted to interval class 2 (numeric: 1) is #2', m.intervalValueToName(
+        m.intervalShiftIntervalClass(
+          m.intervalNameToValue('ß3'),
+          1
+        )
+      ) === '#2')
+      assert('Interval ##7 shifted to interval class 5 (numeric: 4) is ######5', m.intervalValueToName(
+        m.intervalShiftIntervalClass(
+          m.intervalNameToValue('##7'),
+          4
+        )
+      ) === '######5')
+      assert('Interval ####3 rationalized is #5', m.intervalValueToName(
+        m.intervalRationalize(
+          m.intervalNameToValue('####3')
+        )
+      ) === '#5')
+      assert('Interval ####3 hard rationalized is ß6', m.intervalValueToName(
+        m.intervalRationalize(
+          m.intervalNameToValue('####3'),
+          true
+        )
+      ) === 'ß6')
+      // scaleNameToValue
+      // scaleValueToName
+      // scaleReallocateIntervals
       
       /* Scale */
       console.log('-- Scale --')
+
       assert('Scale named 1,#4,ß2,3,#2 has intervals 1 #4 ß2 3 #2', m.scaleNameToValue('1,#4,ß2,3,#2')
-        .map(e => m.intervalValueToName(e)).join(' ') === '1 #4 ß2 3 #2')
+        .map(e => m.simpleIntervalValueToName(e)).join(' ') === '1 #4 ß2 3 #2')
       assert('Scale with values 1 ß3 5 7 is named 1,ß3,5,7', m.scaleValueToName([
-        m.intervalNameToValue('1'),
-        m.intervalNameToValue('ß3'),
-        m.intervalNameToValue('5'),
-        m.intervalNameToValue('7')
+        m.simpleIntervalNameToValue('1'),
+        m.simpleIntervalNameToValue('ß3'),
+        m.simpleIntervalNameToValue('5'),
+        m.simpleIntervalNameToValue('7')
       ]) === '1,ß3,5,7')
+      assert('Scale with values ß3 1 5 7 is named ß3,1,5,7', m.scaleValueToName([
+        m.simpleIntervalNameToValue('ß3'),
+        m.simpleIntervalNameToValue('1'),
+        m.simpleIntervalNameToValue('5'),
+        m.simpleIntervalNameToValue('7')
+      ]) === 'ß3,1,5,7')
+
+      assert('Scale with intervals 1, ##1, ####1, #####1, #######1, #########1, ###########1 is reallocated as 1,2,3,4,5,6,7', m.scaleReallocateIntervals([
+        m.simpleIntervalNameToValue('1'),
+        m.simpleIntervalNameToValue('##1'),
+        m.simpleIntervalNameToValue('####1'),
+        m.simpleIntervalNameToValue('#####1'),
+        m.simpleIntervalNameToValue('#######1'),
+        m.simpleIntervalNameToValue('#########1'),
+        m.simpleIntervalNameToValue('###########1')
+      ]).map(int => m.simpleIntervalValueToName(int)).join(',') === '1,2,3,4,5,6,7')
+
+      assert('Scale with intervals 1, #1, 2, 4, ß5, ß6, 6, #6, 7 is reallocated as 1,ß2,2,#3,#4,#5,6,#6,7', m.scaleReallocateIntervals([
+        m.simpleIntervalNameToValue('1'),
+        m.simpleIntervalNameToValue('#1'),
+        m.simpleIntervalNameToValue('2'),
+        m.simpleIntervalNameToValue('4'),
+        m.simpleIntervalNameToValue('ß5'),
+        m.simpleIntervalNameToValue('ß6'),
+        m.simpleIntervalNameToValue('6'),
+        m.simpleIntervalNameToValue('#6'),
+        m.simpleIntervalNameToValue('7')
+      ]).map(int => m.simpleIntervalValueToName(int)).join(',') === '1,ß2,2,#3,#4,#5,6,#6,7')
+
+      assert('Scale with intervals 7, ßß7, ßßßß7, ßßßßß7, ßßßßßßß7, ßßßßßßßßß7, ßßßßßßßßßßß7 is reallocated as 1,2,3,#4,5,6,7', m.scaleReallocateIntervals([
+        m.simpleIntervalNameToValue('7'),
+        m.simpleIntervalNameToValue('ßß7'),
+        m.simpleIntervalNameToValue('ßßßß7'),
+        m.simpleIntervalNameToValue('ßßßßß7'),
+        m.simpleIntervalNameToValue('ßßßßßßß7'),
+        m.simpleIntervalNameToValue('ßßßßßßßßß7'),
+        m.simpleIntervalNameToValue('ßßßßßßßßßßß7')
+      ]).map(int => m.simpleIntervalValueToName(int)).join(',') === '1,2,3,#4,5,6,7')
+
+      assert('Scale with intervals 1, ß2, 2, ß3, 3, ßß6, ß6, 6, ß7, 7 is reallocated as 1,ß2,2,ß3,3,##4,#5,6,#6,7', m.scaleReallocateIntervals([
+        m.simpleIntervalNameToValue('1'),
+        m.simpleIntervalNameToValue('ß2'),
+        m.simpleIntervalNameToValue('2'),
+        m.simpleIntervalNameToValue('ß3'),
+        m.simpleIntervalNameToValue('3'),
+        m.simpleIntervalNameToValue('ßß6'),
+        m.simpleIntervalNameToValue('ß6'),
+        m.simpleIntervalNameToValue('6'),
+        m.simpleIntervalNameToValue('ß7'),
+        m.simpleIntervalNameToValue('7')
+      ]).map(int => m.simpleIntervalValueToName(int)).join(',') === '1,ß2,2,ß3,3,##4,#5,6,#6,7')
+
     </script>
   </head>
   <body></body>
