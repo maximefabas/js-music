@@ -724,10 +724,135 @@ export function scaleToChordQuality (scale: ScaleValue): string {
     allNamedIntervals
   ] = generateIntervalsTable(scale)
 
+  function canBeMinor (scale: ScaleValue) {
+    const thirds = scale.filter(int => int.simpleIntervalClass === third)
+    const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
+    if (hasMajorThird) return false
+    const hasMinorThird = thirds.filter(int => int.alteration === -1).length !== 0
+    return hasMinorThird
+  }
+
+  function canBeMajor (scale: ScaleValue) {
+    const thirds = scale.filter(int => int.simpleIntervalClass === third)
+    const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
+    return hasMajorThird
+  }
+
+  function canBeDiminished (scale: ScaleValue) {
+    const hasMinorProperties = canBeMinor(scale)
+    if (!hasMinorProperties) return false
+    const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
+    const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
+    if (hasPerfectFifth) return false
+    const hasDiminishedFifth = fifths.filter(int => int.alteration === -1).length !== 0
+    return hasDiminishedFifth
+  }
+
+  function canBeAugmented (scale: ScaleValue) {
+    const hasMajorProperties = canBeMajor(scale)
+    if (!hasMajorProperties) return false
+    const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
+    const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
+    if (hasPerfectFifth) return false
+    const hasAugmentedFifth = fifths.filter(int => int.alteration === 1).length !== 0
+    return hasAugmentedFifth
+  }
+
+  function canBeSuspended24 (scale: ScaleValue) {
+    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+    const thirds = scale.filter(int => int.simpleIntervalClass === third)
+    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+    if (!hasMajorNinth) return false
+    const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+    if (!hasMajorEleventh) return false
+    const hasThird = thirds.length !== 0
+    return !hasThird
+  }
+
+  function canBeSuspended2 (scale: ScaleValue) {
+    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+    const thirds = scale.filter(int => int.simpleIntervalClass === third)
+    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+    if (!hasMajorNinth) return false
+    const hasThird = thirds.length !== 0
+    return !hasThird
+  }
+
+  function canBeSuspended4 (scale: ScaleValue) {
+    const thirds = scale.filter(int => int.simpleIntervalClass === third)
+    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+    const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+    if (!hasMajorEleventh) return false
+    const hasThird = thirds.length !== 0
+    return !hasThird
+  }
+
+  function canBeDominant7 (scale: ScaleValue) {
+    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+    const hasMinorSeventh = sevenths.filter(int => int.alteration === -1).length !== 0
+    return hasMinorSeventh
+  }
+
+  function canBeMajor7 (scale: ScaleValue) {
+    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+    const hasMajorSeventh = sevenths.filter(int => int.alteration === 0).length !== 0
+    return hasMajorSeventh
+  }
+
+  function canBeDiminished7 (scale: ScaleValue) {
+    const hasDiminishedProperties = canBeDiminished(scale)
+    if (!hasDiminishedProperties) return false
+    const hasDominant7Properties = canBeDominant7(scale)
+    if (hasDominant7Properties) return false
+    const hasMajor7Properties = canBeMajor7(scale)
+    if (hasMajor7Properties) return false
+    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+    const hasDiminished7 = sevenths.filter(int => int.alteration === -2).length !== 0
+    return hasDiminished7
+  }
+
+  function canBeAugmented7 (scale: ScaleValue) {
+    const hasAugmentedProperties = canBeAugmented(scale)
+    if (!hasAugmentedProperties) return false
+    const hasDominant7Properties = canBeDominant7(scale)
+    return hasDominant7Properties
+  }
+
+  function canBeAugmentedMajor7 (scale: ScaleValue) {
+    const hasAugmentedProperties = canBeAugmented(scale)
+    if (!hasAugmentedProperties) return false
+    const hasMajor7Properties = canBeMajor7(scale)
+    return hasMajor7Properties
+  }
+  
+  function canBeNinth (scale: ScaleValue) {
+    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+    const hasMinorNinth = ninths.filter(int => int.alteration === -1).length !== 0
+    return hasMajorNinth || hasMinorNinth
+  }
+
+  function canBeEleventh (scale: ScaleValue) {
+    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+    const hasPerfectEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+    const hasAugmentedEleventh = elevenths.filter(int => int.alteration === 1).length !== 0
+    return hasPerfectEleventh || hasAugmentedEleventh
+  }
+
+  function canBeThirteenth (scale: ScaleValue) {
+    const thirteenths = scale.filter(int => int.simpleIntervalClass === thirteenth)
+    const hasMajorThirteenth = thirteenths.filter(int => int.alteration === 0).length !== 0
+    const hasMinorThirteenth = thirteenths.filter(int => int.alteration === -1).length !== 0
+    return hasMajorThirteenth || hasMinorThirteenth
+  }
+
   let remainingIntervalsToName = [...allNamedIntervals]
   const nameChunks: string[] = []
   
+  // ----------
   // 13th
+  // ----------
   if (
     ['ß3', '3'].includes(thirds.namedMainInterval)
     && ['ß7', '7'].includes(sevenths.namedMainInterval)
@@ -736,7 +861,9 @@ export function scaleToChordQuality (scale: ScaleValue): string {
     nameChunks.push('some 13th shit')
     // cannot be sus here
   
+  // ----------
   // 11th
+  // ----------
   } else if (
     ['ß3', '3'].includes(thirds.namedMainInterval)
     && ['ß7', '7'].includes(sevenths.namedMainInterval)
@@ -745,7 +872,9 @@ export function scaleToChordQuality (scale: ScaleValue): string {
     nameChunks.push('some 11th shit')
     // cannot be sus here
   
+  // ----------
   // 9th
+  // ----------
   } else if (
     ['ß3', '3'].includes(thirds.namedMainInterval)
     && ['ß7', '7'].includes(sevenths.namedMainInterval)
@@ -753,7 +882,9 @@ export function scaleToChordQuality (scale: ScaleValue): string {
   ) {
     nameChunks.push('some 9th shit')
 
+  // ----------
   // 7th
+  // ----------
   } else if (['ßß7', 'ß7', '7'].includes(sevenths.namedMainInterval)) {
     
     // dim7
@@ -766,7 +897,7 @@ export function scaleToChordQuality (scale: ScaleValue): string {
         && name !== 'ß5'
         && name !== 'ßß7')
       
-    // not dim7 but aug7
+    // aug7
     } else if (thirds.namedMainInterval === '3'
       && fifths.namedMainInterval === '#5'
       && sevenths.namedMainInterval === 'ß7') {
@@ -776,7 +907,7 @@ export function scaleToChordQuality (scale: ScaleValue): string {
         && name !== '#5'
         && name !== 'ß7')
   
-    // not dim7 or aug7 but augM7
+    // augM7
     } else if (thirds.namedMainInterval === '3'
       && fifths.namedMainInterval === '#5'
       && sevenths.namedMainInterval === '7') {
@@ -786,7 +917,7 @@ export function scaleToChordQuality (scale: ScaleValue): string {
         && name !== '#5'
         && name !== '7')
 
-    // not nor aug7 augM7 or dim7
+    // not dim7, aug7 nor augM7
     } else {
       
       // Determine seventh nature (add to chunks after thirds step)
@@ -838,41 +969,113 @@ export function scaleToChordQuality (scale: ScaleValue): string {
 
       // No third, look for sus2 or 4
       else if (scaleHasIntervalClass(scale, [ninth, eleventh])) {
+        
+        // is sus24
         if (ninths.namedMainInterval === '2'
           && elevenths.namedMainInterval === '4') {
           nameChunks.push('sus24', seventhNature, fifthNature)
-          
+          remainingIntervalsToName = remainingIntervalsToName
+            .filter(name => name !== '2' && name !== '4')
+        
+        // is sus2
+        } else if (ninths.namedMainInterval === '2') {
+          nameChunks.push('sus2', seventhNature, fifthNature)
+          remainingIntervalsToName = remainingIntervalsToName
+            .filter(name => name !== '2')
+        
+        // is sus4
+        } else if (elevenths.namedMainInterval === '4') {
+          nameChunks.push('sus4', seventhNature, fifthNature)
+          remainingIntervalsToName = remainingIntervalsToName
+            .filter(name => name !== '4')
+        
+        // is no(3)
+        } else {
+          nameChunks.push(seventhNature, fifthNature, 'no(3)')
+        }
+      }
+
+      // No third, not sus24, look for sus2
+      else if (scaleHasIntervalClass(scale, ninth)) {
+        
+        // is sus2
+        if (ninths.namedMainInterval === '2') {
+          nameChunks.push('sus2', seventhNature, fifthNature)
+          remainingIntervalsToName = remainingIntervalsToName
+            .filter(name => name !== '2')
+
+        // is no(3)
+        } else {
+          nameChunks.push(seventhNature, fifthNature, 'no(3)')
+        }
+        
+      // No third, not sus24 or sus2, look for sus4
+      } else if (scaleHasIntervalClass(scale, eleventh)) {
+        
+        // is sus4
+        if (elevenths.namedMainInterval === '4') {
+          nameChunks.push('sus4', seventhNature, fifthNature)
+          remainingIntervalsToName = remainingIntervalsToName
+            .filter(name => name !== '4')
+        
+        // is no(3)
+        } else {
+          nameChunks.push(seventhNature, fifthNature, 'no(3)')
         }
 
-        nameChunks.push(seventhNature, fifthNature)
-        // is sus24
-      }
-      else if (scaleHasIntervalClass(scale, ninth)) {
-        nameChunks.push(seventhNature, fifthNature)
-        // is sus2
-      } else if (scaleHasIntervalClass(scale, eleventh)) {
-        nameChunks.push(seventhNature, fifthNature)
-        // is sus4
+      // No third or sus
       } else {
         nameChunks.push(seventhNature, fifthNature)
-        // just no(3)
         nameChunks.push('no(3)')
       }
-      
-      // // Add seventh nature
-      // if (sevenths.namedMainInterval === '7') {
-      //   nameChunks.push('M7')
-      //   remainingIntervalsToName = remainingIntervalsToName
-      //     .filter(name => name !== '7')
-      // } else if (sevenths.namedMainInterval === 'ß7') {
-      //   nameChunks.push('7')
-      //   remainingIntervalsToName = remainingIntervalsToName
-      //     .filter(name => name !== 'ß7')
-      // }
+    }
+  
+  // ----------
+  // Not [3,7,13], [3,7,11], [3,7,9] or [7]
+  // ----------
+  } else {
 
+    // ----------
+    // 13th
+    // ----------
+    if (
+      ['ß3', '3'].includes(thirds.namedMainInterval)
+      && ['ß6', '6'].includes(thirteenths.namedMainInterval)
+    ) {
+      console.log('is 13th no(7) base')
+      nameChunks.push('some 13th shit')
+      // cannot be sus here
+    
+    // ----------
+    // 11th
+    // ----------
+    } else if (
+      ['ß3', '3'].includes(thirds.namedMainInterval)
+      && ['4', '#4'].includes(elevenths.namedMainInterval)
+    ) {
+      console.log('is 11th no(7) base')
+      nameChunks.push('some 11th shit')
+      // cannot be sus here
+    
+    // ----------
+    // 9th
+    // ----------
+    } else if (
+      ['ß3', '3'].includes(thirds.namedMainInterval)
+      && ['ß2', '2'].includes(ninths.namedMainInterval)
+    ) {
+      console.log('is 9th no(7) base')
+      nameChunks.push('some 9th shit')
+
+    // ----------
+    // 7th
+    // ----------
+    } else {
+      console.log('is triad base')
     }
   }
 
+  // Handle first interval now
   if (firsts.namedMainInterval === '') {
     nameChunks.push('no(1)')
   } else {
