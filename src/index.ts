@@ -645,514 +645,1085 @@ export function scaleHasIntervalClass (scale: ScaleValue, _intervalClass: number
 }
 
 export function scaleToChordQuality (scale: ScaleValue): string {
-  const first = 0
-  const ninth = 1
-  const third = 2
-  const eleventh = 3
-  const fifth = 4
-  const thirteenth = 5
-  const seventh = 6
+  const namedIntervals = scale.map(int => simpleIntervalValueToName(int))
+  const hasMajorThird = namedIntervals.includes('3')
+  const hasMinorThird = namedIntervals.includes('ß3')
+  const hasAnyThird = namedIntervals.some(int => int.match(/3/igm))
+  const isMajor = hasMajorThird
+  const isMinor = !isMajor && hasMinorThird
+  const hasPerfectFifth = namedIntervals.includes('5')
+  const hasDiminishedFifth = namedIntervals.includes('ß5')
+  const hasAugmentedFifth = namedIntervals.includes('#5')
+  const hasAnyFifth = namedIntervals.some(int => int.match(/5/igm))
+  const hasMajorSeventh = namedIntervals.includes('7')
+  const hasMinorSeventh = namedIntervals.includes('ß7')
+  const hasDiminishedSeventh = namedIntervals.includes('ßß7')
+  const hasMajorNinth = namedIntervals.includes('2')
+  const hasMinorNinth = namedIntervals.includes('ß2')
+  const hasPerfectEleventh = namedIntervals.includes('4')
+  const hasAugmentedEleventh = namedIntervals.includes('#4')
+  const hasMajorThirteenth = namedIntervals.includes('6')
+  const hasMinorThirteenth = namedIntervals.includes('ß6')
+  const hasExtensionsBelowThirteenth = hasMinorSeventh
+    || hasMajorSeventh
+    || hasMinorNinth
+    || hasMajorNinth
+    || hasPerfectEleventh
+    || hasAugmentedEleventh
+  const hasExtensionsBelowEleventh = hasMinorSeventh
+    || hasMajorSeventh
+    || hasMinorNinth
+    || hasMajorNinth
+  const hasExtensionsBelowNinth = hasMinorSeventh || hasMajorSeventh
 
-  type IntervalInfoTable = {
-    allIntervals: SimpleIntervalValue[]
-    naturals: SimpleIntervalValue[]
-    flats: SimpleIntervalValue[]
-    sharps: SimpleIntervalValue[]
-    mainInterval: SimpleIntervalValue | undefined
-    namedAllIntervals: string[]
-    namedNaturals: string[]
-    namedFlats: string[]
-    namedSharps: string[]
-    namedMainInterval: string
+  type S = string[]
+  const nameObj = {
+    mainQuality: '',
+    hasMinorQuality: false,
+    accidents: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    omissions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    additions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    leftovers: namedIntervals
   }
 
-  function generateIntervalsTable (scale: ScaleValue): [
-    IntervalInfoTable,
-    IntervalInfoTable,
-    IntervalInfoTable,
-    IntervalInfoTable,
-    IntervalInfoTable,
-    IntervalInfoTable,
-    IntervalInfoTable,
-    string[]
-  ] {
-    const intervalTable = new Array(7)
-    .fill(null)
-    .map((_, pos) => {
-      const allIntervals = scale.filter(int => int.simpleIntervalClass === pos)
-      const naturals = allIntervals.filter(int => int.alteration === 0)
-      const flats = allIntervals.filter(int => int.alteration < 0)
-      const sharps = allIntervals.filter(int => int.alteration > 0)
-      const mainInterval = naturals.at(0) ?? flats.at(0) ?? sharps.at(0)
-      return {
-        allIntervals,
-        naturals,
-        flats,
-        sharps,
-        mainInterval,
-        namedAllIntervals: allIntervals.map(int => simpleIntervalValueToName(int)),
-        namedNaturals: naturals.map(int => simpleIntervalValueToName(int)),
-        namedFlats: flats.map(int => simpleIntervalValueToName(int)),
-        namedSharps: sharps.map(int => simpleIntervalValueToName(int)),
-        namedMainInterval: mainInterval !== undefined
-          ? simpleIntervalValueToName(mainInterval)
-          : ''
-      }
-    }) as [
-      IntervalInfoTable,
-      IntervalInfoTable,
-      IntervalInfoTable,
-      IntervalInfoTable,
-      IntervalInfoTable,
-      IntervalInfoTable,
-      IntervalInfoTable
-    ]
-    return [
-      ...intervalTable,
-      scale.map(int => simpleIntervalValueToName(int))
-    ]
-  }
+  const isDim = !hasMajorThird
+    && hasMinorThird
+    && !hasPerfectFifth
+    && hasDiminishedFifth
 
-  const [
-    firsts,
-    ninths,
-    thirds,
-    elevenths,
-    fifths,
-    thirteenths,
-    sevenths,
-    allNamedIntervals
-  ] = generateIntervalsTable(scale)
+  const isAug = !isDim
+    && !hasPerfectFifth
+    && hasMajorThird
+    && hasAugmentedFifth
 
-  function canBeMinor (scale: ScaleValue) {
-    const thirds = scale.filter(int => int.simpleIntervalClass === third)
-    const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
-    if (hasMajorThird) return false
-    const hasMinorThird = thirds.filter(int => int.alteration === -1).length !== 0
-    return hasMinorThird
-  }
-
-  function canBeMajor (scale: ScaleValue) {
-    const thirds = scale.filter(int => int.simpleIntervalClass === third)
-    const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
-    return hasMajorThird
-  }
-
-  function canBeDiminished (scale: ScaleValue) {
-    const hasMinorProperties = canBeMinor(scale)
-    if (!hasMinorProperties) return false
-    const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
-    const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
-    if (hasPerfectFifth) return false
-    const hasDiminishedFifth = fifths.filter(int => int.alteration === -1).length !== 0
-    return hasDiminishedFifth
-  }
-
-  function canBeAugmented (scale: ScaleValue) {
-    const hasMajorProperties = canBeMajor(scale)
-    if (!hasMajorProperties) return false
-    const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
-    const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
-    if (hasPerfectFifth) return false
-    const hasAugmentedFifth = fifths.filter(int => int.alteration === 1).length !== 0
-    return hasAugmentedFifth
-  }
-
-  function canBeSuspended24 (scale: ScaleValue) {
-    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
-    const thirds = scale.filter(int => int.simpleIntervalClass === third)
-    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
-    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
-    if (!hasMajorNinth) return false
-    const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
-    if (!hasMajorEleventh) return false
-    const hasThird = thirds.length !== 0
-    return !hasThird
-  }
-
-  function canBeSuspended2 (scale: ScaleValue) {
-    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
-    const thirds = scale.filter(int => int.simpleIntervalClass === third)
-    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
-    if (!hasMajorNinth) return false
-    const hasThird = thirds.length !== 0
-    return !hasThird
-  }
-
-  function canBeSuspended4 (scale: ScaleValue) {
-    const thirds = scale.filter(int => int.simpleIntervalClass === third)
-    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
-    const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
-    if (!hasMajorEleventh) return false
-    const hasThird = thirds.length !== 0
-    return !hasThird
-  }
-
-  function canBeDominant7 (scale: ScaleValue) {
-    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
-    const hasMinorSeventh = sevenths.filter(int => int.alteration === -1).length !== 0
-    return hasMinorSeventh
-  }
-
-  function canBeMajor7 (scale: ScaleValue) {
-    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
-    const hasMajorSeventh = sevenths.filter(int => int.alteration === 0).length !== 0
-    return hasMajorSeventh
-  }
-
-  function canBeDiminished7 (scale: ScaleValue) {
-    const hasDiminishedProperties = canBeDiminished(scale)
-    if (!hasDiminishedProperties) return false
-    const hasDominant7Properties = canBeDominant7(scale)
-    if (hasDominant7Properties) return false
-    const hasMajor7Properties = canBeMajor7(scale)
-    if (hasMajor7Properties) return false
-    const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
-    const hasDiminished7 = sevenths.filter(int => int.alteration === -2).length !== 0
-    return hasDiminished7
-  }
-
-  function canBeAugmented7 (scale: ScaleValue) {
-    const hasAugmentedProperties = canBeAugmented(scale)
-    if (!hasAugmentedProperties) return false
-    const hasDominant7Properties = canBeDominant7(scale)
-    return hasDominant7Properties
-  }
-
-  function canBeAugmentedMajor7 (scale: ScaleValue) {
-    const hasAugmentedProperties = canBeAugmented(scale)
-    if (!hasAugmentedProperties) return false
-    const hasMajor7Properties = canBeMajor7(scale)
-    return hasMajor7Properties
-  }
-  
-  function canBeNinth (scale: ScaleValue) {
-    const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
-    const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
-    const hasMinorNinth = ninths.filter(int => int.alteration === -1).length !== 0
-    return hasMajorNinth || hasMinorNinth
-  }
-
-  function canBeEleventh (scale: ScaleValue) {
-    const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
-    const hasPerfectEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
-    const hasAugmentedEleventh = elevenths.filter(int => int.alteration === 1).length !== 0
-    return hasPerfectEleventh || hasAugmentedEleventh
-  }
-
-  function canBeThirteenth (scale: ScaleValue) {
-    const thirteenths = scale.filter(int => int.simpleIntervalClass === thirteenth)
-    const hasMajorThirteenth = thirteenths.filter(int => int.alteration === 0).length !== 0
-    const hasMinorThirteenth = thirteenths.filter(int => int.alteration === -1).length !== 0
-    return hasMajorThirteenth || hasMinorThirteenth
-  }
-
-  let remainingIntervalsToName = [...allNamedIntervals]
-  const nameChunks: string[] = []
-  
-  // ----------
-  // 13th
-  // ----------
-  if (
-    ['ß3', '3'].includes(thirds.namedMainInterval)
-    && ['ß7', '7'].includes(sevenths.namedMainInterval)
-    && ['ß6', '6'].includes(thirteenths.namedMainInterval)
-  ) {
-    nameChunks.push('some 13th shit')
-    // cannot be sus here
-  
-  // ----------
-  // 11th
-  // ----------
-  } else if (
-    ['ß3', '3'].includes(thirds.namedMainInterval)
-    && ['ß7', '7'].includes(sevenths.namedMainInterval)
-    && ['4', '#4'].includes(elevenths.namedMainInterval)
-  ) {
-    nameChunks.push('some 11th shit')
-    // cannot be sus here
-  
-  // ----------
-  // 9th
-  // ----------
-  } else if (
-    ['ß3', '3'].includes(thirds.namedMainInterval)
-    && ['ß7', '7'].includes(sevenths.namedMainInterval)
-    && ['ß2', '2'].includes(ninths.namedMainInterval)
-  ) {
-    nameChunks.push('some 9th shit')
-
-  // ----------
-  // 7th
-  // ----------
-  } else if (['ßß7', 'ß7', '7'].includes(sevenths.namedMainInterval)) {
-    
-    // dim7
-    if (thirds.namedMainInterval === 'ß3'
-      && fifths.namedMainInterval === 'ß5'
-      && sevenths.namedMainInterval === 'ßß7') {
-      nameChunks.push('dim7')
-      remainingIntervalsToName = remainingIntervalsToName.filter(name => 
-        name !== 'ß3'
-        && name !== 'ß5'
-        && name !== 'ßß7')
-      
-    // aug7
-    } else if (thirds.namedMainInterval === '3'
-      && fifths.namedMainInterval === '#5'
-      && sevenths.namedMainInterval === 'ß7') {
-      nameChunks.push('aug7')
-      remainingIntervalsToName = remainingIntervalsToName.filter(name => 
-        name !== '3'
-        && name !== '#5'
-        && name !== 'ß7')
-  
-    // augM7
-    } else if (thirds.namedMainInterval === '3'
-      && fifths.namedMainInterval === '#5'
-      && sevenths.namedMainInterval === '7') {
-      nameChunks.push('augM7')
-      remainingIntervalsToName = remainingIntervalsToName.filter(name => 
-        name !== '3'
-        && name !== '#5'
-        && name !== '7')
-
-    // not dim7, aug7 nor augM7
+  const handleEleventhsWhenExpected = (
+    hasPerfectEleventh: boolean,
+    hasAugmentedEleventh: boolean
+  ) => {
+    if (hasPerfectEleventh && hasAugmentedEleventh) {
+      nameObj.additions[3].push('#11')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['4', '#4'].includes(i))
+    } else if (hasPerfectEleventh) {
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
+    } else if (hasAugmentedEleventh) {
+      nameObj.accidents[3].push('#11')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
     } else {
+      nameObj.omissions[3].push('11')
+    }
+  }
+
+  const handleNinthsWhenExpected = (
+    hasMajorNinth: boolean,
+    hasMinorNinth: boolean
+  ) => {
+    if (hasMajorNinth && hasMinorNinth) {
+      nameObj.additions[1].push('ß9')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['2', 'ß2'].includes(i))
+    } else if (hasMajorNinth) {
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
+    } else if (hasMinorNinth) {
+      nameObj.accidents[1].push('ß9')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
+    } else {
+      nameObj.omissions[1].push('9')
+    }
+  }
+
+  const handleSeventhsWhenExpected = (
+    hasMajorSeventh: boolean,
+    hasMinorSeventh: boolean
+  ) => {
+    if (hasMajorSeventh && hasMinorSeventh) {
+      nameObj.additions[6].push('7')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['7', 'ß7'].includes(i))
+    } else if (hasMajorSeventh || hasMinorSeventh) {
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['7', 'ß7'].includes(i))
+    } else {
+      nameObj.omissions[6].push('7')
+    }
+  }
+
+  const handleFifthsWhenExpected = (
+    hasPerfectFifth: boolean,
+    hasAnyFifth: boolean
+  ) => {
+    if (hasPerfectFifth) {
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['5'].includes(i))
+    } else if (hasAnyFifth) {
+      const fifths = nameObj.leftovers.filter(int => int.match(/5/igm))
+      const [accFifth, ...addFifths] = fifths
+      nameObj.accidents[4].push(accFifth)
+      nameObj.additions[4].push(...addFifths)
+      nameObj.leftovers = nameObj.leftovers.filter(int => !fifths.includes(int))
+    } else {
+      nameObj.omissions[4].push('5')
+    }
+  }
+
+  const handleThirdsWhenExpected = (
+    isMajor: boolean,
+    isMinor: boolean,
+    hasAnyThird: boolean
+  ) => {
+    if (isMajor) {
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['3'].includes(i))
+    } else if (isMinor) {
+      nameObj.hasMinorQuality = true
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß3'].includes(i))
+    } else if (hasAnyThird) {
+      const thirds = nameObj.leftovers.filter(int => int.match(/3/igm))
+      const [accThird, ...addThirds] = thirds
+      nameObj.accidents[2].push(accThird)
+      nameObj.additions[2].push(...addThirds)
+      nameObj.leftovers = nameObj.leftovers.filter(int => !thirds.includes(int))
+    } else {
+      nameObj.omissions[2].push('3')
+    }
+  }
+
+  // Diminished
+  if (isDim) {
+    nameObj.mainQuality = 'dim'
+    nameObj.leftovers = nameObj.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
+    
+    // dim + 13th
+    if (hasMajorThirteenth) {
+      nameObj.mainQuality = '6'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        nameObj.mainQuality = '13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          nameObj.mainQuality = 'M13'
+          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+    
+    // dim + ß13th
+    } else if (hasMinorThirteenth) {
+      nameObj.mainQuality = 'ß6'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        nameObj.mainQuality = 'ß13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          nameObj.mainQuality = 'Mß13'
+          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+
+    // dim + 11th
+    } else if (hasPerfectEleventh) {
+      nameObj.mainQuality = '11'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M11'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // dim + #11th
+    } else if (hasPerfectEleventh) {
+      nameObj.mainQuality = '#11'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M#11'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
       
-      // Determine seventh nature (add to chunks after thirds step)
-      let seventhNature = ''
-      if (sevenths.namedMainInterval === '7') {
-        seventhNature = 'M7'
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== '7')
-      } else if (sevenths.namedMainInterval === 'ß7') {
-        seventhNature = '7'
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== 'ß7')
+    // dim + 9th
+    } else if (hasMajorNinth) {
+      nameObj.mainQuality = '9'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M9'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
       }
-
-      // Determine fifth nature
-      let fifthNature = ''
-      if (fifths.namedMainInterval === '') {
-        fifthNature = 'no(5)'
-      } else if (fifths.namedMainInterval === '5') {
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== '5')
-      } else {
-        fifthNature = fifths.namedMainInterval
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== fifths.namedMainInterval)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+    
+    // dim + ß9th
+    } else if (hasMinorNinth) {
+      nameObj.mainQuality = 'ß9'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'Mß9'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
       }
-      
-      // with major third
-      if (thirds.namedMainInterval === '3') {
-        nameChunks.push(seventhNature, fifthNature)
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== '3')
-      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
 
-      // no major but with minor third
-      else if (thirds.namedMainInterval === 'ß3') {
-        nameChunks.push('m', seventhNature, fifthNature)
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== 'ß3')
-      }
-
-      // with other third than minor or major
-      else if (scaleHasIntervalClass(scale, third)        
-        && thirds.namedMainInterval !== '') {
-        nameChunks.push(seventhNature, thirds.namedMainInterval, fifthNature)
-        remainingIntervalsToName = remainingIntervalsToName
-          .filter(name => name !== thirds.namedMainInterval)
-      }
-
-      // No third, look for sus2 or 4
-      else if (scaleHasIntervalClass(scale, [ninth, eleventh])) {
-        
-        // is sus24
-        if (ninths.namedMainInterval === '2'
-          && elevenths.namedMainInterval === '4') {
-          nameChunks.push('sus24', seventhNature, fifthNature)
-          remainingIntervalsToName = remainingIntervalsToName
-            .filter(name => name !== '2' && name !== '4')
-        
-        // is sus2
-        } else if (ninths.namedMainInterval === '2') {
-          nameChunks.push('sus2', seventhNature, fifthNature)
-          remainingIntervalsToName = remainingIntervalsToName
-            .filter(name => name !== '2')
-        
-        // is sus4
-        } else if (elevenths.namedMainInterval === '4') {
-          nameChunks.push('sus4', seventhNature, fifthNature)
-          remainingIntervalsToName = remainingIntervalsToName
-            .filter(name => name !== '4')
-        
-        // is no(3)
-        } else {
-          nameChunks.push(seventhNature, fifthNature, 'no(3)')
-        }
-      }
-
-      // No third, not sus24, look for sus2
-      else if (scaleHasIntervalClass(scale, ninth)) {
-        
-        // is sus2
-        if (ninths.namedMainInterval === '2') {
-          nameChunks.push('sus2', seventhNature, fifthNature)
-          remainingIntervalsToName = remainingIntervalsToName
-            .filter(name => name !== '2')
-
-        // is no(3)
-        } else {
-          nameChunks.push(seventhNature, fifthNature, 'no(3)')
-        }
-        
-      // No third, not sus24 or sus2, look for sus4
-      } else if (scaleHasIntervalClass(scale, eleventh)) {
-        
-        // is sus4
-        if (elevenths.namedMainInterval === '4') {
-          nameChunks.push('sus4', seventhNature, fifthNature)
-          remainingIntervalsToName = remainingIntervalsToName
-            .filter(name => name !== '4')
-        
-        // is no(3)
-        } else {
-          nameChunks.push(seventhNature, fifthNature, 'no(3)')
-        }
-
-      // No third or sus
-      } else {
-        nameChunks.push(seventhNature, fifthNature)
-        nameChunks.push('no(3)')
-      }
+    // dim + ßß7th
+    } else if (hasDiminishedSeventh) {
+      nameObj.mainQuality = 'dim7'
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ßß7'].includes(i))
+    
+    // dim + ß7th
+    } else if (hasMinorSeventh) {
+      nameObj.mainQuality = '7'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
+    
+    // dim + 7th
+    } else if (hasMajorSeventh) {
+      nameObj.mainQuality = 'M7'
+      nameObj.hasMinorQuality = true
+      nameObj.accidents[4].push('ß5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
     }
   
-  // ----------
-  // Not [3,7,13], [3,7,11], [3,7,9] or [7]
-  // ----------
+  // Augmented
+  } else if (isAug) {
+    nameObj.mainQuality = 'aug'
+    nameObj.leftovers = nameObj.leftovers.filter(i => !['3', '#5'].includes(i))
+
+    // aug + 13th
+    if (hasMajorThirteenth) {
+      nameObj.mainQuality = '6'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        nameObj.mainQuality = '13#5'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          nameObj.mainQuality = 'M13#5'
+          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+    
+    // aug + ß13th
+    } else if (hasMinorThirteenth) {
+      nameObj.mainQuality = 'ß6'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        nameObj.mainQuality = 'ß13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          nameObj.mainQuality = 'Mß13'
+          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+
+    // aug + 11th
+    } else if (hasPerfectEleventh) {
+      nameObj.mainQuality = '11'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M11'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // aug + #11th
+    } else if (hasPerfectEleventh) {
+      nameObj.mainQuality = '#11'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M#11'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      
+    // aug + 9th
+    } else if (hasMajorNinth) {
+      nameObj.mainQuality = '9'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'M9'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+    
+    // aug + ß9th
+    } else if (hasMinorNinth) {
+      nameObj.mainQuality = 'ß9'
+      nameObj.accidents[4].push('#5')
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        nameObj.mainQuality = 'Mß9'
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // aug + ß7th
+    } else if (hasMinorSeventh) {
+      nameObj.mainQuality = 'aug7'
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
+    
+    // aug + 7th
+    } else if (hasMajorSeventh) {
+      nameObj.mainQuality = 'augM7'
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+    
+    // aug + ßß7th
+    } else if (hasDiminishedSeventh) {
+      nameObj.mainQuality = 'augßß7'
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['ßß7'].includes(i))
+    }
+
+  // Not diminished nor augmented
   } else {
 
-    // ----------
     // 13th
-    // ----------
-    if (
-      ['ß3', '3'].includes(thirds.namedMainInterval)
-      && ['ß6', '6'].includes(thirteenths.namedMainInterval)
-    ) {
-      console.log('is 13th no(7) base')
-      nameChunks.push('some 13th shit')
-      // cannot be sus here
-    
-    // ----------
-    // 11th
-    // ----------
-    } else if (
-      ['ß3', '3'].includes(thirds.namedMainInterval)
-      && ['4', '#4'].includes(elevenths.namedMainInterval)
-    ) {
-      console.log('is 11th no(7) base')
-      nameChunks.push('some 11th shit')
-      // cannot be sus here
-    
-    // ----------
-    // 9th
-    // ----------
-    } else if (
-      ['ß3', '3'].includes(thirds.namedMainInterval)
-      && ['ß2', '2'].includes(ninths.namedMainInterval)
-    ) {
-      console.log('is 9th no(7) base')
-      nameChunks.push('some 9th shit')
+    if (hasMajorThirteenth) {
+      nameObj.mainQuality = '6'
+      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        nameObj.mainQuality = '13'
+        nameObj.accidents[4].push('#5')
+        nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
+        if (hasExtensionsBelowThirteenth) {
+          nameObj.mainQuality = '13#5'
+          // M
+          if (hasMajorSeventh && !hasMinorSeventh) {
+            nameObj.mainQuality = 'M13#5'
+            nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
+          }
+          // 11th
+          handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+          // 9th
+          handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+          // 7th
+          handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+        }  
+      }
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
 
-    // ----------
-    // 7th
-    // ----------
+    // ß13
+    } else if (hasMinorThirteenth) {
+    // 11
+    } else if (hasPerfectEleventh) {
+    // #11
+    } else if (hasAugmentedEleventh) {
+    // 9
+    } else if (hasMajorNinth) {
+    // ß9
+    } else if (hasMinorNinth) {
+    // 7
+    } else if (hasMinorSeventh) {
+    // M7
+    } else if (hasMajorSeventh) {
+    // No extension
     } else {
-      console.log('is triad base')
+
     }
   }
 
-  // Handle first interval now
-  if (firsts.namedMainInterval === '') {
-    nameChunks.push('no(1)')
-  } else {
-    if (firsts.namedMainInterval !== '1') nameChunks.push(firsts.namedMainInterval)
-    const namedFirstInterval = firsts.namedMainInterval
-    remainingIntervalsToName = remainingIntervalsToName.filter(name => name !== namedFirstInterval)
-  }
+//////////    reg    Not dim nor aug => major
+//////////    
+//////////      13     Has 13 => 6
+//////////               Has 13, ß7 => 13
+//////////               No ß7, Has 13, 7 => M13
+//////////               No ß7, 7, Has 13, 9 | ß9 | 11 | #11 => 13
+//////////    
+//////////      ß13    No 13, Has ß13 => ß6
+//////////               Has ß13, ß7 => ß13
+//////////               No ß7, Has ß13, 7 => Mß13
+//////////               No ß7, 7, Has ß13, 9 | ß9 | 11 | #11 => ß13
+//////////    
+//////////      11     No 13, ß13 Has 11 => 11
+//////////               Has 3, 11 => 11
+//////////               Has 3, 11, ß7 => 11
+//////////               No ß7, Has 3, 11, 7 => M11
+//////////               No ß7, 7, Has 3, 11, 9 | ß9 => 11
+//////////              
+//////////               No 3, Has 11 => sus4
+//////////               Has 11, ß7 => 7sus4
+//////////                       Has 11, ß7, 9 => 7sus24
+//////////    
+//////////               No ß7, Has 11, 7 => M7sus4
+//////////                       Has 11, 7, 9 => M7sus24
+//////////    
+//////////               No ß7, 7, Has 11, 9 => sus24
+//////////               No ß7, 7, 9, Has 11, ß9 => 11ß9 no(3)
+//////////    
+//////////      #11    No 13, ß13, 11, Has 3, #11 => #11
+//////////               Has 3, #11, ß7 => #11
+//////////               No ß7, Has 3, #11, 7 => M#11
+//////////               No ß7, 7, Has 3, #11, 9 | ß9 => #11
+//////////    
+//////////      9      No 13, ß13, 11, #11, Has 9 => 9
+//////////               Has 3, 9 => 9
+//////////               Has 3, 9, ß7 => 9
+//////////               No ß7, Has 3, 9, 7 => M9
+//////////               No 3, Has 9 => sus2
+//////////               Has 9, ß7 => 7sus2
+//////////               No ß7, Has 9, 7 => M7sus2            
+//////////    
+//////////      ß9     No 13, ß13, 11, #11, 9, Has 3, ß9 => ß9
+//////////               Has 3, ß9, ß7 => ß9
+//////////               No ß7, Has 3, ß9, 7 => Mß9
+//////////    
+//////////      ß7     No 13, ß13, 11, #11, 9, ß9, Has 3, ß7 => 7
+//////////    
+//////////      7      No 13, ß13, 11, #11, 9, ß9, ß7, Has 3, 7 => M7
 
-  remainingIntervalsToName.forEach(name => nameChunks.push(`add(${name})`))
+//////////    dim    No 3, 5, Has ß3, ß5 => dim
+//////////    
+//////////      13     Has ß3, ß5, 13 => m6ß5
+//////////               Has ß3, ß5, 13, ß7 => m13ß5
+//////////               No ß7, Has ß3, ß5, 13, 7 => mM13ß5
+//////////               No ß7, 7, Has ß3, ß5, 9 | ß9 | 11 | #11, 13 => m13ß5
+//////////            
+//////////      ß13    No 13, Has ß3, ß5, ß13 => mß6ß5
+//////////               Has ß3, ß5, ß7 => mß13ß5
+//////////               No ß7, Has ß3, ß5, 7 =>mMß13ß5
+//////////               No ß7, 7, Has ß3, ß5, 9 | ß9 | 11 | #11, ß13 => mß13ß5
+//////////            
+//////////      11     No 13, ß13, Has ß3, ß5, 11 => m11ß5
+//////////               Has ß3, ß5, 11, ß7 => m11ß5
+//////////               No ß7, Has ß3, ß5, 11, 7 => mM11ß5
+//////////    
+//////////      #11    No 13, ß13, 11, Has ß3, ß5, #11 => m#11ß5
+//////////               Has ß3, ß5, #11, ß7 => m#11ß5
+//////////               No ß7, Has ß3, ß5, #11, 7 => mM#11ß5
+//////////    
+//////////      9      No 13, ß13, 11, #11, Has ß3, ß5, 9 => m9ß5
+//////////               Has ß3, ß5, 9, ß7 => m9ß5
+//////////               No ß7, Has ß3, ß5, 9, 7 => mM9ß5
+//////////    
+//////////      ß9     No 13, ß13, 11, #11, 9, Has ß3, ß5, ß9 => mß9ß5
+//////////               Has ß3, ß5, ß9, ß7 => mß9ß5
+//////////               No ß7, Has ß3, ß5, ß9, 7 => mMß9ß5
+//////////    
+//////////      ßß7    No 13, ß13, 11, #11, 9, ß9, Has ß3, ß5, ßß7 => dim7
+//////////    
+//////////      ß7     No 13, ß13, 11, #11, 9, ß9, ßß7, Has ß3, ß5, ß7 => m7ß5
+//////////    
+//////////      7      No 13, ß13, 11, #11, 9, ß9, ßß7, ß7, Has ß3, ß5, 7 => mM7ß5
+//////////    
 
-  // // Use remaining intervals to complete name
-  // if (firsts.allIntervals.length === 0) {
-  //   nameChunks.push('no(1)')
-  // // dim7 with 1st
-  // } else {
-  //   // dim7 with altered 1st
-  //   if (firsts.namedMainInterval !== '1'
-  //     && firsts.namedMainInterval !== '') {
-  //       nameChunks.push(...[
-  //         firsts.namedMainInterval,
-  //         ...firsts.namedAllIntervals
-  //           .slice(1)
-  //           .map(name => `add(${name})`)
-  //       ])
-  //   // dim7 with natural 1st
-  //   } else {
-  //     nameChunks.push(...firsts.namedAllIntervals
-  //       .slice(1)
-  //       .map(name => `add(${name})`)
-  //     )
-  //   } 
+//////////    aug    No 5, Has 3, #5 => aug
+//////////    
+//////////      13     Has 3, #5, 13 => 6#5
+//////////               Has 3, #5, 13, ß7 => 13#5
+//////////               No ß7, Has 3, #5, 13, 7 => M13#5
+//////////               No ß7, 7, Has 3, #5, 9 | ß9 | 11 | #11, 13 => 13#5
+//////////    
+//////////      ß13    No 13, Has 3, #5, ß13 => ß6#5
+//////////               Has 3, #5, ß13, ß7 => ß13#5
+//////////               No ß7, Has 3, #5, ß13, 7 => Mß13#5
+//////////               No ß7, 7, Has 3, #5, 9 | ß9 | 11 | #11, ß13 => ß13#5
+//////////    
+//////////      11     No 13, ß13, Has 3, #5, 11 => 11#5
+//////////               Has 3, #5, 11, ß7 => 11#5
+//////////               No ß7, Has 3, #5, 11, 7 => M11#5
+//////////    
+//////////      #11    No 13, ß13, 11, Has 3, #5, #11 => #11#5
+//////////               Has 3, #5, #11, ß7 => #11#5
+//////////               No ß7, Has 3, #5, #11, 7 => M#11#5
+//////////    
+//////////      9      No 13, ß13, 11, #11, Has 3, #5, 9 => 9#5
+//////////               Has 3, #5, 9, ß7 => 9#5
+//////////               No ß7, Has 3, #5, 9, 7 => M9#5
+//////////    
+//////////      ß9     No 13, ß13, 11, #11, 9, Has 3, #5, ß9 => ß9#5
+//////////               Has 3, #5, ß9, ß7 => ß9#5
+//////////               No ß7, Has 3, #5, ß9, 7 => Mß9#5
+//////////    
+//////////      ß7     No 13, ß13, 11, #11, 9, ß9, Has 3, #5, ß7 => aug7
+//////////    
+//////////      7      No 13, ß13, 11, #11, 9, ß9, ß7, Has 3, #5, 7 => augM7
+//////////    
+//////////      ßß7    No 13, ß13, 11, #11, 9, ß9, ß7, 7, Has 3, #5, ßß7 => augßß7
+  
+  // Handle 1 editions or omission
+  // Handle leftovers
+
+  console.log(nameObj)
+  return ''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // const first = 0
+  // const ninth = 1
+  // const third = 2
+  // const eleventh = 3
+  // const fifth = 4
+  // const thirteenth = 5
+  // const seventh = 6
+
+  // type IntervalInfoTable = {
+  //   allIntervals: SimpleIntervalValue[]
+  //   naturals: SimpleIntervalValue[]
+  //   flats: SimpleIntervalValue[]
+  //   sharps: SimpleIntervalValue[]
+  //   mainInterval: SimpleIntervalValue | undefined
+  //   namedAllIntervals: string[]
+  //   namedNaturals: string[]
+  //   namedFlats: string[]
+  //   namedSharps: string[]
+  //   namedMainInterval: string
   // }
 
-  return nameChunks
-    .filter(chunk => chunk !== '')
-    .map(chunk => ({
-      chunk,
-      type: chunk.match('^/add/')
-        ? 2
-        : (chunk.match(/^no/) ? 3 : 1)
-    }))
-    .sort((chunkA, chunkB) => chunkA.type - chunkB.type)
-    .map(item => item.chunk)
-    .join(' ')
-
-
-
-
-  // m|M|sus24|sus2|sus4|dim7|dim|aug|7|M7|(9, 11, 13, ...?)
-  
-  // const qualifiers = new Array(7)
+  // function generateIntervalsTable (scale: ScaleValue): [
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   IntervalInfoTable,
+  //   string[]
+  // ] {
+  //   const intervalTable = new Array(7)
   //   .fill(null)
-  //   .map((_, currIntervalClass) => {
-  //     const scaleIntervals = scale
-  //       .filter(interval => interval.simpleIntervalClass === currIntervalClass)
-  //     const naturalIntervals = scaleIntervals.filter(int => int.alteration === 0)
-  //     const flatIntervals = scaleIntervals.filter(int => int.alteration < 0)
-  //     const sharpIntervals = scaleIntervals.filter(int => int.alteration > 0)
-  //     const orderedIntervals = [
-  //       ...naturalIntervals,
-  //       ...flatIntervals,
-  //       ...sharpIntervals
-  //     ]
-  //     const thisIntervalClassQualifiers: string[] = []
-  //     if (orderedIntervals.length === 0) thisIntervalClassQualifiers.push(`no(${currIntervalClass + 1})`)
-  //     else {
-  //       const [firstOrderedInterval, ...otherOrderedIntervals] = orderedIntervals
-  //       if (!naturalIntervals.includes(firstOrderedInterval)) {
-  //         thisIntervalClassQualifiers.push(`${simpleIntervalValueToName(firstOrderedInterval)}`)
-  //       }
-  //       otherOrderedIntervals.forEach(int => {
-  //         thisIntervalClassQualifiers.push(`add(${simpleIntervalValueToName(int)})`)
-  //       })
+  //   .map((_, pos) => {
+  //     const allIntervals = scale.filter(int => int.simpleIntervalClass === pos)
+  //     const naturals = allIntervals.filter(int => int.alteration === 0)
+  //     const flats = allIntervals.filter(int => int.alteration < 0)
+  //     const sharps = allIntervals.filter(int => int.alteration > 0)
+  //     const mainInterval = naturals.at(0) ?? flats.at(0) ?? sharps.at(0)
+  //     return {
+  //       allIntervals,
+  //       naturals,
+  //       flats,
+  //       sharps,
+  //       mainInterval,
+  //       namedAllIntervals: allIntervals.map(int => simpleIntervalValueToName(int)),
+  //       namedNaturals: naturals.map(int => simpleIntervalValueToName(int)),
+  //       namedFlats: flats.map(int => simpleIntervalValueToName(int)),
+  //       namedSharps: sharps.map(int => simpleIntervalValueToName(int)),
+  //       namedMainInterval: mainInterval !== undefined
+  //         ? simpleIntervalValueToName(mainInterval)
+  //         : ''
   //     }
-  //     return thisIntervalClassQualifiers
-  //   })
-  // return qualifiers.flat().join(' ')
+  //   }) as [
+  //     IntervalInfoTable,
+  //     IntervalInfoTable,
+  //     IntervalInfoTable,
+  //     IntervalInfoTable,
+  //     IntervalInfoTable,
+  //     IntervalInfoTable,
+  //     IntervalInfoTable
+  //   ]
+  //   return [
+  //     ...intervalTable,
+  //     scale.map(int => simpleIntervalValueToName(int))
+  //   ]
+  // }
+
+  // const [
+  //   firsts,
+  //   ninths,
+  //   thirds,
+  //   elevenths,
+  //   fifths,
+  //   thirteenths,
+  //   sevenths,
+  //   allNamedIntervals
+  // ] = generateIntervalsTable(scale)
+
+  // function canBeMinor (scale: ScaleValue) {
+  //   const thirds = scale.filter(int => int.simpleIntervalClass === third)
+  //   const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
+  //   if (hasMajorThird) return false
+  //   const hasMinorThird = thirds.filter(int => int.alteration === -1).length !== 0
+  //   return hasMinorThird
+  // }
+
+  // function canBeMajor (scale: ScaleValue) {
+  //   const thirds = scale.filter(int => int.simpleIntervalClass === third)
+  //   const hasMajorThird = thirds.filter(int => int.alteration === 0).length !== 0
+  //   return hasMajorThird
+  // }
+
+  // function canBeDiminished (scale: ScaleValue) {
+  //   const hasMinorProperties = canBeMinor(scale)
+  //   if (!hasMinorProperties) return false
+  //   const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
+  //   const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
+  //   if (hasPerfectFifth) return false
+  //   const hasDiminishedFifth = fifths.filter(int => int.alteration === -1).length !== 0
+  //   return hasDiminishedFifth
+  // }
+
+  // function canBeAugmented (scale: ScaleValue) {
+  //   const hasMajorProperties = canBeMajor(scale)
+  //   if (!hasMajorProperties) return false
+  //   const fifths = scale.filter(int => int.simpleIntervalClass === fifth)
+  //   const hasPerfectFifth = fifths.filter(int => int.alteration === 0).length !== 0
+  //   if (hasPerfectFifth) return false
+  //   const hasAugmentedFifth = fifths.filter(int => int.alteration === 1).length !== 0
+  //   return hasAugmentedFifth
+  // }
+
+  // function canBeSuspended24 (scale: ScaleValue) {
+  //   const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+  //   const thirds = scale.filter(int => int.simpleIntervalClass === third)
+  //   const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+  //   const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+  //   if (!hasMajorNinth) return false
+  //   const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+  //   if (!hasMajorEleventh) return false
+  //   const hasThird = thirds.length !== 0
+  //   return !hasThird
+  // }
+
+  // function canBeSuspended2 (scale: ScaleValue) {
+  //   const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+  //   const thirds = scale.filter(int => int.simpleIntervalClass === third)
+  //   const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+  //   if (!hasMajorNinth) return false
+  //   const hasThird = thirds.length !== 0
+  //   return !hasThird
+  // }
+
+  // function canBeSuspended4 (scale: ScaleValue) {
+  //   const thirds = scale.filter(int => int.simpleIntervalClass === third)
+  //   const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+  //   const hasMajorEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+  //   if (!hasMajorEleventh) return false
+  //   const hasThird = thirds.length !== 0
+  //   return !hasThird
+  // }
+
+  // function canBeDominant7 (scale: ScaleValue) {
+  //   const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+  //   const hasMinorSeventh = sevenths.filter(int => int.alteration === -1).length !== 0
+  //   return hasMinorSeventh
+  // }
+
+  // function canBeMajor7 (scale: ScaleValue) {
+  //   const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+  //   const hasMajorSeventh = sevenths.filter(int => int.alteration === 0).length !== 0
+  //   return hasMajorSeventh
+  // }
+
+  // function canBeDiminished7 (scale: ScaleValue) {
+  //   const hasDiminishedProperties = canBeDiminished(scale)
+  //   if (!hasDiminishedProperties) return false
+  //   const hasDominant7Properties = canBeDominant7(scale)
+  //   if (hasDominant7Properties) return false
+  //   const hasMajor7Properties = canBeMajor7(scale)
+  //   if (hasMajor7Properties) return false
+  //   const sevenths = scale.filter(int => int.simpleIntervalClass === seventh)
+  //   const hasDiminished7 = sevenths.filter(int => int.alteration === -2).length !== 0
+  //   return hasDiminished7
+  // }
+
+  // function canBeAugmented7 (scale: ScaleValue) {
+  //   const hasAugmentedProperties = canBeAugmented(scale)
+  //   if (!hasAugmentedProperties) return false
+  //   const hasDominant7Properties = canBeDominant7(scale)
+  //   return hasDominant7Properties
+  // }
+
+  // function canBeAugmentedMajor7 (scale: ScaleValue) {
+  //   const hasAugmentedProperties = canBeAugmented(scale)
+  //   if (!hasAugmentedProperties) return false
+  //   const hasMajor7Properties = canBeMajor7(scale)
+  //   return hasMajor7Properties
+  // }
+  
+  // function canBeNinth (scale: ScaleValue) {
+  //   const ninths = scale.filter(int => int.simpleIntervalClass === ninth)
+  //   const hasMajorNinth = ninths.filter(int => int.alteration === 0).length !== 0
+  //   const hasMinorNinth = ninths.filter(int => int.alteration === -1).length !== 0
+  //   return hasMajorNinth || hasMinorNinth
+  // }
+
+  // function canBeEleventh (scale: ScaleValue) {
+  //   const elevenths = scale.filter(int => int.simpleIntervalClass === eleventh)
+  //   const hasPerfectEleventh = elevenths.filter(int => int.alteration === 0).length !== 0
+  //   const hasAugmentedEleventh = elevenths.filter(int => int.alteration === 1).length !== 0
+  //   return hasPerfectEleventh || hasAugmentedEleventh
+  // }
+
+  // function canBeThirteenth (scale: ScaleValue) {
+  //   const thirteenths = scale.filter(int => int.simpleIntervalClass === thirteenth)
+  //   const hasMajorThirteenth = thirteenths.filter(int => int.alteration === 0).length !== 0
+  //   const hasMinorThirteenth = thirteenths.filter(int => int.alteration === -1).length !== 0
+  //   return hasMajorThirteenth || hasMinorThirteenth
+  // }
+
+  // let remainingIntervalsToName = [...allNamedIntervals]
+  // const nameChunks: string[] = []
+  
+  // // ----------
+  // // 13th
+  // // ----------
+  // if (
+  //   ['ß3', '3'].includes(thirds.namedMainInterval)
+  //   && ['ß7', '7'].includes(sevenths.namedMainInterval)
+  //   && ['ß6', '6'].includes(thirteenths.namedMainInterval)
+  // ) {
+  //   nameChunks.push('some 13th shit')
+  //   // cannot be sus here
+  
+  // // ----------
+  // // 11th
+  // // ----------
+  // } else if (
+  //   ['ß3', '3'].includes(thirds.namedMainInterval)
+  //   && ['ß7', '7'].includes(sevenths.namedMainInterval)
+  //   && ['4', '#4'].includes(elevenths.namedMainInterval)
+  // ) {
+  //   nameChunks.push('some 11th shit')
+  //   // cannot be sus here
+  
+  // // ----------
+  // // 9th
+  // // ----------
+  // } else if (
+  //   ['ß3', '3'].includes(thirds.namedMainInterval)
+  //   && ['ß7', '7'].includes(sevenths.namedMainInterval)
+  //   && ['ß2', '2'].includes(ninths.namedMainInterval)
+  // ) {
+  //   nameChunks.push('some 9th shit')
+
+  // // ----------
+  // // 7th
+  // // ----------
+  // } else if (['ßß7', 'ß7', '7'].includes(sevenths.namedMainInterval)) {
+    
+  //   // dim7
+  //   if (thirds.namedMainInterval === 'ß3'
+  //     && fifths.namedMainInterval === 'ß5'
+  //     && sevenths.namedMainInterval === 'ßß7') {
+  //     nameChunks.push('dim7')
+  //     remainingIntervalsToName = remainingIntervalsToName.filter(name => 
+  //       name !== 'ß3'
+  //       && name !== 'ß5'
+  //       && name !== 'ßß7')
+      
+  //   // aug7
+  //   } else if (thirds.namedMainInterval === '3'
+  //     && fifths.namedMainInterval === '#5'
+  //     && sevenths.namedMainInterval === 'ß7') {
+  //     nameChunks.push('aug7')
+  //     remainingIntervalsToName = remainingIntervalsToName.filter(name => 
+  //       name !== '3'
+  //       && name !== '#5'
+  //       && name !== 'ß7')
+  
+  //   // augM7
+  //   } else if (thirds.namedMainInterval === '3'
+  //     && fifths.namedMainInterval === '#5'
+  //     && sevenths.namedMainInterval === '7') {
+  //     nameChunks.push('augM7')
+  //     remainingIntervalsToName = remainingIntervalsToName.filter(name => 
+  //       name !== '3'
+  //       && name !== '#5'
+  //       && name !== '7')
+
+  //   // not dim7, aug7 nor augM7
+  //   } else {
+      
+  //     // Determine seventh nature (add to chunks after thirds step)
+  //     let seventhNature = ''
+  //     if (sevenths.namedMainInterval === '7') {
+  //       seventhNature = 'M7'
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== '7')
+  //     } else if (sevenths.namedMainInterval === 'ß7') {
+  //       seventhNature = '7'
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== 'ß7')
+  //     }
+
+  //     // Determine fifth nature
+  //     let fifthNature = ''
+  //     if (fifths.namedMainInterval === '') {
+  //       fifthNature = 'no(5)'
+  //     } else if (fifths.namedMainInterval === '5') {
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== '5')
+  //     } else {
+  //       fifthNature = fifths.namedMainInterval
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== fifths.namedMainInterval)
+  //     }
+      
+  //     // with major third
+  //     if (thirds.namedMainInterval === '3') {
+  //       nameChunks.push(seventhNature, fifthNature)
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== '3')
+  //     }
+
+  //     // no major but with minor third
+  //     else if (thirds.namedMainInterval === 'ß3') {
+  //       nameChunks.push('m', seventhNature, fifthNature)
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== 'ß3')
+  //     }
+
+  //     // with other third than minor or major
+  //     else if (scaleHasIntervalClass(scale, third)        
+  //       && thirds.namedMainInterval !== '') {
+  //       nameChunks.push(seventhNature, thirds.namedMainInterval, fifthNature)
+  //       remainingIntervalsToName = remainingIntervalsToName
+  //         .filter(name => name !== thirds.namedMainInterval)
+  //     }
+
+  //     // No third, look for sus2 or 4
+  //     else if (scaleHasIntervalClass(scale, [ninth, eleventh])) {
+        
+  //       // is sus24
+  //       if (ninths.namedMainInterval === '2'
+  //         && elevenths.namedMainInterval === '4') {
+  //         nameChunks.push('sus24', seventhNature, fifthNature)
+  //         remainingIntervalsToName = remainingIntervalsToName
+  //           .filter(name => name !== '2' && name !== '4')
+        
+  //       // is sus2
+  //       } else if (ninths.namedMainInterval === '2') {
+  //         nameChunks.push('sus2', seventhNature, fifthNature)
+  //         remainingIntervalsToName = remainingIntervalsToName
+  //           .filter(name => name !== '2')
+        
+  //       // is sus4
+  //       } else if (elevenths.namedMainInterval === '4') {
+  //         nameChunks.push('sus4', seventhNature, fifthNature)
+  //         remainingIntervalsToName = remainingIntervalsToName
+  //           .filter(name => name !== '4')
+        
+  //       // is no(3)
+  //       } else {
+  //         nameChunks.push(seventhNature, fifthNature, 'no(3)')
+  //       }
+  //     }
+
+  //     // No third, not sus24, look for sus2
+  //     else if (scaleHasIntervalClass(scale, ninth)) {
+        
+  //       // is sus2
+  //       if (ninths.namedMainInterval === '2') {
+  //         nameChunks.push('sus2', seventhNature, fifthNature)
+  //         remainingIntervalsToName = remainingIntervalsToName
+  //           .filter(name => name !== '2')
+
+  //       // is no(3)
+  //       } else {
+  //         nameChunks.push(seventhNature, fifthNature, 'no(3)')
+  //       }
+        
+  //     // No third, not sus24 or sus2, look for sus4
+  //     } else if (scaleHasIntervalClass(scale, eleventh)) {
+        
+  //       // is sus4
+  //       if (elevenths.namedMainInterval === '4') {
+  //         nameChunks.push('sus4', seventhNature, fifthNature)
+  //         remainingIntervalsToName = remainingIntervalsToName
+  //           .filter(name => name !== '4')
+        
+  //       // is no(3)
+  //       } else {
+  //         nameChunks.push(seventhNature, fifthNature, 'no(3)')
+  //       }
+
+  //     // No third or sus
+  //     } else {
+  //       nameChunks.push(seventhNature, fifthNature)
+  //       nameChunks.push('no(3)')
+  //     }
+  //   }
+  
+  // // ----------
+  // // Not [3,7,13], [3,7,11], [3,7,9] or [7]
+  // // ----------
+  // } else {
+
+  //   // ----------
+  //   // 13th
+  //   // ----------
+  //   if (
+  //     ['ß3', '3'].includes(thirds.namedMainInterval)
+  //     && ['ß6', '6'].includes(thirteenths.namedMainInterval)
+  //   ) {
+  //     console.log('is 13th no(7) base')
+  //     nameChunks.push('some 13th shit')
+  //     // cannot be sus here
+    
+  //   // ----------
+  //   // 11th
+  //   // ----------
+  //   } else if (
+  //     ['ß3', '3'].includes(thirds.namedMainInterval)
+  //     && ['4', '#4'].includes(elevenths.namedMainInterval)
+  //   ) {
+  //     console.log('is 11th no(7) base')
+  //     nameChunks.push('some 11th shit')
+  //     // cannot be sus here
+    
+  //   // ----------
+  //   // 9th
+  //   // ----------
+  //   } else if (
+  //     ['ß3', '3'].includes(thirds.namedMainInterval)
+  //     && ['ß2', '2'].includes(ninths.namedMainInterval)
+  //   ) {
+  //     console.log('is 9th no(7) base')
+  //     nameChunks.push('some 9th shit')
+
+  //   // ----------
+  //   // 7th
+  //   // ----------
+  //   } else {
+  //     console.log('is triad base')
+  //   }
+  // }
+
+  // // Handle first interval now
+  // if (firsts.namedMainInterval === '') {
+  //   nameChunks.push('no(1)')
+  // } else {
+  //   if (firsts.namedMainInterval !== '1') nameChunks.push(firsts.namedMainInterval)
+  //   const namedFirstInterval = firsts.namedMainInterval
+  //   remainingIntervalsToName = remainingIntervalsToName.filter(name => name !== namedFirstInterval)
+  // }
+
+  // remainingIntervalsToName.forEach(name => nameChunks.push(`add(${name})`))
+
+  // // // Use remaining intervals to complete name
+  // // if (firsts.allIntervals.length === 0) {
+  // //   nameChunks.push('no(1)')
+  // // // dim7 with 1st
+  // // } else {
+  // //   // dim7 with altered 1st
+  // //   if (firsts.namedMainInterval !== '1'
+  // //     && firsts.namedMainInterval !== '') {
+  // //       nameChunks.push(...[
+  // //         firsts.namedMainInterval,
+  // //         ...firsts.namedAllIntervals
+  // //           .slice(1)
+  // //           .map(name => `add(${name})`)
+  // //       ])
+  // //   // dim7 with natural 1st
+  // //   } else {
+  // //     nameChunks.push(...firsts.namedAllIntervals
+  // //       .slice(1)
+  // //       .map(name => `add(${name})`)
+  // //     )
+  // //   } 
+  // // }
+
+  // return nameChunks
+  //   .filter(chunk => chunk !== '')
+  //   .map(chunk => ({
+  //     chunk,
+  //     type: chunk.match('^/add/')
+  //       ? 2
+  //       : (chunk.match(/^no/) ? 3 : 1)
+  //   }))
+  //   .sort((chunkA, chunkB) => chunkA.type - chunkB.type)
+  //   .map(item => item.chunk)
+  //   .join(' ')
+
+
+
+
+  // // m|M|sus24|sus2|sus4|dim7|dim|aug|7|M7|(9, 11, 13, ...?)
+  
+  // // const qualifiers = new Array(7)
+  // //   .fill(null)
+  // //   .map((_, currIntervalClass) => {
+  // //     const scaleIntervals = scale
+  // //       .filter(interval => interval.simpleIntervalClass === currIntervalClass)
+  // //     const naturalIntervals = scaleIntervals.filter(int => int.alteration === 0)
+  // //     const flatIntervals = scaleIntervals.filter(int => int.alteration < 0)
+  // //     const sharpIntervals = scaleIntervals.filter(int => int.alteration > 0)
+  // //     const orderedIntervals = [
+  // //       ...naturalIntervals,
+  // //       ...flatIntervals,
+  // //       ...sharpIntervals
+  // //     ]
+  // //     const thisIntervalClassQualifiers: string[] = []
+  // //     if (orderedIntervals.length === 0) thisIntervalClassQualifiers.push(`no(${currIntervalClass + 1})`)
+  // //     else {
+  // //       const [firstOrderedInterval, ...otherOrderedIntervals] = orderedIntervals
+  // //       if (!naturalIntervals.includes(firstOrderedInterval)) {
+  // //         thisIntervalClassQualifiers.push(`${simpleIntervalValueToName(firstOrderedInterval)}`)
+  // //       }
+  // //       otherOrderedIntervals.forEach(int => {
+  // //         thisIntervalClassQualifiers.push(`add(${simpleIntervalValueToName(int)})`)
+  // //       })
+  // //     }
+  // //     return thisIntervalClassQualifiers
+  // //   })
+  // // return qualifiers.flat().join(' ')
 }
 
 // console.log(
