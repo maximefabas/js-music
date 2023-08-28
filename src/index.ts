@@ -644,698 +644,6 @@ export function scaleHasIntervalClass (scale: ScaleValue, _intervalClass: number
   return intervalClasses.every(intClass => intervalClassesInScale.has(intClass))
 }
 
-export function scaleToChordQuality (scale: ScaleValue): string {
-  const namedIntervals = scale.map(int => simpleIntervalValueToName(int))
-  const hasFirst = namedIntervals.includes('1')
-  const hasAnyFirst = namedIntervals.some(int => int.match(/1/igm))
-  const hasMajorThird = namedIntervals.includes('3')
-  const hasMinorThird = namedIntervals.includes('ß3')
-  const hasAnyThird = namedIntervals.some(int => int.match(/3/igm))
-  const isMajor = hasMajorThird
-  const isMinor = !isMajor && hasMinorThird
-  const hasPerfectFifth = namedIntervals.includes('5')
-  const hasDiminishedFifth = namedIntervals.includes('ß5')
-  const hasAugmentedFifth = namedIntervals.includes('#5')
-  const hasAnyFifth = namedIntervals.some(int => int.match(/5/igm))
-  const hasMajorSeventh = namedIntervals.includes('7')
-  const hasMinorSeventh = namedIntervals.includes('ß7')
-  const hasDiminishedSeventh = namedIntervals.includes('ßß7')
-  const hasMajorNinth = namedIntervals.includes('2')
-  const hasMinorNinth = namedIntervals.includes('ß2')
-  const hasPerfectEleventh = namedIntervals.includes('4')
-  const hasAugmentedEleventh = namedIntervals.includes('#4')
-  const hasMajorThirteenth = namedIntervals.includes('6')
-  const hasMinorThirteenth = namedIntervals.includes('ß6')
-  const hasExtensionsBelowThirteenth = hasMinorSeventh
-    || hasMajorSeventh
-    || hasMinorNinth
-    || hasMajorNinth
-    || hasPerfectEleventh
-    || hasAugmentedEleventh
-
-  type S = string[]
-  const nameObj = {
-    mainQuality: '',
-    hasMinorQuality: false,
-    accidents: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
-    omissions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
-    additions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
-    leftovers: namedIntervals
-  }
-
-  const isDim = !hasMajorThird
-    && hasMinorThird
-    && !hasPerfectFifth
-    && hasDiminishedFifth
-
-  const isAug = !isDim
-    && !hasPerfectFifth
-    && hasMajorThird
-    && hasAugmentedFifth
-
-  const handleEleventhsWhenExpected = (
-    hasPerfectEleventh: boolean,
-    hasAugmentedEleventh: boolean
-  ) => {
-    if (hasPerfectEleventh && hasAugmentedEleventh) {
-      nameObj.additions[3].push('#11')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['4', '#4'].includes(i))
-    } else if (hasPerfectEleventh) {
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
-    } else if (hasAugmentedEleventh) {
-      nameObj.accidents[3].push('#11')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
-    } else {
-      nameObj.omissions[3].push('11')
-    }
-  }
-
-  const handleNinthsWhenExpected = (
-    hasMajorNinth: boolean,
-    hasMinorNinth: boolean
-  ) => {
-    if (hasMajorNinth && hasMinorNinth) {
-      nameObj.additions[1].push('ß9')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['2', 'ß2'].includes(i))
-    } else if (hasMajorNinth) {
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-    } else if (hasMinorNinth) {
-      nameObj.accidents[1].push('ß9')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
-    } else {
-      nameObj.omissions[1].push('9')
-    }
-  }
-
-  const handleSeventhsWhenExpected = (
-    hasMajorSeventh: boolean,
-    hasMinorSeventh: boolean
-  ) => {
-    if (hasMajorSeventh && hasMinorSeventh) {
-      nameObj.additions[6].push('7')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['7', 'ß7'].includes(i))
-    } else if (hasMajorSeventh || hasMinorSeventh) {
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['7', 'ß7'].includes(i))
-    } else {
-      nameObj.omissions[6].push('ß7')
-    }
-  }
-
-  const handleFifthsWhenExpected = (
-    hasPerfectFifth: boolean,
-    hasAnyFifth: boolean
-  ) => {
-    if (hasPerfectFifth) {
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['5'].includes(i))
-    } else if (hasAnyFifth) {
-      const fifths = nameObj.leftovers.filter(int => int.match(/5/igm))
-      const [accFifth, ...addFifths] = fifths
-      nameObj.accidents[4].push(accFifth)
-      nameObj.additions[4].push(...addFifths)
-      nameObj.leftovers = nameObj.leftovers.filter(int => !fifths.includes(int))
-    } else {
-      nameObj.omissions[4].push('5')
-    }
-  }
-
-  const handleThirdsWhenExpected = (
-    isMajor: boolean,
-    isMinor: boolean,
-    hasAnyThird: boolean
-  ) => {
-    if (isMajor) {
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['3'].includes(i))
-    } else if (isMinor) {
-      nameObj.hasMinorQuality = true
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß3'].includes(i))
-    } else if (hasAnyThird) {
-      const thirds = nameObj.leftovers.filter(int => int.match(/3/igm))
-      const [accThird, ...addThirds] = thirds
-      nameObj.accidents[2].push(accThird)
-      nameObj.additions[2].push(...addThirds)
-      nameObj.leftovers = nameObj.leftovers.filter(int => !thirds.includes(int))
-    } else {
-      nameObj.omissions[2].push('3')
-    }
-  }
-
-  // Diminished
-  if (isDim) {
-    nameObj.mainQuality = 'dim'
-    nameObj.leftovers = nameObj.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
-    
-    // dim + 13th
-    if (hasMajorThirteenth) {
-      nameObj.mainQuality = '6'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = '13'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M13'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-    
-    // dim + ß13th
-    } else if (hasMinorThirteenth) {
-      nameObj.mainQuality = 'ß6'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = 'ß13'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'Mß13'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-
-    // dim + 11th
-    } else if (hasPerfectEleventh) {
-      nameObj.mainQuality = '11'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M11'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 9th
-      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-
-    // dim + #11th
-    } else if (hasPerfectEleventh) {
-      nameObj.mainQuality = '#11'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M#11'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 9th
-      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      
-    // dim + 9th
-    } else if (hasMajorNinth) {
-      nameObj.mainQuality = '9'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M9'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-    
-    // dim + ß9th
-    } else if (hasMinorNinth) {
-      nameObj.mainQuality = 'ß9'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'Mß9'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-
-    // dim + ßß7th
-    } else if (hasDiminishedSeventh) {
-      nameObj.mainQuality = 'dim7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ßß7'].includes(i))
-    
-    // dim + ß7th
-    } else if (hasMinorSeventh) {
-      nameObj.mainQuality = '7'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-    
-    // dim + 7th
-    } else if (hasMajorSeventh) {
-      nameObj.mainQuality = 'M7'
-      nameObj.hasMinorQuality = true
-      nameObj.accidents[4].push('ß5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-    }
-  
-  // Augmented
-  } else if (isAug) {
-    nameObj.mainQuality = 'aug'
-    nameObj.leftovers = nameObj.leftovers.filter(i => !['3', '#5'].includes(i))
-
-    // aug + 13th
-    if (hasMajorThirteenth) {
-      nameObj.mainQuality = '6'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = '13#5'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M13#5'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-    
-    // aug + ß13th
-    } else if (hasMinorThirteenth) {
-      nameObj.mainQuality = 'ß6'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = 'ß13'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'Mß13'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-
-    // aug + 11th
-    } else if (hasPerfectEleventh) {
-      nameObj.mainQuality = '11'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M11'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 9th
-      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-
-    // aug + #11th
-    } else if (hasPerfectEleventh) {
-      nameObj.mainQuality = '#11'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M#11'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 9th
-      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      
-    // aug + 9th
-    } else if (hasMajorNinth) {
-      nameObj.mainQuality = '9'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'M9'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-    
-    // aug + ß9th
-    } else if (hasMinorNinth) {
-      nameObj.mainQuality = 'ß9'
-      nameObj.accidents[4].push('#5')
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'Mß9'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-
-    // aug + ß7th
-    } else if (hasMinorSeventh) {
-      nameObj.mainQuality = 'aug7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-    
-    // aug + 7th
-    } else if (hasMajorSeventh) {
-      nameObj.mainQuality = 'augM7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-    
-    // aug + ßß7th
-    } else if (hasDiminishedSeventh) {
-      nameObj.mainQuality = 'augßß7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ßß7'].includes(i))
-    }
-
-  // Not diminished nor augmented
-  } else {
-
-    // 13th
-    if (hasMajorThirteenth) {
-      nameObj.mainQuality = '6'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = '13'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M13'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-
-    // ß13
-    } else if (hasMinorThirteenth) {
-      nameObj.mainQuality = 'ß6'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß6'].includes(i))
-      if (hasExtensionsBelowThirteenth) {
-        nameObj.mainQuality = 'ß13'
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'Mß13'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 11th
-        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      }
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-
-    // 11
-    } else if (hasPerfectEleventh) {
-      nameObj.mainQuality = '11'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['4'].includes(i))
-
-      // No 3 or ß3 => sus4
-      if (!hasMajorThird && !hasMinorThird) {
-        nameObj.mainQuality = 'sus4'
-        if (hasMinorSeventh) {
-          nameObj.mainQuality = '7sus4'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-          if (hasMajorNinth) {
-            nameObj.mainQuality = '7sus24'
-            nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-          }
-        } else if (hasMajorSeventh) {
-          nameObj.mainQuality = 'M7sus4'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-          if (hasMajorNinth) {
-            nameObj.mainQuality = '7sus24'
-            nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-          }
-        } else if (hasMajorNinth) {
-          nameObj.mainQuality = 'sus24'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-        }
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-
-      // Has 3 or ß3
-      } else {
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M11'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      }
-
-    // #11
-    } else if (hasAugmentedEleventh) {
-      nameObj.mainQuality = '#11'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['#4'].includes(i))
-
-      // No 3 or ß3, => sus#4
-      if (!hasMajorThird && !hasMinorThird) {
-        nameObj.mainQuality = 'sus#4'
-        if (hasMinorSeventh) {
-          nameObj.mainQuality = '7sus#4'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-          if (hasMajorNinth) {
-            nameObj.mainQuality = '7sus2#4'
-            nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-          }
-        } else if (hasMajorSeventh) {
-          nameObj.mainQuality = 'M7sus#4'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-          if (hasMajorNinth) {
-            nameObj.mainQuality = '7sus2#4'
-            nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-          }
-        } else if (hasMajorNinth) {
-          nameObj.mainQuality = 'sus2#4'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-        }
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-
-      // Has 3 or ß3
-      } else {
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M#11'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 9th
-        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      }
-
-    // 9
-    } else if (hasMajorNinth) {
-      nameObj.mainQuality = '9'        
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['2'].includes(i))
-      
-      // No 3, ß3 => sus2
-      if (!hasMajorThird && !hasMinorThird) {
-        nameObj.mainQuality = 'sus2'
-        if (hasMinorSeventh) {
-          nameObj.mainQuality = '7sus2'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-        } else if (hasMajorSeventh) {
-          nameObj.mainQuality = 'M7sus2'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-      
-      // Has 3 or ß3
-      } else {
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
-          nameObj.mainQuality = 'M9'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-        }
-        // 7th
-        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      }
-
-    // ß9
-    } else if (hasMinorNinth) {
-      nameObj.mainQuality = 'ß9'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        nameObj.mainQuality = 'Mß9'
-        nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-
-    // 7
-    } else if (hasMinorSeventh) {
-      nameObj.mainQuality = '7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['ß7'].includes(i))
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-
-    // M7
-    } else if (hasMajorSeventh) {
-      nameObj.mainQuality = 'M7'
-      nameObj.leftovers = nameObj.leftovers.filter(i => !['7'].includes(i))
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-
-    // No extension
-    } else {
-      if (!hasAnyFifth && !hasAnyThird) {
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      } else if (hasAnyThird && !hasAnyFifth) {
-        if (hasMajorThird) {
-          nameObj.mainQuality = '3'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['3'].includes(i))
-        } else if (hasMinorThird) {
-          nameObj.mainQuality = 'ß3'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['ß3'].includes(i))
-        } else {
-          const [firstThird] = nameObj.leftovers.filter(i => i.match(/3/igm))
-          nameObj.mainQuality = firstThird
-        }
-      } else if (!hasAnyThird && hasAnyFifth) {
-        if (hasPerfectFifth) {
-          nameObj.mainQuality = '5'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['5'].includes(i))
-        } else if (hasDiminishedFifth) {
-          nameObj.mainQuality = 'ß5'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['ß5'].includes(i))
-        } else if (hasAugmentedFifth) {
-          nameObj.mainQuality = '#5'
-          nameObj.leftovers = nameObj.leftovers.filter(i => !['#5'].includes(i))
-        } else {
-          const [firstFifth] = nameObj.leftovers.filter(i => i.match(/5/igm))
-          nameObj.mainQuality = firstFifth
-        }
-      } else { 
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      }
-    }
-  }
-
-  // 1st
-  if (hasFirst) {
-    nameObj.leftovers = nameObj.leftovers.filter(i => !['1'].includes(i))
-  } else if (!hasFirst && hasAnyFirst) {
-    const firstFirst = nameObj.leftovers.find(int => int.match(/1/igm))
-    if (firstFirst === undefined) { nameObj.omissions[0].push('1') }
-    else {
-      nameObj.accidents[0].push(firstFirst)
-      nameObj.leftovers = nameObj.leftovers.filter(i => ![firstFirst].includes(i))
-    }
-  } else {
-    nameObj.omissions[0].push('1')
-  }
-
-  // Leftovers
-  new Array(7).fill(null).forEach((_, intClass) => {
-    const intClassName = `${intClass + 1}`
-    const regex = new RegExp(intClassName, 'igm')
-    const foundInLeftovers = nameObj.leftovers.filter(i => i.match(regex))
-    foundInLeftovers.forEach(leftover => {
-      nameObj.additions[intClass].push(leftover)
-    })
-  })
-
-  // Output name
-  let name = ''
-  if (nameObj.hasMinorQuality) name += 'm'
-  name += nameObj.mainQuality
-  nameObj.accidents.flat().forEach(accident => { name += ` ${accident}` })
-  const flattenedOmissions = nameObj.omissions.flat()
-  if (flattenedOmissions.length > 0) { name += ` no(${flattenedOmissions.join(',')})` }
-  const flattenedAdditions = nameObj.additions.flat()
-  if (flattenedAdditions.length > 0) { name += ` add(${flattenedAdditions.join(',')})` }
-  return name
-}
-
-// console.log(
-//   scaleToChordQuality(
-//     scaleNameToValue('#1,#2,ßß7,ß2')
-//   )
-// )
-
-const lol = [
-  ['1', null],
-  ['ß2', '2', null],
-  ['ß3', '3', null],
-  ['4', '#4', null],
-  ['ß5', '5', '#5', null],
-  ['ß6', '6', null],
-  ['ßß7', 'ß7', '7', null]
-]
-
-new Array(Math.pow(4, 7) / 4)
-  .fill(0)
-  .map((_, pos) => {
-    const base4Pos = pos.toString(4).split('').map(e => parseInt(e))
-    const reversedBase4Pos = [...base4Pos].reverse()
-    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
-    const sliced = withZeros.slice(0, 7).reverse()
-    const intervals = new Array(7).fill(null).map((_, pos) => lol[pos][sliced[pos]])
-    if (intervals.includes(undefined as any)) return;
-    const scaleName = intervals.filter(e => e!== null).join(',')
-    const scale = scaleNameToValue(scaleName)
-    console.log(scaleName, '——>', scaleToChordQuality(scale))
-  })
-
 export function scaleToRotations (scale: ScaleValue): ScaleValue[] {
   const scalePattern = scaleToPatternValue(scale)
   return new Array(12)
@@ -1380,7 +688,33 @@ export function scaleToRotationalSymmetryAxes (scale: ScaleValue): number[] {
 
 export function scaleToModes (scale: ScaleValue): ScaleValue[] {
   const rotations = scaleToRotations(scale)
-  return rotations.filter(scale => scaleToDecimalValue(scale) % 2 !== 0)
+  return rotations.filter(rotation => {
+    const decimalValue = scaleToDecimalValue(rotation)
+    return decimalValue % 2 !== 0
+  })
+  // [WIP] what to do with this approach ?
+  // const lowestInterval = scale.sort((intA, intB) => {
+  //   const { simpleIntervalClass: intClassA, alteration: altA } = intA
+  //   const { simpleIntervalClass: intClassB, alteration: altB } = intB
+  //   if (intClassA === intClassB) return altA - altB
+  //   else return intClassA - intClassB
+  // }).at(0)
+  // const lowestIntervalName = lowestInterval !== undefined
+  //   ? simpleIntervalValueToName(lowestInterval)
+  //   : undefined
+  // const rotations = scaleToRotations(scale)
+  // return rotations.filter(rotation => {
+  //   const rotationLowestInterval = rotation.sort((intA, intB) => {
+  //     const { simpleIntervalClass: intClassA, alteration: altA } = intA
+  //     const { simpleIntervalClass: intClassB, alteration: altB } = intB
+  //     if (intClassA === intClassB) return altA - altB
+  //     else return intClassA - intClassB
+  //   }).at(0)
+  //   const rotationLowestIntervalName = rotationLowestInterval !== undefined
+  //   ? simpleIntervalValueToName(rotationLowestInterval)
+  //   : undefined
+  //   return rotationLowestIntervalName === lowestIntervalName
+  // })
 }
 
 export function scaleToReflections (scale: ScaleValue): ScaleValue[] {
@@ -1477,6 +811,757 @@ export function scaleToRahmPrimeForm (scale: ScaleValue): ScaleValue {
   const asScale = scaleDecimalValueToValue(minOddDecimalValue)
   return asScale
 }
+
+type S = string[]
+export type ScaleChordQualityTable = {
+  mainQuality: string
+  hasMinorQuality: boolean
+  accidents: [S, S, S, S, S, S, S]
+  omissions: [S, S, S, S, S, S, S]
+  additions: [S, S, S, S, S, S, S]
+  leftovers: string[]
+}
+
+export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityTable {
+  const namedIntervals = scale.map(int => simpleIntervalValueToName(int))
+  const hasFirst = namedIntervals.includes('1')
+  const hasAnyFirst = namedIntervals.some(int => int.match(/1/igm))
+  const hasMajorThird = namedIntervals.includes('3')
+  const hasMinorThird = namedIntervals.includes('ß3')
+  const hasAnyThird = namedIntervals.some(int => int.match(/3/igm))
+  const isMajor = hasMajorThird
+  const isMinor = !isMajor && hasMinorThird
+  const hasPerfectFifth = namedIntervals.includes('5')
+  const hasDiminishedFifth = namedIntervals.includes('ß5')
+  const hasAugmentedFifth = namedIntervals.includes('#5')
+  const hasAnyFifth = namedIntervals.some(int => int.match(/5/igm))
+  const hasMajorSeventh = namedIntervals.includes('7')
+  const hasMinorSeventh = namedIntervals.includes('ß7')
+  const hasDiminishedSeventh = namedIntervals.includes('ßß7')
+  const hasMajorNinth = namedIntervals.includes('2')
+  const hasMinorNinth = namedIntervals.includes('ß2')
+  const hasPerfectEleventh = namedIntervals.includes('4')
+  const hasAugmentedEleventh = namedIntervals.includes('#4')
+  const hasMajorThirteenth = namedIntervals.includes('6')
+  const hasMinorThirteenth = namedIntervals.includes('ß6')
+  const hasExtensionsBelowThirteenth = hasMinorSeventh
+    || hasMajorSeventh
+    || hasMinorNinth
+    || hasMajorNinth
+    || hasPerfectEleventh
+    || hasAugmentedEleventh
+
+  type S = string[]
+  const qualityTable = {
+    mainQuality: '',
+    hasMinorQuality: false,
+    accidents: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    omissions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    additions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
+    leftovers: namedIntervals
+  }
+
+  const isDim = !hasMajorThird
+    && hasMinorThird
+    && !hasPerfectFifth
+    && hasDiminishedFifth
+
+  const isAug = !isDim
+    && !hasPerfectFifth
+    && hasMajorThird
+    && hasAugmentedFifth
+
+  const handleEleventhsWhenExpected = (
+    hasPerfectEleventh: boolean,
+    hasAugmentedEleventh: boolean
+  ) => {
+    if (hasPerfectEleventh && hasAugmentedEleventh) {
+      qualityTable.additions[3].push('#11')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4', '#4'].includes(i))
+    } else if (hasPerfectEleventh) {
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
+    } else if (hasAugmentedEleventh) {
+      qualityTable.accidents[3].push('#11')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
+    } else {
+      qualityTable.omissions[3].push('11')
+    }
+  }
+
+  const handleNinthsWhenExpected = (
+    hasMajorNinth: boolean,
+    hasMinorNinth: boolean
+  ) => {
+    if (hasMajorNinth && hasMinorNinth) {
+      qualityTable.additions[1].push('ß9')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2', 'ß2'].includes(i))
+    } else if (hasMajorNinth) {
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+    } else if (hasMinorNinth) {
+      qualityTable.accidents[1].push('ß9')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
+    } else {
+      qualityTable.omissions[1].push('9')
+    }
+  }
+
+  const handleSeventhsWhenExpected = (
+    hasMajorSeventh: boolean,
+    hasMinorSeventh: boolean
+  ) => {
+    if (hasMajorSeventh && hasMinorSeventh) {
+      qualityTable.additions[6].push('7')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7', 'ß7'].includes(i))
+    } else if (hasMajorSeventh || hasMinorSeventh) {
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7', 'ß7'].includes(i))
+    } else {
+      qualityTable.omissions[6].push('ß7')
+    }
+  }
+
+  const handleFifthsWhenExpected = (
+    hasPerfectFifth: boolean,
+    hasAnyFifth: boolean
+  ) => {
+    if (hasPerfectFifth) {
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['5'].includes(i))
+    } else if (hasAnyFifth) {
+      const fifths = qualityTable.leftovers.filter(int => int.match(/5/igm))
+      const [accFifth, ...addFifths] = fifths
+      qualityTable.accidents[4].push(accFifth)
+      qualityTable.additions[4].push(...addFifths)
+      qualityTable.leftovers = qualityTable.leftovers.filter(int => !fifths.includes(int))
+    } else {
+      qualityTable.omissions[4].push('5')
+    }
+  }
+
+  const handleThirdsWhenExpected = (
+    isMajor: boolean,
+    isMinor: boolean,
+    hasAnyThird: boolean
+  ) => {
+    if (isMajor) {
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3'].includes(i))
+    } else if (isMinor) {
+      qualityTable.hasMinorQuality = true
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3'].includes(i))
+    } else if (hasAnyThird) {
+      const thirds = qualityTable.leftovers.filter(int => int.match(/3/igm))
+      const [accThird, ...addThirds] = thirds
+      qualityTable.accidents[2].push(accThird)
+      qualityTable.additions[2].push(...addThirds)
+      qualityTable.leftovers = qualityTable.leftovers.filter(int => !thirds.includes(int))
+    } else {
+      qualityTable.omissions[2].push('3')
+    }
+  }
+
+  // Diminished
+  if (isDim) {
+    qualityTable.mainQuality = 'dim'
+    qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
+    
+    // dim + 13th
+    if (hasMajorThirteenth) {
+      qualityTable.mainQuality = '6'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = '13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M13'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+    
+    // dim + ß13th
+    } else if (hasMinorThirteenth) {
+      qualityTable.mainQuality = 'ß6'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = 'ß13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'Mß13'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+
+    // dim + 11th
+    } else if (hasPerfectEleventh) {
+      qualityTable.mainQuality = '11'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M11'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // dim + #11th
+    } else if (hasPerfectEleventh) {
+      qualityTable.mainQuality = '#11'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M#11'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      
+    // dim + 9th
+    } else if (hasMajorNinth) {
+      qualityTable.mainQuality = '9'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M9'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+    
+    // dim + ß9th
+    } else if (hasMinorNinth) {
+      qualityTable.mainQuality = 'ß9'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'Mß9'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // dim + ßß7th
+    } else if (hasDiminishedSeventh) {
+      qualityTable.mainQuality = 'dim7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
+    
+    // dim + ß7th
+    } else if (hasMinorSeventh) {
+      qualityTable.mainQuality = '7'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+    
+    // dim + 7th
+    } else if (hasMajorSeventh) {
+      qualityTable.mainQuality = 'M7'
+      qualityTable.hasMinorQuality = true
+      qualityTable.accidents[4].push('ß5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+    }
+  
+  // Augmented
+  } else if (isAug) {
+    qualityTable.mainQuality = 'aug'
+    qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3', '#5'].includes(i))
+
+    // aug + 13th
+    if (hasMajorThirteenth) {
+      qualityTable.mainQuality = '6'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = '13#5'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M13#5'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+    
+    // aug + ß13th
+    } else if (hasMinorThirteenth) {
+      qualityTable.mainQuality = 'ß6'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = 'ß13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'Mß13'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+
+    // aug + 11th
+    } else if (hasPerfectEleventh) {
+      qualityTable.mainQuality = '11'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M11'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // aug + #11th
+    } else if (hasPerfectEleventh) {
+      qualityTable.mainQuality = '#11'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M#11'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 9th
+      handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      
+    // aug + 9th
+    } else if (hasMajorNinth) {
+      qualityTable.mainQuality = '9'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'M9'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+    
+    // aug + ß9th
+    } else if (hasMinorNinth) {
+      qualityTable.mainQuality = 'ß9'
+      qualityTable.accidents[4].push('#5')
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'Mß9'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+
+    // aug + ß7th
+    } else if (hasMinorSeventh) {
+      qualityTable.mainQuality = 'aug7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+    
+    // aug + 7th
+    } else if (hasMajorSeventh) {
+      qualityTable.mainQuality = 'augM7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+    
+    // aug + ßß7th
+    } else if (hasDiminishedSeventh) {
+      qualityTable.mainQuality = 'augßß7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
+    }
+
+  // Not diminished nor augmented
+  } else {
+
+    // 13th
+    if (hasMajorThirteenth) {
+      qualityTable.mainQuality = '6'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = '13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M13'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+
+    // ß13
+    } else if (hasMinorThirteenth) {
+      qualityTable.mainQuality = 'ß6'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
+      if (hasExtensionsBelowThirteenth) {
+        qualityTable.mainQuality = 'ß13'
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'Mß13'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 11th
+        handleEleventhsWhenExpected(hasPerfectEleventh, hasAugmentedEleventh)
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      }
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+
+    // 11
+    } else if (hasPerfectEleventh) {
+      qualityTable.mainQuality = '11'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
+
+      // No 3 or ß3 => sus4
+      if (!hasMajorThird && !hasMinorThird) {
+        qualityTable.mainQuality = 'sus4'
+        if (hasMinorSeventh) {
+          qualityTable.mainQuality = '7sus4'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+          if (hasMajorNinth) {
+            qualityTable.mainQuality = '7sus24'
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          }
+        } else if (hasMajorSeventh) {
+          qualityTable.mainQuality = 'M7sus4'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+          if (hasMajorNinth) {
+            qualityTable.mainQuality = '7sus24'
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          }
+        } else if (hasMajorNinth) {
+          qualityTable.mainQuality = 'sus24'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+        }
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+
+      // Has 3 or ß3
+      } else {
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M11'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      }
+
+    // #11
+    } else if (hasAugmentedEleventh) {
+      qualityTable.mainQuality = '#11'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
+
+      // No 3 or ß3, => sus#4
+      if (!hasMajorThird && !hasMinorThird) {
+        qualityTable.mainQuality = 'sus#4'
+        if (hasMinorSeventh) {
+          qualityTable.mainQuality = '7sus#4'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+          if (hasMajorNinth) {
+            qualityTable.mainQuality = '7sus2#4'
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          }
+        } else if (hasMajorSeventh) {
+          qualityTable.mainQuality = 'M7sus#4'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+          if (hasMajorNinth) {
+            qualityTable.mainQuality = '7sus2#4'
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          }
+        } else if (hasMajorNinth) {
+          qualityTable.mainQuality = 'sus2#4'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+        }
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+
+      // Has 3 or ß3
+      } else {
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M#11'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 9th
+        handleNinthsWhenExpected(hasMajorNinth, hasMinorNinth)
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      }
+
+    // 9
+    } else if (hasMajorNinth) {
+      qualityTable.mainQuality = '9'        
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+      
+      // No 3, ß3 => sus2
+      if (!hasMajorThird && !hasMinorThird) {
+        qualityTable.mainQuality = 'sus2'
+        if (hasMinorSeventh) {
+          qualityTable.mainQuality = '7sus2'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+        } else if (hasMajorSeventh) {
+          qualityTable.mainQuality = 'M7sus2'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+      
+      // Has 3 or ß3
+      } else {
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = 'M9'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      }
+
+    // ß9
+    } else if (hasMinorNinth) {
+      qualityTable.mainQuality = 'ß9'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
+      // M
+      if (hasMajorSeventh && !hasMinorSeventh) {
+        qualityTable.mainQuality = 'Mß9'
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      }
+      // 7th
+      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+
+    // 7
+    } else if (hasMinorSeventh) {
+      qualityTable.mainQuality = '7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+
+    // M7
+    } else if (hasMajorSeventh) {
+      qualityTable.mainQuality = 'M7'
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+
+    // No extension
+    } else {
+      if (!hasAnyFifth && !hasAnyThird) {
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      } else if (hasAnyThird && !hasAnyFifth) {
+        if (hasMajorThird) {
+          qualityTable.mainQuality = '3'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3'].includes(i))
+        } else if (hasMinorThird) {
+          qualityTable.mainQuality = 'ß3'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3'].includes(i))
+        } else {
+          const [firstThird] = qualityTable.leftovers.filter(i => i.match(/3/igm))
+          qualityTable.mainQuality = firstThird
+        }
+      } else if (!hasAnyThird && hasAnyFifth) {
+        if (hasPerfectFifth) {
+          qualityTable.mainQuality = '5'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['5'].includes(i))
+        } else if (hasDiminishedFifth) {
+          qualityTable.mainQuality = 'ß5'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß5'].includes(i))
+        } else if (hasAugmentedFifth) {
+          qualityTable.mainQuality = '#5'
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#5'].includes(i))
+        } else {
+          const [firstFifth] = qualityTable.leftovers.filter(i => i.match(/5/igm))
+          qualityTable.mainQuality = firstFifth
+        }
+      } else { 
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      }
+    }
+  }
+
+  // 1st
+  if (hasFirst) {
+    qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
+  } else if (!hasFirst && hasAnyFirst) {
+    const firstFirst = qualityTable.leftovers.find(int => int.match(/1/igm))
+    if (firstFirst === undefined) { qualityTable.omissions[0].push('1') }
+    else {
+      qualityTable.accidents[0].push(firstFirst)
+      qualityTable.leftovers = qualityTable.leftovers.filter(i => ![firstFirst].includes(i))
+    }
+  } else {
+    qualityTable.omissions[0].push('1')
+  }
+
+  // Leftovers
+  new Array(7).fill(null).forEach((_, intClass) => {
+    const intClassName = `${intClass + 1}`
+    const regex = new RegExp(intClassName, 'igm')
+    const foundInLeftovers = qualityTable.leftovers.filter(i => i.match(regex))
+    foundInLeftovers.forEach(leftover => {
+      qualityTable.additions[intClass].push(leftover)
+    })
+  })
+
+  return qualityTable
+}
+
+export function scaleChordQualityTableToQuality (qualityTable: ScaleChordQualityTable): string {
+  let quality = ''
+  if (qualityTable.hasMinorQuality) quality += 'm'
+  quality += qualityTable.mainQuality
+  qualityTable.accidents.flat().forEach(accident => { quality += ` ${accident}` })
+  const flattenedOmissions = qualityTable.omissions.flat()
+  if (flattenedOmissions.length > 0) { quality += ` no(${flattenedOmissions.join(',')})` }
+  const flattenedAdditions = qualityTable.additions.flat()
+  if (flattenedAdditions.length > 0) { quality += ` add(${flattenedAdditions.join(',')})` }
+  return quality
+}
+
+export function scaleChordQualityTableToQualityWeight (qualityTable: ScaleChordQualityTable): number {
+  let weight = 0
+  weight += qualityTable.accidents.flat().length
+  weight += qualityTable.omissions.flat().length * 1.2
+  weight += qualityTable.additions.flat().length * 1.2
+  return weight
+}
+
+export function scaleToRawChordQuality (scale: ScaleValue): string {
+  const qualityTable = scaleToChordQualityTable(scale)
+  const quality = scaleChordQualityTableToQuality(qualityTable)
+  return quality
+}
+
+export function scaleToChordQuality (scale: ScaleValue): string {
+  const modes = scaleToModes(scale)
+  const modesQualityTables = modes.map((mode, modePos) => {
+    const rotationAsInterval = scale[modePos]
+    const rotationAsIntervalName = simpleIntervalValueToName(rotationAsInterval)
+    const qualityTable = scaleToChordQualityTable(mode)
+    const weight = scaleChordQualityTableToQualityWeight(qualityTable)
+    const name = scaleChordQualityTableToQuality(qualityTable)
+    const nameWithMajor = name !== '' ? name : 'maj'
+    const invertedName = rotationAsIntervalName === '1' ? name : `${nameWithMajor}/${rotationAsIntervalName}`
+    return {
+      mode,
+      qualityTable,
+      weight,
+      name,
+      invertedName
+    }
+  })
+  const minWeight = Math.min(...modesQualityTables.map(table => table.weight))
+  const minWeightMode = modesQualityTables.find(table => table.weight === minWeight)
+  return minWeightMode?.invertedName ?? scaleToRawChordQuality(scale)
+}
+
+// console.log(scaleToChordQuality(scaleNameToValue('1,ß3,ß6')))
+
+// console.log(
+//   scaleToChordQualityTable(
+//     scaleNameToValue('#1,#2,ßß7,ß2')
+//   )
+// )
+
+const lol = [
+  ['1', null],
+  ['ß2', '2', null],
+  ['ß3', '3', null],
+  ['4', '#4', null],
+  ['ß5', '5', '#5', null],
+  ['ß6', '6', null],
+  ['ßß7', 'ß7', '7', null]
+]
+
+new Array(Math.pow(4, 7))
+  .fill(0)
+  .map((_, pos) => {
+    const base4Pos = pos.toString(4).split('').map(e => parseInt(e))
+    const reversedBase4Pos = [...base4Pos].reverse()
+    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
+    const sliced = withZeros.slice(0, 7).reverse()
+    const intervals = new Array(7).fill(null).map((_, pos) => lol[pos][sliced[pos]])
+    if (intervals.includes(undefined as any)) return;
+    const scaleName = intervals.filter(e => e!== null).join(',')
+    const scale = scaleNameToValue(scaleName)
+    console.log(
+      scaleName,
+      '——>',
+      scaleToRawChordQuality(scale).length - scaleToChordQuality(scale).length,
+      scaleToRawChordQuality(scale),
+      ' | ',
+      scaleToChordQuality(scale)
+    )
+  })
 
 // CHORD NAME
 // COMMON NAMES
