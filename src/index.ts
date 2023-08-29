@@ -812,9 +812,54 @@ export function scaleToRahmPrimeForm (scale: ScaleValue): ScaleValue {
   return asScale
 }
 
+export enum ScaleMainQualities {
+  OMITTED_MAJOR = '',
+  EXPLICIT_MAJOR = 'maj',
+  DIM = 'dim',
+  SIX = '6',
+  THIRTEEN = '13',
+  MAJ_THIRTEEN = 'M13',
+  FLAT_SIX = 'ß6',
+  FLAT_THIRTEEN = 'ß13',
+  MAJ_FLAT_THIRTEEN = 'Mß13',
+  ELEVEN = '11',
+  MAJ_ELEVEN = 'M11',
+  SHARP_ELEVEN = '#11',
+  MAJ_SHARP_ELEVEN = 'M#11',
+  NINE = '9',
+  MAJ_NINE = 'M9',
+  FLAT_NINE = 'ß9',
+  MAJ_FLAT_NINE = 'Mß9',
+  DIM_SEVEN = 'dim7',
+  SEVEN = '7',
+  MAJ_SEVEN = 'M7',
+  AUG = 'aug',
+  AUG_SEVEN = 'aug7',
+  AUG_MAJ_SEVEN = 'augM7',
+  AUG_DIM_SEVEN = 'augßß7',
+  SUS_4 = 'sus4',
+  SEVEN_SUS_4 = '7sus4',
+  SEVEN_SUS_24 = '7sus24',
+  MAJ_SEVEN_SUS_4 = 'M7sus4',
+  SUS_24 = 'sus24',
+  SUS_SHARP_4 = 'sus#4',
+  SEVEN_SUS_SHARP_4 = '7sus#4',
+  MAJ_SEVEN_SUS_SHARP_4 = 'M7sus#4',
+  SEVEN_SUS_2_SHARP_4 = '7sus2#4',
+  SUS_2_SHARP_4 = 'sus2#4',
+  SUS_2 = 'sus2',
+  SEVEN_SUS_2 = '7sus2',
+  MAJ_SEVEN_SUS_2 = 'M7sus2',
+  THREE = '3',
+  FLAT_THREE = 'ß3',
+  FIVE = '5',
+  FLAT_FIVE = 'ß5',
+  SHARP_FIVE = '#5'
+}
+
 type S = string[]
-export type ScaleChordQualityTable = {
-  mainQuality: string
+export type ScaleQualityTable = {
+  mainQuality: ScaleMainQualities
   hasMinorQuality: boolean
   accidents: [S, S, S, S, S, S, S]
   omissions: [S, S, S, S, S, S, S]
@@ -822,7 +867,7 @@ export type ScaleChordQualityTable = {
   leftovers: string[]
 }
 
-export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityTable {
+export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
   const namedIntervals = scale.map(int => simpleIntervalValueToName(int))
   const hasFirst = namedIntervals.includes('1')
   const hasAnyFirst = namedIntervals.some(int => int.match(/1/igm))
@@ -853,7 +898,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
   type S = string[]
   const qualityTable = {
-    mainQuality: '',
+    mainQuality: ScaleMainQualities.OMITTED_MAJOR,
     hasMinorQuality: false,
     accidents: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
     omissions: new Array(7).fill(null).map(_ => ([] as S)) as [S, S, S, S, S, S, S],
@@ -959,20 +1004,20 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
   // Diminished
   if (isDim) {
-    qualityTable.mainQuality = 'dim'
+    qualityTable.mainQuality = ScaleMainQualities.DIM
     qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
     
     // dim + 13th
     if (hasMajorThirteenth) {
-      qualityTable.mainQuality = '6'
+      qualityTable.mainQuality = ScaleMainQualities.SIX
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = '13'
+        qualityTable.mainQuality = ScaleMainQualities.THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M13'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -985,15 +1030,15 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
     
     // dim + ß13th
     } else if (hasMinorThirteenth) {
-      qualityTable.mainQuality = 'ß6'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_SIX
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = 'ß13'
+        qualityTable.mainQuality = ScaleMainQualities.FLAT_THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'Mß13'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -1006,13 +1051,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // dim + 11th
     } else if (hasPerfectEleventh) {
-      qualityTable.mainQuality = '11'
+      qualityTable.mainQuality = ScaleMainQualities.ELEVEN
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M11'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 9th
@@ -1022,13 +1067,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // dim + #11th
     } else if (hasPerfectEleventh) {
-      qualityTable.mainQuality = '#11'
+      qualityTable.mainQuality = ScaleMainQualities.SHARP_ELEVEN
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M#11'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_SHARP_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 9th
@@ -1038,13 +1083,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
       
     // dim + 9th
     } else if (hasMajorNinth) {
-      qualityTable.mainQuality = '9'
+      qualityTable.mainQuality = ScaleMainQualities.NINE
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M9'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 7th
@@ -1052,13 +1097,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
     
     // dim + ß9th
     } else if (hasMinorNinth) {
-      qualityTable.mainQuality = 'ß9'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_NINE
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'Mß9'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 7th
@@ -1066,19 +1111,19 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // dim + ßß7th
     } else if (hasDiminishedSeventh) {
-      qualityTable.mainQuality = 'dim7'
+      qualityTable.mainQuality = ScaleMainQualities.DIM_SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
     
     // dim + ß7th
     } else if (hasMinorSeventh) {
-      qualityTable.mainQuality = '7'
+      qualityTable.mainQuality = ScaleMainQualities.SEVEN
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
     
     // dim + 7th
     } else if (hasMajorSeventh) {
-      qualityTable.mainQuality = 'M7'
+      qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN
       qualityTable.hasMinorQuality = true
       qualityTable.accidents[4].push('ß5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
@@ -1086,19 +1131,19 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
   
   // Augmented
   } else if (isAug) {
-    qualityTable.mainQuality = 'aug'
+    qualityTable.mainQuality = ScaleMainQualities.AUG
     qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3', '#5'].includes(i))
 
     // aug + 13th
     if (hasMajorThirteenth) {
-      qualityTable.mainQuality = '6'
+      qualityTable.mainQuality = ScaleMainQualities.SIX
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = '13#5'
+        qualityTable.mainQuality = ScaleMainQualities.THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M13#5'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -1111,14 +1156,14 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
     
     // aug + ß13th
     } else if (hasMinorThirteenth) {
-      qualityTable.mainQuality = 'ß6'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_SIX
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = 'ß13'
+        qualityTable.mainQuality = ScaleMainQualities.FLAT_THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'Mß13'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -1131,12 +1176,12 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // aug + 11th
     } else if (hasPerfectEleventh) {
-      qualityTable.mainQuality = '11'
+      qualityTable.mainQuality = ScaleMainQualities.ELEVEN
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M11'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 9th
@@ -1146,12 +1191,12 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // aug + #11th
     } else if (hasPerfectEleventh) {
-      qualityTable.mainQuality = '#11'
+      qualityTable.mainQuality = ScaleMainQualities.SHARP_ELEVEN
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M#11'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_SHARP_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 9th
@@ -1161,12 +1206,12 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
       
     // aug + 9th
     } else if (hasMajorNinth) {
-      qualityTable.mainQuality = '9'
+      qualityTable.mainQuality = ScaleMainQualities.NINE
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'M9'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 7th
@@ -1174,12 +1219,12 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
     
     // aug + ß9th
     } else if (hasMinorNinth) {
-      qualityTable.mainQuality = 'ß9'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_NINE
       qualityTable.accidents[4].push('#5')
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'Mß9'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 7th
@@ -1187,17 +1232,17 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // aug + ß7th
     } else if (hasMinorSeventh) {
-      qualityTable.mainQuality = 'aug7'
+      qualityTable.mainQuality = ScaleMainQualities.AUG_SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
     
     // aug + 7th
     } else if (hasMajorSeventh) {
-      qualityTable.mainQuality = 'augM7'
+      qualityTable.mainQuality = ScaleMainQualities.AUG_MAJ_SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
     
     // aug + ßß7th
     } else if (hasDiminishedSeventh) {
-      qualityTable.mainQuality = 'augßß7'
+      qualityTable.mainQuality = ScaleMainQualities.AUG_DIM_SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
     }
 
@@ -1206,13 +1251,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // 13th
     if (hasMajorThirteenth) {
-      qualityTable.mainQuality = '6'
+      qualityTable.mainQuality = ScaleMainQualities.SIX
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = '13'
+        qualityTable.mainQuality = ScaleMainQualities.THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M13'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -1229,13 +1274,13 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // ß13
     } else if (hasMinorThirteenth) {
-      qualityTable.mainQuality = 'ß6'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_SIX
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
       if (hasExtensionsBelowThirteenth) {
-        qualityTable.mainQuality = 'ß13'
+        qualityTable.mainQuality = ScaleMainQualities.FLAT_THIRTEEN
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'Mß13'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_THIRTEEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 11th
@@ -1252,28 +1297,28 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // 11
     } else if (hasPerfectEleventh) {
-      qualityTable.mainQuality = '11'
+      qualityTable.mainQuality = ScaleMainQualities.ELEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
 
       // No 3 or ß3 => sus4
       if (!hasMajorThird && !hasMinorThird) {
-        qualityTable.mainQuality = 'sus4'
+        qualityTable.mainQuality = ScaleMainQualities.SUS_4
         if (hasMinorSeventh) {
-          qualityTable.mainQuality = '7sus4'
+          qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = '7sus24'
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_24
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           }
         } else if (hasMajorSeventh) {
-          qualityTable.mainQuality = 'M7sus4'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = '7sus24'
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_24
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           }
         } else if (hasMajorNinth) {
-          qualityTable.mainQuality = 'sus24'
+          qualityTable.mainQuality = ScaleMainQualities.SUS_24
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         }
         // 5th
@@ -1283,7 +1328,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
       } else {
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M11'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1298,28 +1343,28 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // #11
     } else if (hasAugmentedEleventh) {
-      qualityTable.mainQuality = '#11'
+      qualityTable.mainQuality = ScaleMainQualities.SHARP_ELEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
 
       // No 3 or ß3, => sus#4
       if (!hasMajorThird && !hasMinorThird) {
-        qualityTable.mainQuality = 'sus#4'
+        qualityTable.mainQuality = ScaleMainQualities.SUS_SHARP_4
         if (hasMinorSeventh) {
-          qualityTable.mainQuality = '7sus#4'
+          qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_SHARP_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = '7sus2#4'
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           }
         } else if (hasMajorSeventh) {
-          qualityTable.mainQuality = 'M7sus#4'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = '7sus2#4'
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           }
         } else if (hasMajorNinth) {
-          qualityTable.mainQuality = 'sus2#4'
+          qualityTable.mainQuality = ScaleMainQualities.SUS_2_SHARP_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         }
         // 5th
@@ -1329,7 +1374,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
       } else {
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M#11'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_SHARP_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1344,17 +1389,17 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // 9
     } else if (hasMajorNinth) {
-      qualityTable.mainQuality = '9'        
+      qualityTable.mainQuality = ScaleMainQualities.NINE        
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
       
       // No 3, ß3 => sus2
       if (!hasMajorThird && !hasMinorThird) {
-        qualityTable.mainQuality = 'sus2'
+        qualityTable.mainQuality = ScaleMainQualities.SUS_2
         if (hasMinorSeventh) {
-          qualityTable.mainQuality = '7sus2'
+          qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
         } else if (hasMajorSeventh) {
-          qualityTable.mainQuality = 'M7sus2'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_2
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
       
@@ -1362,7 +1407,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
       } else {
         // M
         if (hasMajorSeventh && !hasMinorSeventh) {
-          qualityTable.mainQuality = 'M9'
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
@@ -1375,11 +1420,11 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // ß9
     } else if (hasMinorNinth) {
-      qualityTable.mainQuality = 'ß9'
+      qualityTable.mainQuality = ScaleMainQualities.FLAT_NINE
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
       // M
       if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = 'Mß9'
+        qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
       // 7th
@@ -1391,7 +1436,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // 7
     } else if (hasMinorSeventh) {
-      qualityTable.mainQuality = '7'
+      qualityTable.mainQuality = ScaleMainQualities.SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
       // 5th
       handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1400,7 +1445,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
 
     // M7
     } else if (hasMajorSeventh) {
-      qualityTable.mainQuality = 'M7'
+      qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       // 5th
       handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1416,28 +1461,32 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
       } else if (hasAnyThird && !hasAnyFifth) {
         if (hasMajorThird) {
-          qualityTable.mainQuality = '3'
+          qualityTable.mainQuality = ScaleMainQualities.THREE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3'].includes(i))
         } else if (hasMinorThird) {
-          qualityTable.mainQuality = 'ß3'
+          qualityTable.mainQuality = ScaleMainQualities.FLAT_THREE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3'].includes(i))
         } else {
           const [firstThird] = qualityTable.leftovers.filter(i => i.match(/3/igm))
-          qualityTable.mainQuality = firstThird
+          // qualityTable.mainQuality = firstThird
+          qualityTable.accidents[2].push(firstThird)
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => i !== firstThird)
         }
       } else if (!hasAnyThird && hasAnyFifth) {
         if (hasPerfectFifth) {
-          qualityTable.mainQuality = '5'
+          qualityTable.mainQuality = ScaleMainQualities.FIVE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['5'].includes(i))
         } else if (hasDiminishedFifth) {
-          qualityTable.mainQuality = 'ß5'
+          qualityTable.mainQuality = ScaleMainQualities.FLAT_FIVE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß5'].includes(i))
         } else if (hasAugmentedFifth) {
-          qualityTable.mainQuality = '#5'
+          qualityTable.mainQuality = ScaleMainQualities.SHARP_FIVE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#5'].includes(i))
         } else {
           const [firstFifth] = qualityTable.leftovers.filter(i => i.match(/5/igm))
-          qualityTable.mainQuality = firstFifth
+          // qualityTable.mainQuality = firstFifth
+          qualityTable.accidents[4].push(firstFifth)
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => i !== firstFifth)
         }
       } else { 
         // 5th
@@ -1475,7 +1524,7 @@ export function scaleToChordQualityTable (scale: ScaleValue): ScaleChordQualityT
   return qualityTable
 }
 
-export function scaleChordQualityTableToQuality (qualityTable: ScaleChordQualityTable): string {
+export function scaleQualityTableToQuality (qualityTable: ScaleQualityTable): string {
   let quality = ''
   if (qualityTable.hasMinorQuality) quality += 'm'
   quality += qualityTable.mainQuality
@@ -1487,7 +1536,7 @@ export function scaleChordQualityTableToQuality (qualityTable: ScaleChordQuality
   return quality
 }
 
-export function scaleChordQualityTableToQualityWeight (qualityTable: ScaleChordQualityTable): number {
+export function scaleQualityTableToQualityWeight (qualityTable: ScaleQualityTable): number {
   let weight = 0
   weight += qualityTable.accidents.flat().length
   weight += qualityTable.omissions.flat().length * 1.2
@@ -1495,42 +1544,36 @@ export function scaleChordQualityTableToQualityWeight (qualityTable: ScaleChordQ
   return weight
 }
 
-export function scaleToRawChordQuality (scale: ScaleValue): string {
-  const qualityTable = scaleToChordQualityTable(scale)
-  const quality = scaleChordQualityTableToQuality(qualityTable)
+export function scaleToQuality (scale: ScaleValue): string {
+  const qualityTable = scaleToQualityTable(scale)
+  const quality = scaleQualityTableToQuality(qualityTable)
   return quality
 }
 
-export function scaleToChordQuality (scale: ScaleValue): string {
-  const modes = scaleToModes(scale)
-  const modesQualityTables = modes.map((mode, modePos) => {
-    const rotationAsInterval = scale[modePos]
-    const rotationAsIntervalName = simpleIntervalValueToName(rotationAsInterval)
-    const qualityTable = scaleToChordQualityTable(mode)
-    const weight = scaleChordQualityTableToQualityWeight(qualityTable)
-    const name = scaleChordQualityTableToQuality(qualityTable)
-    const nameWithMajor = name !== '' ? name : 'maj'
-    const invertedName = rotationAsIntervalName === '1' ? name : `${nameWithMajor}/${rotationAsIntervalName}`
-    return {
-      mode,
-      qualityTable,
-      weight,
-      name,
-      invertedName
-    }
-  })
-  const minWeight = Math.min(...modesQualityTables.map(table => table.weight))
-  const minWeightMode = modesQualityTables.find(table => table.weight === minWeight)
-  return minWeightMode?.invertedName ?? scaleToRawChordQuality(scale)
+export function scaleQualityToQualityTable (quality: string): ScaleQualityTable {
+  let workingQuality = quality
+
+  // Minor quality
+  const hasMinorQuality = workingQuality.match(/^m/)
+  if (hasMinorQuality) workingQuality = workingQuality.replace(/^m/, '')
+
+  // Main quality
+
+  // Accidents
+
+  // Omissions
+
+  // Additions
+
+  return {
+    mainQuality: ScaleMainQualities.OMITTED_MAJOR,
+    hasMinorQuality: false,
+    accidents: new Array(7).fill(null).map(e => ([])) as unknown as [S, S, S, S, S, S, S],
+    omissions: new Array(7).fill(null).map(e => ([])) as unknown as [S, S, S, S, S, S, S],
+    additions: new Array(7).fill(null).map(e => ([])) as unknown as [S, S, S, S, S, S, S],
+    leftovers: []
+  }
 }
-
-// console.log(scaleToChordQuality(scaleNameToValue('1,ß3,ß6')))
-
-// console.log(
-//   scaleToChordQualityTable(
-//     scaleNameToValue('#1,#2,ßß7,ß2')
-//   )
-// )
 
 const lol = [
   ['1', null],
@@ -1553,17 +1596,9 @@ new Array(Math.pow(4, 7))
     if (intervals.includes(undefined as any)) return;
     const scaleName = intervals.filter(e => e!== null).join(',')
     const scale = scaleNameToValue(scaleName)
-    console.log(
-      scaleName,
-      '——>',
-      scaleToRawChordQuality(scale).length - scaleToChordQuality(scale).length,
-      scaleToRawChordQuality(scale),
-      ' | ',
-      scaleToChordQuality(scale)
-    )
+    console.log(scaleName, '——>', scaleToQuality(scale))
   })
 
-// CHORD NAME
 // COMMON NAMES
 
 // intervalPattern
