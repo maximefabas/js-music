@@ -1521,6 +1521,54 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
     })
   })
 
+  qualityTable.accidents = qualityTable.accidents.map(intClass => {
+    return intClass
+      .map(intName => {
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+
+  qualityTable.omissions = qualityTable.omissions.map(intClass => {
+    return intClass
+      .map(intName => {
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+
+  qualityTable.additions = qualityTable.additions.map(intClass => {
+    return intClass
+      .map(intName => {
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+
   return qualityTable
 }
 
@@ -1528,11 +1576,11 @@ export function scaleQualityTableToQuality (qualityTable: ScaleQualityTable): st
   let quality = ''
   if (qualityTable.hasMinorQuality) quality += 'm'
   quality += qualityTable.mainQuality
-  qualityTable.accidents.flat().forEach(accident => { quality += ` ${accident}` })
+  qualityTable.accidents.flat().forEach(accident => { quality += `${accident}` })
   const flattenedOmissions = qualityTable.omissions.flat()
-  if (flattenedOmissions.length > 0) { quality += ` no(${flattenedOmissions.join(',')})` }
+  if (flattenedOmissions.length > 0) { quality += `no(${flattenedOmissions.join(',')})` }
   const flattenedAdditions = qualityTable.additions.flat()
-  if (flattenedAdditions.length > 0) { quality += ` add(${flattenedAdditions.join(',')})` }
+  if (flattenedAdditions.length > 0) { quality += `add(${flattenedAdditions.join(',')})` }
   return quality
 }
 
@@ -1552,20 +1600,7 @@ export function scaleToQuality (scale: ScaleValue): string {
 
 export function scaleQualityToQualityTable (quality: string): ScaleQualityTable {
   let workingQuality = quality
-
-  // Minor quality
-  const hasMinorQuality = workingQuality.match(/^m/)
-  if (hasMinorQuality) workingQuality = workingQuality.replace(/^m/, '')
-
-  // Main quality
-
-  // Accidents
-
-  // Omissions
-
-  // Additions
-
-  return {
+  const qualityTable: ScaleQualityTable = {
     mainQuality: ScaleMainQualities.OMITTED_MAJOR,
     hasMinorQuality: false,
     accidents: new Array(7).fill(null).map(e => ([])) as unknown as [S, S, S, S, S, S, S],
@@ -1573,6 +1608,80 @@ export function scaleQualityToQualityTable (quality: string): ScaleQualityTable 
     additions: new Array(7).fill(null).map(e => ([])) as unknown as [S, S, S, S, S, S, S],
     leftovers: []
   }
+
+  // Minor quality
+  qualityTable.hasMinorQuality = workingQuality.match(/^m/) !== null
+  if (qualityTable.hasMinorQuality) workingQuality = workingQuality.replace(/^m/, '')
+
+  // Main quality
+  const mainQualitiesArr = Object
+    .entries(ScaleMainQualities)
+    .map(([_, val]) => val)
+    .filter(qual => qual !== '')
+    .sort((qualA, qualB) => qualB.length - qualA.length)
+  qualityTable.mainQuality = mainQualitiesArr.find(qual => {
+    const qualLength = qual.length
+    const workingQualityFirstChars = workingQuality.slice(0, qualLength)
+    return workingQualityFirstChars === qual
+  }) ?? ScaleMainQualities.OMITTED_MAJOR
+  workingQuality = workingQuality.slice(qualityTable.mainQuality.length)
+
+  const intervalRegex = /(ß|#)*[0-9]+/
+  const intervalsBlockRegex = new RegExp(`${intervalRegex.source}(,${intervalRegex.source})?`)
+  const omissionBlockRegex = new RegExp(`no\\(${intervalsBlockRegex.source}\\)`, 'igm')
+  const additionBlockRegex = new RegExp(`add\\(${intervalsBlockRegex.source}\\)`, 'igm')
+
+  // Omissions
+  const omissionsBlocks = workingQuality.match(omissionBlockRegex) ?? []
+  omissionsBlocks.forEach(omissionBlock => {
+    workingQuality = workingQuality.replace(omissionBlock, '')
+    const omittedIntervalsNames = omissionBlock
+      .replace(/^no\(/, '')
+      .replace(/\)$/, '')
+      .split(',')
+    omittedIntervalsNames.forEach(intName => {
+      const int = simpleIntervalNameToValue(intName)
+      if (int === undefined) return;
+      qualityTable.omissions[int.simpleIntervalClass].push(intName)
+    })
+  })
+
+
+  // Additions
+  const additionsBlocks = workingQuality.match(additionBlockRegex) ?? []
+  additionsBlocks.forEach(additionBlock => {
+    workingQuality = workingQuality.replace(additionBlock, '')
+    const addedIntervalsNames = additionBlock
+      .replace(/^add\(/, '')
+      .replace(/\)$/, '')
+      .split(',')
+    addedIntervalsNames.forEach(intName => {
+      const int = simpleIntervalNameToValue(intName)
+      if (int === undefined) return;
+      qualityTable.additions[int.simpleIntervalClass].push(intName)
+    })
+  })
+
+  // Accidents
+  let whileLoopsCnt = 0
+  while (true) {
+    whileLoopsCnt++
+    if (whileLoopsCnt >= 100) break;
+    const accident = workingQuality.match(intervalRegex)
+    if (accident === null) break;
+    workingQuality = workingQuality.replace(accident[0], '')
+    const intName = accident[0]
+    const int = simpleIntervalNameToValue(intName)
+    if (int === undefined) continue;
+    qualityTable.accidents[int.simpleIntervalClass].push(intName)
+  }
+
+  return qualityTable
+}
+
+export function scaleQualityTableToValue (qualityTable: ScaleQualityTable): ScaleValue {
+
+  return []
 }
 
 const lol = [
@@ -1585,7 +1694,8 @@ const lol = [
   ['ßß7', 'ß7', '7', null]
 ]
 
-new Array(Math.pow(4, 7))
+// new Array(Math.pow(4, 7))
+new Array(1)
   .fill(0)
   .map((_, pos) => {
     const base4Pos = pos.toString(4).split('').map(e => parseInt(e))
@@ -1596,7 +1706,9 @@ new Array(Math.pow(4, 7))
     if (intervals.includes(undefined as any)) return;
     const scaleName = intervals.filter(e => e!== null).join(',')
     const scale = scaleNameToValue(scaleName)
-    console.log(scaleName, '——>', scaleToQuality(scale))
+    const quality = scaleToQuality(scale)
+    const table = scaleQualityToQualityTable(quality)
+    console.log(scaleName, '——>', quality, '——>', table)
   })
 
 // COMMON NAMES
