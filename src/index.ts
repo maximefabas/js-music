@@ -815,47 +815,187 @@ export function scaleToRahmPrimeForm (scale: ScaleValue): ScaleValue {
 export enum ScaleMainQualities {
   OMITTED_MAJOR = '',
   EXPLICIT_MAJOR = 'maj',
+  TWO = '2',
+  FLAT_TWO = 'ß2',
+  SHARP_TWO = '#2',
+  THREE = '3',
+  FLAT_THREE = 'ß3',
+  SHARP_THREE = '#3',
+  FOUR = '4',
+  FLAT_FOUR = 'ß4',
+  SHARP_FOUR = '#4',
+  FIVE = '5',
+  FLAT_FIVE = 'ß5',
+  SHARP_FIVE = '#5',
+  SUS_2 = 'sus2',
+  SUS_FLAT_2 = 'susß2',
+  SUS_SHARP_2 = 'sus#2',
+  SUS_4 = 'sus4',
+  SUS_FLAT_4 = 'susß4',
+  SUS_SHARP_4 = 'sus#4',
   DIM = 'dim',
+  AUG = 'aug',
   SIX = '6',
-  THIRTEEN = '13',
-  MAJ_THIRTEEN = 'M13',
   FLAT_SIX = 'ß6',
-  FLAT_THIRTEEN = 'ß13',
-  MAJ_FLAT_THIRTEEN = 'Mß13',
+  SHARP_SIX = '#6',
+  SEVEN = '7',
+  FLAT_SEVEN = 'ß7',
+  MAJ_SEVEN = 'M7',
+  DIM_SEVEN = 'dim7',
+  DIM_FLAT_SEVEN = 'dimß7',
+  DIM_DIM_SEVEN = 'dimßß7',
+  DIM_MAJ_SEVEN = 'dimM7',
+  AUG_SEVEN = 'aug7',
+  AUG_FLAT_SEVEN = 'augß7',
+  AUG_DIM_SEVEN = 'augßß7',
+  AUG_MAJ_SEVEN = 'augM7',
+  SUS_24 = 'sus24',
+  SUS_FLAT_2_4 = 'susß24',
+  SUS_SHARP_2_4 = 'sus#24',
+  SUS_2_FLAT_4 = 'sus2ß4',
+  SUS_2_SHARP_4 = 'sus2#4',
+  SUS_FLAT_2_FLAT_4 = 'susß2ß4',
+  SUS_FLAT_2_SHARP_4 = 'susß2#4',
+  SUS_SHARP_2_FLAT_4 = 'sus#2ß4',
+  SUS_SHARP_2_SHARP_4 = 'sus#2#4',
+  SEVEN_SUS_2 = '7sus2',
+  SEVEN_SUS_FLAT_2 = '7susß2',
+  SEVEN_SUS_SHARP_2 = '7sus#2',
+  MAJ_SEVEN_SUS_2 = 'M7sus2',
+  MAJ_SEVEN_SUS_FLAT_2 = 'M7susß2',
+  MAJ_SEVEN_SUS_SHARP_2 = 'M7sus#2',
+  SEVEN_SUS_4 = '7sus4',
+  SEVEN_SUS_FLAT_4 = '7susß4',
+  SEVEN_SUS_SHARP_4 = '7sus#4',
+  MAJ_SEVEN_SUS_4 = 'M7sus4',
+  MAJ_SEVEN_SUS_FLAT_4 = 'M7susß4',
+  MAJ_SEVEN_SUS_SHARP_4 = 'M7sus#4',
+  NINE = '9',
+  FLAT_NINE = 'ß9',
+  SHARP_NINE = 'ß9',
+  MAJ_NINE = 'M9',
+  MAJ_FLAT_NINE = 'Mß9',
+  MAJ_SHARP_NINE = 'M#9',
+  SEVEN_SUS_24 = '7sus24',
+  SEVEN_SUS_FLAT_2_4 = '7susß24',
+  SEVEN_SUS_SHARP_2_4 = '7sus#24',
+  SEVEN_SUS_2_FLAT_4 = '7sus2ß4',
+  SEVEN_SUS_2_SHARP_4 = '7sus2#4',
+  SEVEN_SUS_FLAT_2_FLAT_4 = '7susß2ß4',
+  SEVEN_SUS_FLAT_2_SHARP_4 = '7susß2#4',
+  SEVEN_SUS_SHARP_2_FLAT_4 = '7sus#2ß4',
+  SEVEN_SUS_SHARP_2_SHARP_4 = '7sus#2#4',
+  MAJ_SEVEN_SUS_24 = 'M7sus24',
+  MAJ_SEVEN_SUS_FLAT_2_4 = 'M7susß24',
+  MAJ_SEVEN_SUS_SHARP_2_4 = 'M7sus#24',
+  MAJ_SEVEN_SUS_2_FLAT_4 = 'M7sus2ß4',
+  MAJ_SEVEN_SUS_2_SHARP_4 = 'M7sus2#4',
+  MAJ_SEVEN_SUS_FLAT_2_FLAT_4 = 'M7susß2ß4',
+  MAJ_SEVEN_SUS_FLAT_2_SHARP_4 = 'M7susß2#4',
+  MAJ_SEVEN_SUS_SHARP_2_FLAT_4 = 'M7sus#2ß4',
+  MAJ_SEVEN_SUS_SHARP_2_SHARP_4 = 'M7sus#2#4',
   ELEVEN = '11',
   MAJ_ELEVEN = 'M11',
   SHARP_ELEVEN = '#11',
   MAJ_SHARP_ELEVEN = 'M#11',
-  NINE = '9',
-  MAJ_NINE = 'M9',
-  FLAT_NINE = 'ß9',
-  MAJ_FLAT_NINE = 'Mß9',
-  DIM_SEVEN = 'dim7',
-  SEVEN = '7',
-  MAJ_SEVEN = 'M7',
-  AUG = 'aug',
-  AUG_SEVEN = 'aug7',
-  AUG_MAJ_SEVEN = 'augM7',
-  AUG_DIM_SEVEN = 'augßß7',
-  SUS_4 = 'sus4',
-  SEVEN_SUS_4 = '7sus4',
-  SEVEN_SUS_24 = '7sus24',
-  MAJ_SEVEN_SUS_4 = 'M7sus4',
-  SUS_24 = 'sus24',
-  SUS_SHARP_4 = 'sus#4',
-  SEVEN_SUS_SHARP_4 = '7sus#4',
-  MAJ_SEVEN_SUS_SHARP_4 = 'M7sus#4',
-  SEVEN_SUS_2_SHARP_4 = '7sus2#4',
-  SUS_2_SHARP_4 = 'sus2#4',
-  SUS_2 = 'sus2',
-  SEVEN_SUS_2 = '7sus2',
-  MAJ_SEVEN_SUS_2 = 'M7sus2',
-  THREE = '3',
-  FLAT_THREE = 'ß3',
-  FIVE = '5',
-  FLAT_FIVE = 'ß5',
-  SHARP_FIVE = '#5'
+  THIRTEEN = '13',
+  MAJ_THIRTEEN = 'M13',
+  FLAT_THIRTEEN = 'ß13',
+  MAJ_FLAT_THIRTEEN = 'Mß13'
 }
+
+// [WIP] should be more than this i
+export const scaleMainQualitiesToNameMap = new Map<ScaleMainQualities, string>([
+  [ScaleMainQualities.OMITTED_MAJOR, '1,3,5'],
+  [ScaleMainQualities.EXPLICIT_MAJOR, '1,3,5'],
+  [ScaleMainQualities.TWO, '1,2'],
+  [ScaleMainQualities.FLAT_TWO, '1,ß2'],
+  [ScaleMainQualities.SHARP_TWO, '1,#2'],
+  [ScaleMainQualities.THREE, '1,3'],
+  [ScaleMainQualities.FLAT_THREE, '1,ß3'],
+  [ScaleMainQualities.SHARP_THREE, '1,#3'],
+  [ScaleMainQualities.FOUR, '1,4'],
+  [ScaleMainQualities.FLAT_FOUR, '1,ß4'],
+  [ScaleMainQualities.SHARP_FOUR, '1,#4'],
+  [ScaleMainQualities.FIVE, '1,5'],
+  [ScaleMainQualities.FLAT_FIVE, '1,ß5'],
+  [ScaleMainQualities.SHARP_FIVE, '1,#5'],
+  [ScaleMainQualities.SUS_2, '1,2,5'],
+  [ScaleMainQualities.SUS_FLAT_2, '1,ß2,5'],
+  [ScaleMainQualities.SUS_SHARP_2, '1,#2,5'],
+  [ScaleMainQualities.SUS_4, '1,4,5'],
+  [ScaleMainQualities.SUS_FLAT_4, '1,ß4,5'],
+  [ScaleMainQualities.SUS_SHARP_4, '1,#4,5'],
+  [ScaleMainQualities.DIM, '1,ß3,ß5'],
+  [ScaleMainQualities.AUG, '1,3,#5'],
+  [ScaleMainQualities.SIX, '1,3,5,6'],
+  [ScaleMainQualities.FLAT_SIX, '1,3,5,ß6'],
+  [ScaleMainQualities.SHARP_SIX, '1,3,5,#6'],
+  [ScaleMainQualities.SEVEN, ''],
+  [ScaleMainQualities.FLAT_SEVEN, ''],
+  [ScaleMainQualities.MAJ_SEVEN, ''],
+  [ScaleMainQualities.DIM_SEVEN, ''],
+  [ScaleMainQualities.DIM_FLAT_SEVEN, ''],
+  [ScaleMainQualities.DIM_DIM_SEVEN, ''],
+  [ScaleMainQualities.DIM_MAJ_SEVEN, ''],
+  [ScaleMainQualities.AUG_SEVEN, ''],
+  [ScaleMainQualities.AUG_FLAT_SEVEN, ''],
+  [ScaleMainQualities.AUG_DIM_SEVEN, ''],
+  [ScaleMainQualities.AUG_MAJ_SEVEN, ''],
+  [ScaleMainQualities.SUS_24, ''],
+  [ScaleMainQualities.SUS_FLAT_2_4, ''],
+  [ScaleMainQualities.SUS_SHARP_2_4, ''],
+  [ScaleMainQualities.SUS_2_FLAT_4, ''],
+  [ScaleMainQualities.SUS_2_SHARP_4, ''],
+  [ScaleMainQualities.SUS_FLAT_2_FLAT_4, ''],
+  [ScaleMainQualities.SUS_FLAT_2_SHARP_4, ''],
+  [ScaleMainQualities.SUS_SHARP_2_FLAT_4, ''],
+  [ScaleMainQualities.SUS_SHARP_2_SHARP_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_2, ''],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2, ''],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_2, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2, ''],
+  [ScaleMainQualities.SEVEN_SUS_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_4, ''],
+  [ScaleMainQualities.NINE, ''],
+  [ScaleMainQualities.FLAT_NINE, ''],
+  [ScaleMainQualities.SHARP_NINE, ''],
+  [ScaleMainQualities.MAJ_NINE, ''],
+  [ScaleMainQualities.MAJ_FLAT_NINE, ''],
+  [ScaleMainQualities.MAJ_SHARP_NINE, ''],
+  [ScaleMainQualities.SEVEN_SUS_24, ''],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_2_FLAT_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_2_SHARP_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_FLAT_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_FLAT_4, ''],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_SHARP_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_24, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_2_FLAT_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_2_SHARP_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_FLAT_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_FLAT_4, ''],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_SHARP_4, ''],
+  [ScaleMainQualities.ELEVEN, ''],
+  [ScaleMainQualities.MAJ_ELEVEN, ''],
+  [ScaleMainQualities.SHARP_ELEVEN, ''],
+  [ScaleMainQualities.MAJ_SHARP_ELEVEN, ''],
+  [ScaleMainQualities.THIRTEEN, ''],
+  [ScaleMainQualities.MAJ_THIRTEEN, ''],
+  [ScaleMainQualities.FLAT_THIRTEEN, ''],
+  [ScaleMainQualities.MAJ_FLAT_THIRTEEN, '']
+])
 
 type S = string[]
 export type ScaleQualityTable = {
@@ -1309,17 +1449,26 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           if (hasMajorNinth) {
             qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_24
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          } else if (hasMinorNinth) {
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_FLAT_2_4
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
         } else if (hasMajorSeventh) {
           qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_24
+            qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_24
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          } else if (hasMinorNinth) {
+            qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_4
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
         } else if (hasMajorNinth) {
           qualityTable.mainQuality = ScaleMainQualities.SUS_24
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+        } else if (hasMinorNinth) {
+          qualityTable.mainQuality = ScaleMainQualities.SUS_FLAT_2_4
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         }
         // 5th
         handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1355,6 +1504,9 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           if (hasMajorNinth) {
             qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          } else if (hasMinorNinth) {
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
         } else if (hasMajorSeventh) {
           qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_4
@@ -1362,10 +1514,16 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           if (hasMajorNinth) {
             qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+          } else if (hasMinorNinth) {
+            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4
+            qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
         } else if (hasMajorNinth) {
           qualityTable.mainQuality = ScaleMainQualities.SUS_2_SHARP_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
+        } else if (hasMinorNinth) {
+          qualityTable.mainQuality = ScaleMainQualities.SUS_FLAT_2_SHARP_4
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         }
         // 5th
         handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1422,17 +1580,32 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
     } else if (hasMinorNinth) {
       qualityTable.mainQuality = ScaleMainQualities.FLAT_NINE
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
-      // M
-      if (hasMajorSeventh && !hasMinorSeventh) {
-        qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_NINE
-        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+      
+      // No 3, ß3 => susß2
+      if (!hasMajorThird && !hasMinorThird) {
+        qualityTable.mainQuality = ScaleMainQualities.SUS_FLAT_2
+        if (hasMinorSeventh) {
+          qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_FLAT_2
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
+        } else if (hasMajorSeventh) {
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+
+      // Has 3 or ß3
+      } else {
+        // M
+        if (hasMajorSeventh && !hasMinorSeventh) {
+          qualityTable.mainQuality = ScaleMainQualities.MAJ_FLAT_NINE
+          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
+        }
+        // 7th
+        handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+        // 3rd
+        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
       }
-      // 7th
-      handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
-      // 5th
-      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-      // 3rd
-      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
 
     // 7
     } else if (hasMinorSeventh) {
@@ -1521,53 +1694,53 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
     })
   })
 
-  qualityTable.accidents = qualityTable.accidents.map(intClass => {
-    return intClass
-      .map(intName => {
-        const int = simpleIntervalNameToValue(intName)
-        if (int === undefined) return undefined
-        const semitoneValue = simpleIntervalToSemitones(int)
-        return {
-          name: intName,
-          semitoneValue
-        }
-      })
-      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-      .map(e => e.name)
-    }) as [S, S, S, S, S, S, S]
+  // qualityTable.accidents = qualityTable.accidents.map(intClass => {
+  //   return intClass
+  //     .map(intName => {
+  //       const int = simpleIntervalNameToValue(intName)
+  //       if (int === undefined) return undefined
+  //       const semitoneValue = simpleIntervalToSemitones(int)
+  //       return {
+  //         name: intName,
+  //         semitoneValue
+  //       }
+  //     })
+  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+  //     .map(e => e.name)
+  //   }) as [S, S, S, S, S, S, S]
 
-  qualityTable.omissions = qualityTable.omissions.map(intClass => {
-    return intClass
-      .map(intName => {
-        const int = simpleIntervalNameToValue(intName)
-        if (int === undefined) return undefined
-        const semitoneValue = simpleIntervalToSemitones(int)
-        return {
-          name: intName,
-          semitoneValue
-        }
-      })
-      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-      .map(e => e.name)
-    }) as [S, S, S, S, S, S, S]
+  // qualityTable.omissions = qualityTable.omissions.map(intClass => {
+  //   return intClass
+  //     .map(intName => {
+  //       const int = simpleIntervalNameToValue(intName)
+  //       if (int === undefined) return undefined
+  //       const semitoneValue = simpleIntervalToSemitones(int)
+  //       return {
+  //         name: intName,
+  //         semitoneValue
+  //       }
+  //     })
+  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+  //     .map(e => e.name)
+  //   }) as [S, S, S, S, S, S, S]
 
-  qualityTable.additions = qualityTable.additions.map(intClass => {
-    return intClass
-      .map(intName => {
-        const int = simpleIntervalNameToValue(intName)
-        if (int === undefined) return undefined
-        const semitoneValue = simpleIntervalToSemitones(int)
-        return {
-          name: intName,
-          semitoneValue
-        }
-      })
-      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-      .map(e => e.name)
-    }) as [S, S, S, S, S, S, S]
+  // qualityTable.additions = qualityTable.additions.map(intClass => {
+  //   return intClass
+  //     .map(intName => {
+  //       const int = simpleIntervalNameToValue(intName)
+  //       if (int === undefined) return undefined
+  //       const semitoneValue = simpleIntervalToSemitones(int)
+  //       return {
+  //         name: intName,
+  //         semitoneValue
+  //       }
+  //     })
+  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+  //     .map(e => e.name)
+  //   }) as [S, S, S, S, S, S, S]
 
   return qualityTable
 }
@@ -1680,7 +1853,6 @@ export function scaleQualityToQualityTable (quality: string): ScaleQualityTable 
 }
 
 export function scaleQualityTableToValue (qualityTable: ScaleQualityTable): ScaleValue {
-
   return []
 }
 
