@@ -992,9 +992,9 @@ export const scaleMainQualitiesToNameMap = new Map<ScaleMainQualities, string>([
   [ScaleMainQualities.SHARP_ELEVEN, '1,3,5,&7,2,#4'],
   [ScaleMainQualities.MAJ_SHARP_ELEVEN, '1,3,5,7,2,#4'],
   [ScaleMainQualities.THIRTEEN, '1,3,5,&7,2,4,6'],
-  [ScaleMainQualities.MAJ_THIRTEEN, '1,3,5,7,2,4'],
-  [ScaleMainQualities.FLAT_THIRTEEN, '1,3,5,&7,2,&4'],
-  [ScaleMainQualities.MAJ_FLAT_THIRTEEN, '1,3,5,7,2,&4']
+  [ScaleMainQualities.MAJ_THIRTEEN, '1,3,5,7,2,4,6'],
+  [ScaleMainQualities.FLAT_THIRTEEN, '1,3,5,&7,2,4,&6'],
+  [ScaleMainQualities.MAJ_FLAT_THIRTEEN, '1,3,5,7,2,4,&6']
 ])
 
 type S = string[]
