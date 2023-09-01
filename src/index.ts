@@ -368,6 +368,14 @@ export function intervalsSort (intervals: IntervalValue[]) {
 }
 
 export function intervalsDedupe (intervals: IntervalValue[]): IntervalValue[] {
+  const intervalsNamesSet = new Set(intervals.map(int => intervalValueToName(int)))
+  const dedupedIntervals = [...intervalsNamesSet]
+    .map(intName => intervalNameToValue(intName))
+    .filter((int): int is IntervalValue => int !== undefined)
+  return dedupedIntervals
+}
+
+export function intervalsSemitoneValueDedupe (intervals: IntervalValue[]): IntervalValue[] {
   const intervalsSemitonesMap = new Map<IntervalValue, number>(intervals.map(interval => [
     interval,
     intervalToSemitones(interval)
@@ -462,7 +470,7 @@ export function scaleValueToName (scale: ScaleValue): ScaleName {
 
 export function scaleReallocateIntervals (scale: ScaleValue): ScaleValue {
   const complexIntervalsScale = scale.map(simpleInterval => simpleIntervalToInterval(simpleInterval))
-  const sortedDedupedComplexIntervals = intervalsSort(intervalsDedupe(complexIntervalsScale))
+  const sortedDedupedComplexIntervals = intervalsSort(intervalsSemitoneValueDedupe(complexIntervalsScale))
   const sortedDedupedIntervals = sortedDedupedComplexIntervals.map(interval => intervalToSimpleInterval(interval))
   const nbIntervals = sortedDedupedIntervals.length
   const nbIntervalsOverSeven = nbIntervals / 7
@@ -812,6 +820,32 @@ export function scaleToRahmPrimeForm (scale: ScaleValue): ScaleValue {
   return asScale
 }
 
+export function scaleMergeScale (scaleA: ScaleValue, scaleB: ScaleValue): ScaleValue {
+  const merged = [...scaleA, ...scaleB]
+  const asIntervals = merged.map(simpleInt => simpleIntervalToInterval(simpleInt))
+  const sorted = intervalsSort(asIntervals)
+  const deduped = intervalsDedupe(sorted)
+  const asSimpleIntervals = deduped.map(int => intervalToSimpleInterval(int))
+  return asSimpleIntervals
+}
+
+export function scalePartScale (scaleA: ScaleValue, scaleB: ScaleValue): ScaleValue {
+  const scaleAWithNames = scaleA.map(int => ({
+    simpleInterval: int,
+    simpleIntervalName: simpleIntervalValueToName(int)
+  }))
+  const scaleBNames = scaleB.map(int => simpleIntervalValueToName(int))
+  const filteredScaleAWithNames = scaleAWithNames.filter(item => !scaleBNames.includes(item.simpleIntervalName))
+  return filteredScaleAWithNames.map(item => item.simpleInterval)
+}
+
+export function scaleOmitSimpleIntervalClasses (
+  scale: ScaleValue,
+  _classes: SimpleIntervalClass | SimpleIntervalClass[]): ScaleValue {
+  const classes = Array.isArray(_classes) ? _classes : [_classes]
+  return scale.filter(int => !classes.includes(int.simpleIntervalClass))
+}
+
 export enum ScaleMainQualities {
   OMITTED_MAJOR = '',
   EXPLICIT_MAJOR = 'maj',
@@ -872,7 +906,7 @@ export enum ScaleMainQualities {
   MAJ_SEVEN_SUS_SHARP_4 = 'M7sus#4',
   NINE = '9',
   FLAT_NINE = 'ß9',
-  SHARP_NINE = 'ß9',
+  SHARP_NINE = '#9',
   MAJ_NINE = 'M9',
   MAJ_FLAT_NINE = 'Mß9',
   MAJ_SHARP_NINE = 'M#9',
@@ -904,7 +938,6 @@ export enum ScaleMainQualities {
   MAJ_FLAT_THIRTEEN = 'Mß13'
 }
 
-// [WIP] should be more than this i
 export const scaleMainQualitiesToNameMap = new Map<ScaleMainQualities, string>([
   [ScaleMainQualities.OMITTED_MAJOR, '1,3,5'],
   [ScaleMainQualities.EXPLICIT_MAJOR, '1,3,5'],
@@ -931,70 +964,70 @@ export const scaleMainQualitiesToNameMap = new Map<ScaleMainQualities, string>([
   [ScaleMainQualities.SIX, '1,3,5,6'],
   [ScaleMainQualities.FLAT_SIX, '1,3,5,ß6'],
   [ScaleMainQualities.SHARP_SIX, '1,3,5,#6'],
-  [ScaleMainQualities.SEVEN, '1,3,5,&7'],
-  [ScaleMainQualities.FLAT_SEVEN, '1,3,5,&7'],
+  [ScaleMainQualities.SEVEN, '1,3,5,ß7'],
+  [ScaleMainQualities.FLAT_SEVEN, '1,3,5,ß7'],
   [ScaleMainQualities.MAJ_SEVEN, '1,3,5,7'],
-  [ScaleMainQualities.DIM_SEVEN, '1,&3,&5,&&7'],
-  [ScaleMainQualities.DIM_FLAT_SEVEN, '1,&3,&5,&7'],
-  [ScaleMainQualities.DIM_DIM_SEVEN, '1,&3,&5,&&7'],
-  [ScaleMainQualities.DIM_MAJ_SEVEN, '1,&3,&5,7'],
-  [ScaleMainQualities.AUG_SEVEN, '1,3,#5,&7'],
-  [ScaleMainQualities.AUG_FLAT_SEVEN, '1,3,#5,&7'],
-  [ScaleMainQualities.AUG_DIM_SEVEN, '1,3,#5,&&7'],
+  [ScaleMainQualities.DIM_SEVEN, '1,ß3,ß5,ßß7'],
+  [ScaleMainQualities.DIM_FLAT_SEVEN, '1,ß3,ß5,ß7'],
+  [ScaleMainQualities.DIM_DIM_SEVEN, '1,ß3,ß5,ßß7'],
+  [ScaleMainQualities.DIM_MAJ_SEVEN, '1,ß3,ß5,7'],
+  [ScaleMainQualities.AUG_SEVEN, '1,3,#5,ß7'],
+  [ScaleMainQualities.AUG_FLAT_SEVEN, '1,3,#5,ß7'],
+  [ScaleMainQualities.AUG_DIM_SEVEN, '1,3,#5,ßß7'],
   [ScaleMainQualities.AUG_MAJ_SEVEN, '1,3,#5,7'],
   [ScaleMainQualities.SUS_24, '1,2,4,5'],
-  [ScaleMainQualities.SUS_FLAT_2_4, '1,&2,4,5'],
+  [ScaleMainQualities.SUS_FLAT_2_4, '1,ß2,4,5'],
   [ScaleMainQualities.SUS_SHARP_2_4, '1,#2,4,5'],
-  [ScaleMainQualities.SUS_2_FLAT_4, '1,2,&4,5'],
+  [ScaleMainQualities.SUS_2_FLAT_4, '1,2,ß4,5'],
   [ScaleMainQualities.SUS_2_SHARP_4, '1,2,#4,5'],
-  [ScaleMainQualities.SUS_FLAT_2_FLAT_4, '1,&2,&4,5'],
-  [ScaleMainQualities.SUS_FLAT_2_SHARP_4, '1,&2,#4,5'],
-  [ScaleMainQualities.SUS_SHARP_2_FLAT_4, '1,#2,&4,5'],
+  [ScaleMainQualities.SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5'],
+  [ScaleMainQualities.SUS_FLAT_2_SHARP_4, '1,ß2,#4,5'],
+  [ScaleMainQualities.SUS_SHARP_2_FLAT_4, '1,#2,ß4,5'],
   [ScaleMainQualities.SUS_SHARP_2_SHARP_4, '1,#2,#4,5'],
-  [ScaleMainQualities.SEVEN_SUS_2, '1,2,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_FLAT_2, '1,&2,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_SHARP_2, '1,#2,5,&7'],
+  [ScaleMainQualities.SEVEN_SUS_2, '1,2,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2, '1,ß2,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2, '1,#2,5,ß7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_2, '1,2,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2, '1,&2,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2, '1,ß2,5,7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2, '1,#2,5,7'],
-  [ScaleMainQualities.SEVEN_SUS_4, '1,4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_FLAT_4, '1,&4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_SHARP_4, '1,#4,5,&7'],
+  [ScaleMainQualities.SEVEN_SUS_4, '1,4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_4, '1,ß4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_4, '1,#4,5,ß7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_4, '1,4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_4, '1,&4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_4, '1,ß4,5,7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_4, '1,#4,5,7'],
-  [ScaleMainQualities.NINE, '1,3,5,&7,2'],
-  [ScaleMainQualities.FLAT_NINE, '1,3,5,&7,&2'],
-  [ScaleMainQualities.SHARP_NINE, '1,3,5,&7,#2'],
+  [ScaleMainQualities.NINE, '1,3,5,ß7,2'],
+  [ScaleMainQualities.FLAT_NINE, '1,3,5,ß7,ß2'],
+  [ScaleMainQualities.SHARP_NINE, '1,3,5,ß7,#2'],
   [ScaleMainQualities.MAJ_NINE, '1,3,5,7,2'],
-  [ScaleMainQualities.MAJ_FLAT_NINE, '1,3,5,7,&2'],
+  [ScaleMainQualities.MAJ_FLAT_NINE, '1,3,5,7,ß2'],
   [ScaleMainQualities.MAJ_SHARP_NINE, '1,3,5,7,#2'],
-  [ScaleMainQualities.SEVEN_SUS_24, '1,2,4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_FLAT_2_4, '1,&2,4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_SHARP_2_4, '1,#2,4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_2_FLAT_4, '1,2,&4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_2_SHARP_4, '1,2,#4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_FLAT_2_FLAT_4, '1,&2,&4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4, '1,&2,#4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,&4,5,&7'],
-  [ScaleMainQualities.SEVEN_SUS_SHARP_2_SHARP_4, '1,#2,#4,5,&7'],
+  [ScaleMainQualities.SEVEN_SUS_24, '1,2,4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_4, '1,ß2,4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_4, '1,#2,4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_2_FLAT_4, '1,2,ß4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_2_SHARP_4, '1,2,#4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4, '1,ß2,#4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,ß4,5,ß7'],
+  [ScaleMainQualities.SEVEN_SUS_SHARP_2_SHARP_4, '1,#2,#4,5,ß7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_24, '1,2,4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_4, '1,&2,4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_4, '1,ß2,4,5,7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_4, '1,#2,4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_2_FLAT_4, '1,2,&4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_2_SHARP_4, '1,2,&4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_FLAT_4, '1,&2,&4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4, '1,&2,#4,5,7'],
-  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,&4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_2_FLAT_4, '1,2,ß4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_2_SHARP_4, '1,2,#4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4, '1,ß2,#4,5,7'],
+  [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,ß4,5,7'],
   [ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_2_SHARP_4, '1,#2,#4,5,7'],
-  [ScaleMainQualities.ELEVEN, '1,3,5,&7,2,4'],
+  [ScaleMainQualities.ELEVEN, '1,3,5,ß7,2,4'],
   [ScaleMainQualities.MAJ_ELEVEN, '1,3,5,7,2,4'],
-  [ScaleMainQualities.SHARP_ELEVEN, '1,3,5,&7,2,#4'],
+  [ScaleMainQualities.SHARP_ELEVEN, '1,3,5,ß7,2,#4'],
   [ScaleMainQualities.MAJ_SHARP_ELEVEN, '1,3,5,7,2,#4'],
-  [ScaleMainQualities.THIRTEEN, '1,3,5,&7,2,4,6'],
+  [ScaleMainQualities.THIRTEEN, '1,3,5,ß7,2,4,6'],
   [ScaleMainQualities.MAJ_THIRTEEN, '1,3,5,7,2,4,6'],
-  [ScaleMainQualities.FLAT_THIRTEEN, '1,3,5,&7,2,4,&6'],
-  [ScaleMainQualities.MAJ_FLAT_THIRTEEN, '1,3,5,7,2,4,&6']
+  [ScaleMainQualities.FLAT_THIRTEEN, '1,3,5,ß7,2,4,ß6'],
+  [ScaleMainQualities.MAJ_FLAT_THIRTEEN, '1,3,5,7,2,4,ß6']
 ])
 
 type S = string[]
@@ -1005,6 +1038,62 @@ export type ScaleQualityTable = {
   omissions: [S, S, S, S, S, S, S]
   additions: [S, S, S, S, S, S, S]
   leftovers: string[]
+}
+
+export function scaleQualityTableSort (_qualityTable: ScaleQualityTable): ScaleQualityTable {
+  const qualityTable = { ..._qualityTable }
+
+  qualityTable.accidents = qualityTable.accidents.map(intClass => {
+    return intClass
+      .map(intName => {
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+
+  qualityTable.omissions = qualityTable.omissions.map(intClass => {
+    return intClass
+      .map(intName => {
+        if (intName.match(/^![0-9]+$/)) return {
+          name: intName,
+          semitoneValue: -Infinity
+        }
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+  qualityTable.additions = qualityTable.additions.map(intClass => {
+    return intClass
+      .map(intName => {
+        const int = simpleIntervalNameToValue(intName)
+        if (int === undefined) return undefined
+        const semitoneValue = simpleIntervalToSemitones(int)
+        return {
+          name: intName,
+          semitoneValue
+        }
+      })
+      .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+      .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
+      .map(e => e.name)
+    }) as [S, S, S, S, S, S, S]
+    return qualityTable
 }
 
 export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
@@ -1512,10 +1601,10 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_SHARP_4
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           if (hasMajorNinth) {
-            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2_SHARP_4
+            qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           } else if (hasMinorNinth) {
-            qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_FLAT_2_SHARP_4
+            qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
         } else if (hasMajorNinth) {
@@ -1560,6 +1649,8 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_2
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
       
       // Has 3 or ß3
       } else {
@@ -1591,6 +1682,8 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
           qualityTable.mainQuality = ScaleMainQualities.MAJ_SEVEN_SUS_FLAT_2
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
+        // 5th
+        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
 
       // Has 3 or ß3
       } else {
@@ -1694,55 +1787,7 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
     })
   })
 
-  // qualityTable.accidents = qualityTable.accidents.map(intClass => {
-  //   return intClass
-  //     .map(intName => {
-  //       const int = simpleIntervalNameToValue(intName)
-  //       if (int === undefined) return undefined
-  //       const semitoneValue = simpleIntervalToSemitones(int)
-  //       return {
-  //         name: intName,
-  //         semitoneValue
-  //       }
-  //     })
-  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-  //     .map(e => e.name)
-  //   }) as [S, S, S, S, S, S, S]
-
-  // qualityTable.omissions = qualityTable.omissions.map(intClass => {
-  //   return intClass
-  //     .map(intName => {
-  //       const int = simpleIntervalNameToValue(intName)
-  //       if (int === undefined) return undefined
-  //       const semitoneValue = simpleIntervalToSemitones(int)
-  //       return {
-  //         name: intName,
-  //         semitoneValue
-  //       }
-  //     })
-  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-  //     .map(e => e.name)
-  //   }) as [S, S, S, S, S, S, S]
-
-  // qualityTable.additions = qualityTable.additions.map(intClass => {
-  //   return intClass
-  //     .map(intName => {
-  //       const int = simpleIntervalNameToValue(intName)
-  //       if (int === undefined) return undefined
-  //       const semitoneValue = simpleIntervalToSemitones(int)
-  //       return {
-  //         name: intName,
-  //         semitoneValue
-  //       }
-  //     })
-  //     .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
-  //     .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
-  //     .map(e => e.name)
-  //   }) as [S, S, S, S, S, S, S]
-
-  return qualityTable
+  return scaleQualityTableSort(qualityTable)
 }
 
 export function scaleQualityTableToQuality (qualityTable: ScaleQualityTable): string {
@@ -1800,8 +1845,11 @@ export function scaleQualityToQualityTable (quality: string): ScaleQualityTable 
   workingQuality = workingQuality.slice(qualityTable.mainQuality.length)
 
   const intervalRegex = /(ß|#)*[0-9]+/
-  const intervalsBlockRegex = new RegExp(`${intervalRegex.source}(,${intervalRegex.source})?`)
-  const omissionBlockRegex = new RegExp(`no\\(${intervalsBlockRegex.source}\\)`, 'igm')
+  const intervalsBlockRegex = new RegExp(`${intervalRegex.source}(,${intervalRegex.source})*`)
+  const intervalClassRegex = /![0-9]+/
+  const intervalOrClassRegex = new RegExp(`((${intervalRegex.source})|(${intervalClassRegex.source}))`)
+  const intervalOrClassBlockRegex = new RegExp(`${intervalOrClassRegex.source}(,${intervalOrClassRegex.source})*`)
+  const omissionBlockRegex = new RegExp(`no\\(${intervalOrClassBlockRegex.source}\\)`, 'igm')
   const additionBlockRegex = new RegExp(`add\\(${intervalsBlockRegex.source}\\)`, 'igm')
 
   // Omissions
@@ -1818,7 +1866,6 @@ export function scaleQualityToQualityTable (quality: string): ScaleQualityTable 
       qualityTable.omissions[int.simpleIntervalClass].push(intName)
     })
   })
-
 
   // Additions
   const additionsBlocks = workingQuality.match(additionBlockRegex) ?? []
@@ -1849,11 +1896,63 @@ export function scaleQualityToQualityTable (quality: string): ScaleQualityTable 
     qualityTable.accidents[int.simpleIntervalClass].push(intName)
   }
 
-  return qualityTable
+  return scaleQualityTableSort(qualityTable)
 }
 
-export function scaleQualityTableToValue (qualityTable: ScaleQualityTable): ScaleValue {
-  return []
+export function scaleQualityTableToValue (_qualityTable: ScaleQualityTable): ScaleValue {
+  const {
+    hasMinorQuality,
+    mainQuality,
+    accidents,
+    omissions,
+    additions
+  } = scaleQualityTableSort(_qualityTable)
+  const mainQualityScaleName = scaleMainQualitiesToNameMap.get(mainQuality) ?? '1,3,5'
+  let returnedScale = scaleNameToValue(mainQualityScaleName)
+  if (hasMinorQuality) {
+    returnedScale = scaleOmitSimpleIntervalClasses(returnedScale, 2)
+    returnedScale = scaleMergeScale(returnedScale, scaleNameToValue('ß3'))
+  }
+  accidents.forEach((intNames, intClass) => {
+    if (intNames.length === 0) return
+    const intNamesAsScale = intNames
+      .map(intName => simpleIntervalNameToValue(intName))
+      .filter((int): int is SimpleIntervalValue => int !== undefined)
+    returnedScale = scaleOmitSimpleIntervalClasses(returnedScale, intClass)
+    returnedScale = scaleMergeScale(returnedScale, intNamesAsScale)
+  })
+  omissions.forEach((intNames, intClass) => {
+    intNames.forEach(intName => {
+      if (intName.match(/^![0-9]+$/)) { returnedScale = scaleOmitSimpleIntervalClasses(returnedScale, intClass) }
+      else {
+        const simpleInterval = simpleIntervalNameToValue(intName)
+        if (simpleInterval === undefined) return;
+        const normalizedIntName = simpleIntervalValueToName(simpleInterval)
+        returnedScale = scalePartScale(returnedScale, scaleNameToValue(normalizedIntName))
+      }
+    })
+  })
+  const additionsScaleName = additions
+    .flat()
+    .map(intName => {
+      const simpleInterval = simpleIntervalNameToValue(intName)
+      if (simpleInterval === undefined) return;
+      const normalizedIntName = simpleIntervalValueToName(simpleInterval)
+      return normalizedIntName
+    })
+    .filter(name => name !== undefined)
+    .join(',')
+  const additionsScale = scaleNameToValue(additionsScaleName)
+  returnedScale = scaleMergeScale(returnedScale, additionsScale)
+  const returnedScaleWithIntervals = returnedScale.map(int => simpleIntervalToInterval(int))
+  returnedScale = intervalsSort(returnedScaleWithIntervals)
+    .map(int => intervalToSimpleInterval(int))
+  return returnedScale
+}
+
+export function scaleQualityToValue (quality: string): ScaleValue {
+  const table = scaleQualityToQualityTable(quality)
+  return scaleQualityTableToValue(table)
 }
 
 const lol = [
@@ -1866,11 +1965,11 @@ const lol = [
   ['ßß7', 'ß7', '7', null]
 ]
 
-// new Array(Math.pow(4, 7))
-new Array(1)
+new Array(Math.pow(4, 7))
+// new Array(1)
   .fill(0)
   .map((_, pos) => {
-    const base4Pos = pos.toString(4).split('').map(e => parseInt(e))
+    const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
     const reversedBase4Pos = [...base4Pos].reverse()
     const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
     const sliced = withZeros.slice(0, 7).reverse()
@@ -1880,7 +1979,18 @@ new Array(1)
     const scale = scaleNameToValue(scaleName)
     const quality = scaleToQuality(scale)
     const table = scaleQualityToQualityTable(quality)
-    console.log(scaleName, '——>', quality, '——>', table)
+    const value = scaleQualityTableToValue(table)
+    const name = scaleValueToName(value)
+    // console.log(scaleName, '——>', quality, '——>', name)
+    if (scaleName !== name) { console.log(pos, scaleName, '|', scale, '|', quality, '|', name) }
+    return {
+      scaleName,
+      scale,
+      quality,
+      table,
+      value,
+      name
+    }
   })
 
 // COMMON NAMES
