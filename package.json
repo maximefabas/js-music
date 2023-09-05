@@ -6,10 +6,12 @@
   "name": "js-music",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "npx concurrently -n 'build,serve' 'npm run watch' 'npm run serve'",
     "watch": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --watch --minify --sourcemap",
-    "serve": "npx http-server --cors --port 3000 --c-1"
+    "serve": "npx http-server --cors --port 3000 --c-1",
+    "scrap": "node ./ian-ring-scales-scraper/index.js"
   },
   "repository": {
     "type": "git",

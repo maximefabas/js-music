@@ -1,3 +1,9 @@
+import _scalesMainNamesJson from './scales-names.main.json'
+import _scalesAltNamesJson from './scales-names.alt.json'
+
+const scalesMainNamesJson = _scalesMainNamesJson as Record<string, string>
+const scalesAltNamesJson = _scalesAltNamesJson as Record<string, Array<{ category: string, name: string }>>
+
 /* Absolute modulo (should be a dependency) */
 export function absoluteModulo (nbr: number, modulo: number): number {
   return ((nbr % modulo) + modulo) % modulo
@@ -700,29 +706,31 @@ export function scaleToModes (scale: ScaleValue): ScaleValue[] {
     const decimalValue = scaleToDecimalValue(rotation)
     return decimalValue % 2 !== 0
   })
-  // [WIP] what to do with this approach ?
-  // const lowestInterval = scale.sort((intA, intB) => {
-  //   const { simpleIntervalClass: intClassA, alteration: altA } = intA
-  //   const { simpleIntervalClass: intClassB, alteration: altB } = intB
-  //   if (intClassA === intClassB) return altA - altB
-  //   else return intClassA - intClassB
-  // }).at(0)
-  // const lowestIntervalName = lowestInterval !== undefined
-  //   ? simpleIntervalValueToName(lowestInterval)
-  //   : undefined
-  // const rotations = scaleToRotations(scale)
-  // return rotations.filter(rotation => {
-  //   const rotationLowestInterval = rotation.sort((intA, intB) => {
-  //     const { simpleIntervalClass: intClassA, alteration: altA } = intA
-  //     const { simpleIntervalClass: intClassB, alteration: altB } = intB
-  //     if (intClassA === intClassB) return altA - altB
-  //     else return intClassA - intClassB
-  //   }).at(0)
-  //   const rotationLowestIntervalName = rotationLowestInterval !== undefined
-  //   ? simpleIntervalValueToName(rotationLowestInterval)
-  //   : undefined
-  //   return rotationLowestIntervalName === lowestIntervalName
-  // })
+}
+
+export function scaleToPureModes (scale: ScaleValue): ScaleValue[] {
+  const lowestInterval = scale.sort((intA, intB) => {
+    const { simpleIntervalClass: intClassA, alteration: altA } = intA
+    const { simpleIntervalClass: intClassB, alteration: altB } = intB
+    if (intClassA === intClassB) return altA - altB
+    else return intClassA - intClassB
+  }).at(0)
+  const lowestIntervalName = lowestInterval !== undefined
+    ? simpleIntervalValueToName(lowestInterval)
+    : undefined
+  const rotations = scaleToRotations(scale)
+  return rotations.filter(rotation => {
+    const rotationLowestInterval = rotation.sort((intA, intB) => {
+      const { simpleIntervalClass: intClassA, alteration: altA } = intA
+      const { simpleIntervalClass: intClassB, alteration: altB } = intB
+      if (intClassA === intClassB) return altA - altB
+      else return intClassA - intClassB
+    }).at(0)
+    const rotationLowestIntervalName = rotationLowestInterval !== undefined
+    ? simpleIntervalValueToName(rotationLowestInterval)
+    : undefined
+    return rotationLowestIntervalName === lowestIntervalName
+  })
 }
 
 export function scaleToReflections (scale: ScaleValue): ScaleValue[] {
@@ -1925,43 +1933,61 @@ export function scaleQualityToValue (quality: string): ScaleValue {
   return scaleQualityTableToValue(table)
 }
 
-const lol = [
-  ['1', null],
-  ['ß2', '2', null],
-  ['ß3', '3', null],
-  ['4', '#4', null],
-  ['ß5', '5', '#5', null],
-  ['ß6', '6', null],
-  ['ßß7', 'ß7', '7', null]
-]
+export const scaleDecimalValueToCommonNamesMap = new Map(
+  Object
+    .entries(scalesMainNamesJson)
+    .map(([key, mainName]) => [parseInt(key), mainName])
+)
 
-new Array(Math.pow(4, 7))
-// new Array(1)
-  .fill(0)
-  .map((_, pos) => {
-    const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
-    const reversedBase4Pos = [...base4Pos].reverse()
-    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
-    const sliced = withZeros.slice(0, 7).reverse()
-    const intervals = new Array(7).fill(null).map((_, pos) => lol[pos][sliced[pos]])
-    if (intervals.includes(undefined as any)) return;
-    const scaleName = intervals.filter(e => e!== null).join(',')
-    const scale = scaleNameToValue(scaleName)
-    const quality = scaleToQuality(scale)
-    const table = scaleQualityToQualityTable(quality)
-    const value = scaleQualityTableToValue(table)
-    const name = scaleValueToName(value)
-    // console.log(scaleName, '——>', quality, '——>', name)
-    if (scaleName !== name) { console.log(pos, scaleName, '|', scale, '|', quality, '|', name) }
-    return {
-      scaleName,
-      scale,
-      quality,
-      table,
-      value,
-      name
-    }
+export const scaleThematicNamesCategories = new Set(
+  Object
+    .entries(scalesAltNamesJson)
+    .map(([, names]) => names.map(name => name.category))
+    .flat()
+)
+
+export const scaleDecimalValueToThematicNamesMap = new Map(
+  Object
+    .entries(scalesAltNamesJson)
+    .map(([key, names]) => [parseInt(key), names])
+)
+
+export function scaleToCommonName (scale: ScaleValue): string {
+  const decimalValue = scaleToDecimalValue(scale)
+  const commonName = scaleDecimalValueToCommonNamesMap.get(decimalValue) ?? scaleValueToName(scale)
+  return commonName
+}
+
+export function scaleToThematicNames (scale: ScaleValue, category: string | null = null): Array<{ category: string, name: string }> {
+  const decimalValue = scaleToDecimalValue(scale)
+  const thematicNames = scaleDecimalValueToThematicNamesMap
+    .get(decimalValue) ?? []
+  if (category === null) return thematicNames
+  return thematicNames.filter(item => item.category === category)
+}
+
+export function scaleThematicNameToValue (name: string): ScaleValue | undefined {
+  let foundDecimalValue: number | undefined = undefined
+  scaleDecimalValueToThematicNamesMap.forEach((nameItems, decimalValue) => {
+    if (foundDecimalValue !== undefined) return;
+    const names = nameItems.map(nameItem => nameItem.name)
+    if (names.includes(name)) { foundDecimalValue = decimalValue }
   })
+  if (foundDecimalValue === undefined) return;
+  return scaleDecimalValueToValue(foundDecimalValue)
+}
+
+export function scaleCommonNameToValue (name: string, excludeThematicNames: boolean = false): ScaleValue | undefined {
+  const decimalValueAndNameFromCommonNames = [...scaleDecimalValueToCommonNamesMap
+    .entries()]
+    .find(([, commonName]) => commonName === name)
+  if (decimalValueAndNameFromCommonNames !== undefined) {
+    const decimalValue = decimalValueAndNameFromCommonNames[0]
+    return scaleDecimalValueToValue(decimalValue)
+  }
+  if (excludeThematicNames) return undefined
+  return scaleThematicNameToValue(name)
+}
 
 // COMMON NAMES
 
@@ -2005,4 +2031,77 @@ new Array(Math.pow(4, 7))
 // * IS PROPER (IS COHERENT) [WIP]
 // * IS DEEP [WIP]
 // * FORTE NUMBER [WIP]
+
+
+
+// const lol = [
+//   ['1', null],
+//   ['ß2', '2', null],
+//   ['ß3', '3', null],
+//   ['4', '#4', null],
+//   ['ß5', '5', '#5', null],
+//   ['ß6', '6', null],
+//   ['ßß7', 'ß7', '7', null]
+// ]
+
+// new Array(Math.pow(4, 7))
+// // new Array(1)
+//   .fill(0)
+//   .map((_, pos) => {
+//     const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
+//     const reversedBase4Pos = [...base4Pos].reverse()
+//     const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
+//     const sliced = withZeros.slice(0, 7).reverse()
+//     const intervals = new Array(7).fill(null).map((_, pos) => lol[pos][sliced[pos]])
+//     if (intervals.includes(undefined as any)) return;
+//     const scaleName = intervals.filter(e => e!== null).join(',')
+//     const scale = scaleNameToValue(scaleName)
+//     const quality = scaleToQuality(scale)
+//     const table = scaleQualityToQualityTable(quality)
+//     const value = scaleQualityTableToValue(table)
+//     const name = scaleValueToName(value)
+//     // console.log(scaleName, '——>', quality, '——>', name)
+//     if (scaleName !== name) { console.log(pos, scaleName, '|', scale, '|', quality, '|', name) }
+//     return {
+//       scaleName,
+//       scale,
+//       quality,
+//       table,
+//       value,
+//       name
+//     }
+//   })
+
+
+/* Roman */
+
+export type RomanValue = {
+  interval: IntervalValue
+  scale: ScaleValue
+}
+
+export type RomanName = string
+
+`
+f  • f^4  • f^+  • § | 4  • 4^4  • 4^+  • § | <4>  • <4>^4  • <4>^+  • § |
+
+Fm • F^4m • F^+m • § | iv • iv^4 • iv^+ • § | <iv> • <iv>^4 • <iv>^+ • § |
+
+
+
+
+`
+
+// export function scaleNameToValue (name: ScaleName): RomanValue {
+//   const parsedIntervalNames = name.split(',')
+//   const intervals = parsedIntervalNames
+//     .map(intervalName => simpleIntervalNameToValue(intervalName))
+//     .filter((int): int is SimpleIntervalValue => int !== undefined)
+//   return intervals
+// }
+
+// export function scaleValueToName (scale: ScaleValue): ScaleName {
+//   return scale.map(interval => simpleIntervalValueToName(interval)).join(',')
+// }
+
 
