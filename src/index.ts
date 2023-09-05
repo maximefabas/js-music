@@ -850,17 +850,9 @@ export enum ScaleMainQualities {
   OMITTED_MAJOR = '',
   EXPLICIT_MAJOR = 'maj',
   TWO = '2',
-  FLAT_TWO = 'ß2',
-  SHARP_TWO = '#2',
   THREE = '3',
-  FLAT_THREE = 'ß3',
-  SHARP_THREE = '#3',
   FOUR = '4',
-  FLAT_FOUR = 'ß4',
-  SHARP_FOUR = '#4',
   FIVE = '5',
-  FLAT_FIVE = 'ß5',
-  SHARP_FIVE = '#5',
   SUS_2 = 'sus2',
   SUS_FLAT_2 = 'susß2',
   SUS_SHARP_2 = 'sus#2',
@@ -942,17 +934,9 @@ export const scaleMainQualitiesToNameMap = new Map<ScaleMainQualities, string>([
   [ScaleMainQualities.OMITTED_MAJOR, '1,3,5'],
   [ScaleMainQualities.EXPLICIT_MAJOR, '1,3,5'],
   [ScaleMainQualities.TWO, '1,2'],
-  [ScaleMainQualities.FLAT_TWO, '1,ß2'],
-  [ScaleMainQualities.SHARP_TWO, '1,#2'],
   [ScaleMainQualities.THREE, '1,3'],
-  [ScaleMainQualities.FLAT_THREE, '1,ß3'],
-  [ScaleMainQualities.SHARP_THREE, '1,#3'],
   [ScaleMainQualities.FOUR, '1,4'],
-  [ScaleMainQualities.FLAT_FOUR, '1,ß4'],
-  [ScaleMainQualities.SHARP_FOUR, '1,#4'],
   [ScaleMainQualities.FIVE, '1,5'],
-  [ScaleMainQualities.FLAT_FIVE, '1,ß5'],
-  [ScaleMainQualities.SHARP_FIVE, '1,#5'],
   [ScaleMainQualities.SUS_2, '1,2,5'],
   [ScaleMainQualities.SUS_FLAT_2, '1,ß2,5'],
   [ScaleMainQualities.SUS_SHARP_2, '1,#2,5'],
@@ -1529,8 +1513,12 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
       qualityTable.mainQuality = ScaleMainQualities.ELEVEN
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
 
+      // Only 1 and 4 => 4
+      if (namedIntervals.length === 2 && hasFirst) {
+        qualityTable.mainQuality = ScaleMainQualities.FOUR
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
       // No 3 or ß3 => sus4
-      if (!hasMajorThird && !hasMinorThird) {
+      } else if (!hasMajorThird && !hasMinorThird) {
         qualityTable.mainQuality = ScaleMainQualities.SUS_4
         if (hasMinorSeventh) {
           qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_4
@@ -1639,8 +1627,13 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
       qualityTable.mainQuality = ScaleMainQualities.NINE        
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
       
+      // Only 1 and 2 => 2
+      if (namedIntervals.length === 2 && hasFirst) {
+        qualityTable.mainQuality = ScaleMainQualities.TWO
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
+      
       // No 3, ß3 => sus2
-      if (!hasMajorThird && !hasMinorThird) {
+      } else if (!hasMajorThird && !hasMinorThird) {
         qualityTable.mainQuality = ScaleMainQualities.SUS_2
         if (hasMinorSeventh) {
           qualityTable.mainQuality = ScaleMainQualities.SEVEN_SUS_2
@@ -1720,46 +1713,23 @@ export function scaleToQualityTable (scale: ScaleValue): ScaleQualityTable {
 
     // No extension
     } else {
-      if (!hasAnyFifth && !hasAnyThird) {
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
-      } else if (hasAnyThird && !hasAnyFifth) {
-        if (hasMajorThird) {
-          qualityTable.mainQuality = ScaleMainQualities.THREE
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3'].includes(i))
-        } else if (hasMinorThird) {
-          qualityTable.mainQuality = ScaleMainQualities.FLAT_THREE
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3'].includes(i))
-        } else {
-          const [firstThird] = qualityTable.leftovers.filter(i => i.match(/3/igm))
-          // qualityTable.mainQuality = firstThird
-          qualityTable.accidents[2].push(firstThird)
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => i !== firstThird)
-        }
-      } else if (!hasAnyThird && hasAnyFifth) {
-        if (hasPerfectFifth) {
-          qualityTable.mainQuality = ScaleMainQualities.FIVE
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['5'].includes(i))
-        } else if (hasDiminishedFifth) {
-          qualityTable.mainQuality = ScaleMainQualities.FLAT_FIVE
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß5'].includes(i))
-        } else if (hasAugmentedFifth) {
-          qualityTable.mainQuality = ScaleMainQualities.SHARP_FIVE
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#5'].includes(i))
-        } else {
-          const [firstFifth] = qualityTable.leftovers.filter(i => i.match(/5/igm))
-          // qualityTable.mainQuality = firstFifth
-          qualityTable.accidents[4].push(firstFifth)
-          qualityTable.leftovers = qualityTable.leftovers.filter(i => i !== firstFifth)
-        }
-      } else { 
-        // 5th
-        handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        // 3rd
-        handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
+      // Only 1 and 3 => 3
+      if (namedIntervals.length === 2 && hasFirst && hasMajorThird) {
+        qualityTable.mainQuality = ScaleMainQualities.THREE
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '3'].includes(i))
+      } else if (namedIntervals.length === 2 && hasFirst && hasMinorThird) {
+        qualityTable.mainQuality = ScaleMainQualities.THREE
+        qualityTable.hasMinorQuality = true
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', 'ß3'].includes(i))
+      // Only 1 and 5 => 5
+      } else if (namedIntervals.length === 2 && hasFirst && hasPerfectFifth) {
+        qualityTable.mainQuality = ScaleMainQualities.FIVE
+        qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '5'].includes(i))
       }
+      // 5th
+      handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
+      // 3rd
+      handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
     }
   }
 
