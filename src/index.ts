@@ -6,28 +6,6 @@ export function absoluteModulo (nbr: number, modulo: number): number {
   return ((nbr % modulo) + modulo) % modulo
 }
 
-/* PitchClassLetter */
-
-export namespace PitchClassLetterTypes {
-  export type Value = number
-  export type Name = string
-}
-
-export class PitchClassLetter {
-  static namesArr: PitchClassLetterTypes.Name[] = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
-  static semitonesFromCArr: number[] = [0, 2, 4, 5, 7, 9, 11]
-  static valueToName (value: PitchClassLetterTypes.Value): PitchClassLetterTypes.Name {
-    return PitchClassLetter.namesArr[value] ?? 'c'
-  }
-  static nameToValue (name: PitchClassLetterTypes.Name): PitchClassLetterTypes.Value | undefined {
-    const validLetters = name.split('').filter(char => PitchClassLetter.namesArr.includes(char))
-    const lastFoundValidLetter = validLetters.at(-1)
-    const position = (PitchClassLetter.namesArr as (string | undefined)[]).indexOf(lastFoundValidLetter)
-    if (position === -1) return undefined
-    return position
-  }
-}
-
 /* Alteration */
 
 export namespace AlterationTypes {
@@ -36,238 +14,16 @@ export namespace AlterationTypes {
 }
 
 export class Alteration {
-  static valueToName (value: AlterationTypes.Value): AlterationTypes.Name {
+  static name (value: AlterationTypes.Value): AlterationTypes.Name {
     if (value > 0) return new Array(value).fill('#').join('')
     if (value < 0) return new Array(-1 * value).fill('ß').join('')
     return ''
   }
-  static nameToValue (name: AlterationTypes.Name): AlterationTypes.Value {
+  static fromName (name: AlterationTypes.Name): AlterationTypes.Value {
     const chars = name.split('')
     const sharps = chars.filter(char => char === '#').length
     const flats = chars.filter(char => char === 'ß').length
     return sharps - flats
-  }
-}
-
-/* PitchClass */
-
-export namespace PitchClassTypes {
-  export type Value = {
-    alteration: AlterationTypes.Value
-    pitchClassLetter: PitchClassLetterTypes.Value
-  }
-  export type Name = string
-}
-
-export class PitchClass {
-  static valueToName (value: PitchClassTypes.Value): PitchClassTypes.Name {
-    const alterationName = Alteration.valueToName(value.alteration)
-    const letterName = PitchClassLetter.valueToName(value.pitchClassLetter)
-    return `${alterationName}${letterName}`
-  }
-  static nameToValue (name: PitchClassTypes.Name): PitchClassTypes.Value | undefined {
-    const alterationValue = Alteration.nameToValue(name)
-    const pitchClassLetterValue = PitchClassLetter.nameToValue(name)
-    if (pitchClassLetterValue === undefined) return undefined
-    return {
-      alteration: alterationValue,
-      pitchClassLetter: pitchClassLetterValue
-    }
-  }
-}
-
-/* Octave */
-
-export namespace Octave {
-  export type Value = number
-  export type Name = string
-}
-
-export class Octave {
-  static valueToName (value: Octave.Value): Octave.Name { return `${value}` }
-  static nameToValue (name: Octave.Name): Octave.Value | undefined {
-    const chars = name.split('')
-    const numberChars = chars.filter(char => !Number.isNaN(parseInt(char) || char === '-'))
-    const strValue = numberChars.join('')
-    const parsedValue = parseInt(strValue)
-    if (!Number.isInteger(parsedValue)) return undefined
-    return parsedValue
-  }
-}
-
-/* Pitch */
-
-export namespace PitchTypes {
-  export type Value = {
-    pitchClass: PitchClassTypes.Value,
-    octave: Octave.Value
-  }
-  export type Name = string
-}
-
-export class Pitch {
-  static valueToName (value: PitchTypes.Value): PitchTypes.Name {
-    const pitchClassName = PitchClass.valueToName(value.pitchClass)
-    const octaveName = Octave.valueToName(value.octave)
-    return `${pitchClassName}^${octaveName}`
-  }
-  
-  static nameToValue (name: PitchTypes.Name): PitchTypes.Value | undefined {
-    const [pitchClassName, ...octaveNameArr] = name.split('^')
-    const octaveName = octaveNameArr.join('^')
-    const pitchClassValue = PitchClass.nameToValue(pitchClassName)
-    const octaveValue = Octave.nameToValue(octaveName)
-    if (pitchClassValue === undefined) return undefined
-    if (octaveValue === undefined) return undefined
-    return {
-      pitchClass: pitchClassValue,
-      octave: octaveValue
-    }
-  }
-}
-
-/* SimpleInterval */
-
-export namespace SimpleIntervalTypes {
-  export type Class = number
-  export type Value = {
-    simpleIntervalClass: Class
-    alteration: AlterationTypes.Value
-  }
-  export type Name = string
-}
-
-export class SimpleInterval {
-  static valueToName (value: SimpleIntervalTypes.Value): SimpleIntervalTypes.Name {
-    const { simpleIntervalClass, alteration } = value
-    const modulatedSimpleIntervalClass = absoluteModulo(simpleIntervalClass, 7)
-    const alterationName = Alteration.valueToName(alteration)
-    let simpleIntervalClassName: string
-    if (modulatedSimpleIntervalClass > 0) { simpleIntervalClassName = `${modulatedSimpleIntervalClass + 1}` }
-    else if (modulatedSimpleIntervalClass === 0) { simpleIntervalClassName = '1' }
-    else { simpleIntervalClassName = `${-1 * modulatedSimpleIntervalClass + 1}` }
-    return `${alterationName}${simpleIntervalClassName}`
-  }
-  
-  static nameToValue (name: SimpleIntervalTypes.Name): SimpleIntervalTypes.Value | undefined {
-    const nameChars = name.split('')
-    const simpleIntervalClassNameChars = nameChars.filter(char => char === '-' || !Number.isNaN(parseInt(char)))
-    let parsedSimpleIntervalClassValue = parseInt(simpleIntervalClassNameChars.join(''))
-    if (!Number.isInteger(parsedSimpleIntervalClassValue)) return undefined
-    if (parsedSimpleIntervalClassValue >= 1) { parsedSimpleIntervalClassValue -= 1 }
-    else if (parsedSimpleIntervalClassValue <= -1) { parsedSimpleIntervalClassValue += 1 }
-    const modulatedSimpleIntervalClass = absoluteModulo(parsedSimpleIntervalClassValue, 7)  
-    const simpleIntervalClass = Math.abs(modulatedSimpleIntervalClass > 0
-      ? modulatedSimpleIntervalClass
-      : -1 * modulatedSimpleIntervalClass
-    )
-    const alteration = Alteration.nameToValue(name)
-    return { simpleIntervalClass, alteration }
-  }
-  
-  static semitonesValuesArr = [0, 2, 4, 5, 7, 9, 11]
-  
-  static invert (value: SimpleIntervalTypes.Value): SimpleIntervalTypes.Value {
-    const { simpleIntervalClass: _simpleIntervalClass, alteration } = value
-    const simpleIntervalClass = absoluteModulo(_simpleIntervalClass, 7)
-    const invertedSimpleIntervalClass = absoluteModulo(7 - simpleIntervalClass, 7)
-    const simpleIntervalClassSemitoneValue = SimpleInterval.semitonesValuesArr[simpleIntervalClass]
-    const invertedSimpleIntervalClassSemitoneValue = SimpleInterval.semitonesValuesArr[invertedSimpleIntervalClass]
-    const modulateedSemitonesSum = absoluteModulo(simpleIntervalClassSemitoneValue + invertedSimpleIntervalClassSemitoneValue, 12)
-    return {
-      simpleIntervalClass: invertedSimpleIntervalClass,
-      alteration: - 1 * modulateedSemitonesSum - alteration
-    }
-  }
-  
-  static toInterval (
-    simpleInterval: SimpleIntervalTypes.Value,
-    octave: Octave.Value = 0
-  ): IntervalTypes.Value {
-    const { simpleIntervalClass, alteration } = simpleInterval
-    return {
-      intervalClass: simpleIntervalClass + 7 * octave,
-      alteration
-    }
-  }
-  
-  static toSemitones (value: SimpleIntervalTypes.Value): number {
-    const { simpleIntervalClass, alteration } = value
-    const motulatedSimpleIntervalClass = absoluteModulo(simpleIntervalClass, 7)
-    const simpleIntervalClassAsSemitones = SimpleInterval.semitonesValuesArr[motulatedSimpleIntervalClass]
-    return simpleIntervalClassAsSemitones + alteration
-  }
-  
-  static fromPitchClasses (
-    pitchClassA: PitchClassTypes.Value,
-    pitchClassB: PitchClassTypes.Value): SimpleIntervalTypes.Value {
-    const { pitchClassLetter: _pitchClassLetterA, alteration: alterationA } = pitchClassA
-    const { pitchClassLetter: _pitchClassLetterB, alteration: alterationB } = pitchClassB
-    const pitchClassLetterA = absoluteModulo(_pitchClassLetterA, 7)
-    const pitchClassLetterB = absoluteModulo(_pitchClassLetterB, 7)
-    const simpleIntervalClass = absoluteModulo(pitchClassLetterB - pitchClassLetterA, 7)
-    const pitchClassLetterAAsSemitones = SimpleInterval.semitonesValuesArr[pitchClassLetterA]
-    const pitchClassLetterBAsSemitones = SimpleInterval.semitonesValuesArr[pitchClassLetterB]
-    let pitchClassLettersIntervalAsSemitone = pitchClassLetterBAsSemitones - pitchClassLetterAAsSemitones
-    if (pitchClassLettersIntervalAsSemitone < 0) { pitchClassLettersIntervalAsSemitone *= -1 }
-    const simpleIntervalClassAsSemitones = SimpleInterval.toSemitones({ simpleIntervalClass, alteration: 0 })
-    const pitchClassLetterAAsSemitonesFromC = PitchClassLetter.semitonesFromCArr[pitchClassLetterA]
-    const pitchClassLetterBAsSemitonesFromC = PitchClassLetter.semitonesFromCArr[pitchClassLetterB]
-    const semitonesBetweenPitchClassLetters = absoluteModulo(pitchClassLetterBAsSemitonesFromC - pitchClassLetterAAsSemitonesFromC, 12)
-    const alteration = (semitonesBetweenPitchClassLetters - simpleIntervalClassAsSemitones)
-      + (alterationB - alterationA)
-    return { simpleIntervalClass, alteration }
-  }
-  
-  static addToPitchClass (
-    simpleInterval: SimpleIntervalTypes.Value,
-    pitchClass: PitchClassTypes.Value
-  ): PitchClassTypes.Value | undefined {
-    const { simpleIntervalClass } = simpleInterval
-    const {
-      pitchClassLetter,
-      alteration: pitchClassAlteration
-    } = pitchClass
-    const newPitchClassLetterPosition = absoluteModulo(pitchClassLetter + simpleIntervalClass, 7)
-    const newPitchClassLetterName = PitchClassLetter.namesArr[newPitchClassLetterPosition]
-    const newPitchClassLetter = PitchClassLetter.nameToValue(newPitchClassLetterName)
-    if (newPitchClassLetter === undefined) return
-    const simpleIntervalAsSemitones = SimpleInterval.toSemitones(simpleInterval)
-    const semitonesBetweenPitchLetters = SimpleInterval.toSemitones(
-      SimpleInterval.fromPitchClasses(
-        { pitchClassLetter, alteration: 0 },
-        { pitchClassLetter: newPitchClassLetter, alteration: 0 }
-      )
-    )
-    const semitonesDifference = simpleIntervalAsSemitones - semitonesBetweenPitchLetters
-    return {
-      alteration: semitonesDifference + pitchClassAlteration,
-      pitchClassLetter: newPitchClassLetter
-    }
-  }
-  
-  static subtractToPitchClass (
-    simpleInterval: SimpleIntervalTypes.Value,
-    pitchClass: PitchClassTypes.Value
-  ): PitchClassTypes.Value | undefined {
-    const invertedSimpleInterval = SimpleInterval.invert(simpleInterval)
-    return SimpleInterval.addToPitchClass(
-      invertedSimpleInterval,
-      pitchClass
-    )
-  }
-  
-  static simpleIntervalFromSimpleIntervals (
-    simpleIntervalA: SimpleIntervalTypes.Value,
-    simpleIntervalB: SimpleIntervalTypes.Value
-  ): SimpleIntervalTypes.Value | undefined {
-    const pretextPitchClass = PitchClass.nameToValue('c')
-    if (pretextPitchClass === undefined) return undefined
-    const pretextPlusB = SimpleInterval.addToPitchClass(simpleIntervalB, pretextPitchClass)
-    if (pretextPlusB === undefined) return undefined
-    const pretextPlusBMinusA = SimpleInterval.subtractToPitchClass(simpleIntervalA, pretextPlusB)
-    if (pretextPlusBMinusA === undefined) return undefined
-    return SimpleInterval.fromPitchClasses(pretextPitchClass, pretextPlusBMinusA)
   }
 }
 
@@ -279,13 +35,17 @@ export namespace IntervalTypes {
     intervalClass: IntervalClassValue
     alteration: AlterationTypes.Value
   }
+  export type SimpleIntervalClassValue = 0 | 1 | 2 | 3 | 4 | 5 | 6
+  export type SimpleValue = Value & {
+    intervalClass: SimpleIntervalClassValue
+  }
   export type Name = string
 }
 
 export class Interval {
-  static valueToName (value: IntervalTypes.Value): IntervalTypes.Name {
+  static name (value: IntervalTypes.Value): IntervalTypes.Name {
     const { intervalClass, alteration } = value
-    const alterationName = Alteration.valueToName(alteration)
+    const alterationName = Alteration.name(alteration)
     let intervalClassName: string
     if (intervalClass > 0) { intervalClassName = `${intervalClass + 1}` }
     else if (intervalClass === 0) { intervalClassName = '1' }
@@ -293,105 +53,108 @@ export class Interval {
     return `${alterationName}${intervalClassName}`
   }
   
-  static nameToValue (name: IntervalTypes.Name): IntervalTypes.Value | undefined {
+  static fromName (name: IntervalTypes.Name): IntervalTypes.Value | undefined {
     const nameChars = name.split('')
     const intervalClassNameChars = nameChars.filter(char => char === '-' || !Number.isNaN(parseInt(char)))
     let parsedIntervalClassValue = parseInt(intervalClassNameChars.join(''))
     if (!Number.isInteger(parsedIntervalClassValue)) return undefined
     if (parsedIntervalClassValue >= 1) { parsedIntervalClassValue -= 1 }
     else if (parsedIntervalClassValue <= -1) { parsedIntervalClassValue += 1 }
-    const alteration = Alteration.nameToValue(name)
+    const alteration = Alteration.fromName(name)
     return {
       intervalClass: parsedIntervalClassValue,
       alteration
     }
   }
-  
-  static toSimpleInterval (value: IntervalTypes.Value): SimpleIntervalTypes.Value {
+
+  static simplify (value: IntervalTypes.Value): IntervalTypes.SimpleValue {
     const { intervalClass, alteration } = value
-    const simpleIntervalClass = absoluteModulo(intervalClass, 7)
-    return { simpleIntervalClass, alteration }
-  }
-  
-  static toSemitones (value: IntervalTypes.Value): number {
-    const { intervalClass } = value
-    const simpleInterval = Interval.toSimpleInterval(value)
-    const simpleIntervalAsSemitones = SimpleInterval.toSemitones(simpleInterval)
-    const octaves = Math.floor(intervalClass / 7)
-    return 12 * octaves + simpleIntervalAsSemitones
-  }
-  
-  static fromPitches (
-    pitchA: PitchTypes.Value,
-    pitchB: PitchTypes.Value): IntervalTypes.Value | undefined {
-    const { pitchClass: pitchClassA, octave: octaveA } = pitchA
-    const { pitchClass: pitchClassB, octave: octaveB } = pitchB
-    const simpleIntervalBetweenPitches = SimpleInterval.fromPitchClasses(pitchClassA, pitchClassB)
-    const { simpleIntervalClass, alteration } = simpleIntervalBetweenPitches
-    const pitchClassBIsOnNextOctave = pitchClassB.pitchClassLetter < pitchClassA.pitchClassLetter
-    let octavesDiff = octaveB - octaveA
-    if (pitchClassBIsOnNextOctave) { octavesDiff -= 1 }
+    const simpleIntervalClass = Math.floor(
+      absoluteModulo(intervalClass, 7)
+    ) as IntervalTypes.SimpleIntervalClassValue
     return {
-      intervalClass: simpleIntervalClass + 7 * octavesDiff,
-      alteration: alteration
+      intervalClass: simpleIntervalClass,
+      alteration
     }
   }
+
+  static semitonesValues: [0, 2, 4, 5, 7, 9, 11] = [0, 2, 4, 5, 7, 9, 11]
   
-  static addToPitch (
-    interval: IntervalTypes.Value,
-    pitch: PitchTypes.Value): PitchTypes.Value | undefined {
-    const simpleInterval = Interval.toSimpleInterval(interval)
-    const { pitchClass, octave } = pitch
-    const newPitchClass = SimpleInterval.addToPitchClass(simpleInterval, pitchClass)
-    if (newPitchClass === undefined) return undefined
-    const newPitchClassIsOnNextOctave = newPitchClass.pitchClassLetter < pitch.pitchClass.pitchClassLetter
-    const intermediatePitch: PitchTypes.Value = {
-      pitchClass: newPitchClass,
-      octave: newPitchClassIsOnNextOctave
-        ? octave + 1
-        : octave
-    }
-    const { intervalClass } = interval
-    const { simpleIntervalClass } = simpleInterval
-    const octavesDiff = Math.floor((intervalClass - simpleIntervalClass) / 7)
-    return {
-      pitchClass: intermediatePitch.pitchClass,
-      octave: intermediatePitch.octave + octavesDiff
-    }
+  static semitones (value: IntervalTypes.Value): number {
+    const simplified = Interval.simplify(value)
+    const simplifiedClassAsSemitones = Interval.semitonesValues
+      .at(simplified.intervalClass) as typeof Interval.semitonesValues[IntervalTypes.SimpleIntervalClassValue]
+    const simplifiedAsSemitones = simplifiedClassAsSemitones + simplified.alteration
+    const octaves = (value.intervalClass - simplified.intervalClass) / 7
+    return 12 * octaves + simplifiedAsSemitones
   }
-  
-  static invert (interval: IntervalTypes.Value): IntervalTypes.Value | undefined {
-    const pretextOriginPitch = Pitch.nameToValue('c^0')
-    if (pretextOriginPitch === undefined) return undefined
-    const pretextDestinationPitch = Interval.addToPitch(interval, pretextOriginPitch)
-    if (pretextDestinationPitch === undefined) return undefined
-    const invertedInterval = Interval.fromPitches(pretextDestinationPitch, pretextOriginPitch)
-    return invertedInterval
-  }
-  
-  static subtractToPitch (
-    interval: IntervalTypes.Value,
-    pitch: PitchTypes.Value): PitchTypes.Value | undefined {
-    const invertedInterval = Interval.invert(interval)
-    if (invertedInterval === undefined) return undefined
-    return Interval.addToPitch(invertedInterval, pitch)
-  }
-  
-  static fromIntervals (
+
+  static between (
     intervalA: IntervalTypes.Value,
     intervalB: IntervalTypes.Value
-  ) {
-    const pretextPitch = Pitch.nameToValue('c^4')
-    if (pretextPitch === undefined) return undefined
-    const pretextPlusB = Interval.addToPitch(intervalB, pretextPitch)
-    if (pretextPlusB === undefined) return undefined
-    const pretextPlusBMinusA = Interval.subtractToPitch(intervalA, pretextPlusB)
-    if (pretextPlusBMinusA === undefined) return undefined
-    return Interval.fromPitches(pretextPitch, pretextPlusBMinusA)
+  ): IntervalTypes.Value {
+    const siA = Interval.simplify(intervalA)
+    const siB = Interval.simplify(intervalB)
+    const intervalClassBetweenSis = siB.intervalClass - siA.intervalClass
+    const semitonesBetweenSiClasses = Interval.semitones({
+      intervalClass: intervalClassBetweenSis,
+      alteration: 0
+    })
+    const semitonesBetweenSis = Interval.semitones(siB) - Interval.semitones(siA)
+    const alteration = semitonesBetweenSis - semitonesBetweenSiClasses
+    const semitonesBetweenIntervals = Interval.semitones(intervalB) - Interval.semitones(intervalA)
+    const octavesBetweenIntervals = Math.floor((semitonesBetweenIntervals - semitonesBetweenSis) / 12)
+    const intervalClass = intervalClassBetweenSis + 7 * octavesBetweenIntervals
+    return { intervalClass, alteration }
+  }
+
+  static add (
+    intervalA: IntervalTypes.Value,
+    intervalB: IntervalTypes.Value
+  ): IntervalTypes.Value {
+    const sumAsSemitones = Interval.semitones(intervalA) + Interval.semitones(intervalB)
+    const intervalClass = intervalA.intervalClass + intervalB.intervalClass
+    const intClassAsSemitones = Interval.semitones({
+      intervalClass,
+      alteration: 0
+    })
+    const alteration = sumAsSemitones - intClassAsSemitones
+    return { intervalClass, alteration }
+  }
+
+  static invert (interval: IntervalTypes.Value) {
+    const unison = { intervalClass: 0, alteration: 0 }
+    return Interval.between(interval, unison)
+  }
+
+  static subtract (
+    intervalA: IntervalTypes.Value,
+    intervalB: IntervalTypes.Value
+  ): IntervalTypes.Value {
+    const invertedB = Interval.invert(intervalB)
+    return Interval.add(intervalA, invertedB)
+  }
+
+  static negative (
+    interval: IntervalTypes.Value,
+    mainAxis: IntervalTypes.Value = {
+      intervalClass: 2,
+      alteration: -1
+    },
+    secondaryAxis: IntervalTypes.Value = {
+      intervalClass: mainAxis.intervalClass,
+      alteration: mainAxis.alteration + 1
+    }
+  ): IntervalTypes.Value {
+    const distanceToMainAxis = Interval.between(interval, mainAxis)
+    const distanceAppliedToSecondAxis = Interval.add(distanceToMainAxis, secondaryAxis)
+    return distanceAppliedToSecondAxis
   }
   
-  static sort (intervals: IntervalTypes.Value[]) {
-    const sortedIntervals = intervals
+  static sort (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
+  static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
+  static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
+    const sortedIntervals = [...intervals]
       .sort((intA, intB) => {
         const { intervalClass: intervalClassA, alteration: alterationA } = intA
         const { intervalClass: intervalClassB, alteration: alterationB } = intB
@@ -401,48 +164,54 @@ export class Interval {
     return sortedIntervals
   }
   
+  static dedupe (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
+  static dedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
   static dedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
-    const intervalsNamesSet = new Set(intervals.map(int => Interval.valueToName(int)))
-    const dedupedIntervals = [...intervalsNamesSet]
-      .map(intName => Interval.nameToValue(intName))
-      .filter((int): int is IntervalTypes.Value => int !== undefined)
+    const intervalsNamesMap = new Map(intervals.map(int => [Interval.name(int), int]))
+    const dedupedIntervals = [...intervalsNamesMap]
+      .map(([, int]) => int)
     return dedupedIntervals
   }
   
-  static semitoneValueDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
-    const intervalsSemitonesMap = new Map<IntervalTypes.Value, number>(intervals.map(interval => [
-      interval,
-      Interval.toSemitones(interval)
-    ]))
-    const semitonesSet = new Set(intervalsSemitonesMap.values())
-    const semitonesIntervalsMap = new Map<number, IntervalTypes.Value[]>([...semitonesSet.values()]
-      .map(semitoneValue => {
-        const intervalsForThisSemitone = [...intervalsSemitonesMap.entries()]
-          .filter(([_, sem]) => (sem === semitoneValue))
-          .map(([int]) => int)
-        return [semitoneValue, intervalsForThisSemitone]
-      })
-    )
-    const semitonesIntervalMap = new Map<number, IntervalTypes.Value>([...semitonesIntervalsMap.entries()]
-      .map(([sem, ints]) => {
-        const lesserAlterationValue = Math.min(...ints.map(({ alteration }) => Math.abs(alteration)))
-        const intervalWithLesserAltValue = ints.find(interval => Math.abs(interval.alteration) === lesserAlterationValue)
-        const chosenInterval = intervalWithLesserAltValue ?? ints[0] ?? {
-          intervalClass: 0,
-          alteration: sem
-        }
-        return [sem, chosenInterval]
-      })
-    )
-    return [...semitonesIntervalMap.values()]
+  static semitoneDedupe (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
+  static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
+  static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
+    const intervalsSemitonesMap = new Map<IntervalTypes.Value, number>(
+      intervals.map(interval => [
+        interval,
+        Interval.semitones(interval)
+      ]
+    ))
+    const dedupedSemitones = [...new Set(intervalsSemitonesMap.values())]
+    const semitonesAndIntervals = dedupedSemitones.map(semitoneValue => {
+      const intervals = [...intervalsSemitonesMap]
+        .filter(([_, sem]) => (sem === semitoneValue))
+        .map(([int]) => int)
+      return { semitoneValue, intervals }
+    })
+    const semitonesIntervalsMap = new Map<number, IntervalTypes.Value[]>(semitonesAndIntervals.map(({
+      semitoneValue,
+      intervals
+    }) => [semitoneValue, intervals]))
+    return [...semitonesIntervalsMap].map(([sem, ints]) => {
+      const lesserAlterationValue = Math.min(...ints.map(({ alteration }) => Math.abs(alteration)))
+      const intervalWithLesserAltValue = ints.find(interval => Math.abs(interval.alteration) === lesserAlterationValue)
+      const chosenInterval = intervalWithLesserAltValue ?? ints[0] ?? {
+        intervalClass: 0,
+        alteration: sem
+      }
+      return chosenInterval
+    })
   }
   
-  static shiftIntervalClass (interval: IntervalTypes.Value, newIntervalClass: IntervalTypes.IntervalClassValue): IntervalTypes.Value | undefined {
+  static shiftClass (
+    interval: IntervalTypes.Value,
+    newIntervalClass: IntervalTypes.IntervalClassValue
+  ): IntervalTypes.Value {
     const unalteredInputInterval: IntervalTypes.Value = { ...interval, alteration: 0 }
     const unalteredTargetInterval: IntervalTypes.Value = { intervalClass: newIntervalClass, alteration: 0 }
-    const intervalBetweenUnalteredInputAndTarget = Interval.fromIntervals(unalteredInputInterval, unalteredTargetInterval)
-    if (intervalBetweenUnalteredInputAndTarget === undefined) return undefined
-    const semitonesBeteenInputAndTarget = Interval.toSemitones(intervalBetweenUnalteredInputAndTarget)
+    const intervalBetweenUnalteredInputAndTarget = Interval.between(unalteredInputInterval, unalteredTargetInterval)
+    const semitonesBeteenInputAndTarget = Interval.semitones(intervalBetweenUnalteredInputAndTarget)
     return {
       intervalClass: newIntervalClass,
       alteration: interval.alteration - semitonesBeteenInputAndTarget
@@ -462,13 +231,12 @@ export class Interval {
     }
     while (true) {
       if (rationalized.alteration === 0) break;
-      const rationalizedOnceMore = Interval.shiftIntervalClass(
+      const rationalizedOnceMore = Interval.shiftClass(
         rationalized,
         interval.alteration >= 0 // technically could just check if strictly superior
           ? rationalized.intervalClass + 1
           : rationalized.intervalClass - 1
       )
-      if (rationalizedOnceMore === undefined) break
       const alterationSignsAreEqual = signsAreEqual(interval.alteration, rationalizedOnceMore.alteration)
       if (!forceFlatOutput || interval.alteration <= 0) {
         if (alterationSignsAreEqual) { rationalized = rationalizedOnceMore }
@@ -489,7 +257,7 @@ export class Interval {
 /* Scale */
 
 export namespace ScaleTypes {
-  export type Value = SimpleIntervalTypes.Value[]
+  export type Value = IntervalTypes.SimpleValue[]
   export type Name = string
   export enum MainQualities {
     OMITTED_MAJOR = '',
@@ -586,34 +354,37 @@ export namespace ScaleTypes {
 }
 
 export class Scale {
-  static nameToValue (name: ScaleTypes.Name): ScaleTypes.Value {
+  static fromName (name: ScaleTypes.Name): ScaleTypes.Value {
     const parsedIntervalNames = name.split(',')
     const intervals = parsedIntervalNames
-      .map(intervalName => SimpleInterval.nameToValue(intervalName))
-      .filter((int): int is SimpleIntervalTypes.Value => int !== undefined)
+      .map(intervalName => Interval.fromName(intervalName))
+      .filter((int): int is IntervalTypes.Value => int !== undefined)
+      .map(int => Interval.simplify(int))
     return intervals
   }
   
-  static valueToName (scale: ScaleTypes.Value): ScaleTypes.Name {
-    return scale.map(interval => SimpleInterval.valueToName(interval)).join(',')
+  static name (scale: ScaleTypes.Value): ScaleTypes.Name {
+    return scale.map(interval => Interval.name(interval)).join(',')
   }
   
-  static reallocateIntervals (scale: ScaleTypes.Value): ScaleTypes.Value {
-    const complexIntervalsScale = scale.map(simpleInterval => SimpleInterval.toInterval(simpleInterval))
-    const sortedDedupedComplexIntervals = Interval.sort(Interval.semitoneValueDedupe(complexIntervalsScale))
-    const sortedDedupedIntervals = sortedDedupedComplexIntervals.map(interval => Interval.toSimpleInterval(interval))
-    const nbIntervals = sortedDedupedIntervals.length
+  static reallocate (scale: ScaleTypes.Value): ScaleTypes.Value {
+    const sortedDeduped = Interval.sort(Interval.semitoneDedupe(scale))
+    const nbIntervals = sortedDeduped.length
     const nbIntervalsOverSeven = nbIntervals / 7
     const nbIntervalsModuloSeven = nbIntervals % 7
     const minPressureAllowed = Math.floor(nbIntervalsOverSeven)
-    const maxPressureAllowed = nbIntervalsModuloSeven === 0 ? minPressureAllowed : Math.ceil(nbIntervalsOverSeven)
-    const nbSlotsAtMaxPressure = nbIntervalsModuloSeven === 0 ? minPressureAllowed * 7 : nbIntervals - minPressureAllowed * 7
+    const maxPressureAllowed = nbIntervalsModuloSeven === 0
+      ? minPressureAllowed
+      : Math.ceil(nbIntervalsOverSeven)
+    const nbSlotsAtMaxPressure = nbIntervalsModuloSeven === 0
+      ? minPressureAllowed * 7
+      : nbIntervals - minPressureAllowed * 7
     const intervalClassSlots = new Array(7)
       .fill(null)
       .map((_, pos) => ({
-        intervalClass: pos,
-        intervals: sortedDedupedIntervals
-          .filter(({ simpleIntervalClass }) => simpleIntervalClass === pos)
+        intervalClass: pos as IntervalTypes.SimpleIntervalClassValue,
+        intervals: sortedDeduped
+          .filter(({ intervalClass }) => intervalClass === pos)
       }))
       .map(slot => ({
         ...slot,
@@ -632,25 +403,25 @@ export class Scale {
   
     function moveIntervalToNeighbourSlot (
       slots: typeof intervalClassSlots,
-      from: number,
+      from: IntervalTypes.SimpleIntervalClassValue,
       toUp: boolean = true
     ): typeof intervalClassSlots {
-      const sourceSlot = slots.find(slot => slot.intervalClass === from)
-      const destinationSlot = slots.find(slot => slot.intervalClass === from + (toUp ? 1 : -1))
+      const sourceSlot = slots
+        .find(slot => slot.intervalClass === from)
       if (sourceSlot === undefined) return slots
+      const destinationSlot = slots
+        .find(slot => slot.intervalClass === from + (toUp ? 1 : -1))
       if (destinationSlot === undefined) return slots
-      const sourceIntervalsAsSemitones = sourceSlot.intervals.map(interval => SimpleInterval.toSemitones(interval))
+      const sourceIntervalsAsSemitones = sourceSlot.intervals
+        .map(interval => Interval.semitones(interval))
       const targetIntervalSemitoneValue = toUp
         ? Math.max(...sourceIntervalsAsSemitones)
         : Math.min(...sourceIntervalsAsSemitones)
-      const targetInterval = sourceSlot.intervals.find(interval => SimpleInterval.toSemitones(interval) === targetIntervalSemitoneValue)
+      const targetInterval = sourceSlot.intervals
+        .find(interval => Interval.semitones(interval) === targetIntervalSemitoneValue)
       if (targetInterval === undefined) return slots
-      const shiftedTargetInterval = Interval.shiftIntervalClass(
-        SimpleInterval.toInterval(targetInterval),
-        destinationSlot.intervalClass
-      )
-      if (shiftedTargetInterval === undefined) return slots
-      destinationSlot.intervals.push(Interval.toSimpleInterval(shiftedTargetInterval))
+      const shiftedTargetInterval = Interval.shiftClass(targetInterval, destinationSlot.intervalClass)
+      destinationSlot.intervals.push(Interval.simplify(shiftedTargetInterval))
       const newSourceSlotIntervals = sourceSlot.intervals.filter(interval => interval !== targetInterval)
       sourceSlot.intervals.splice(0, Infinity, ...newSourceSlotIntervals)
       return slots
@@ -658,8 +429,8 @@ export class Scale {
   
     function chineseWhisperIntervalFromSlotToSlot (
       slots: typeof intervalClassSlots,
-      from: number,
-      to: number
+      from: IntervalTypes.SimpleIntervalClassValue,
+      to: IntervalTypes.SimpleIntervalClassValue
     ): typeof intervalClassSlots {
       if (from === to) return slots
       const distance = Math.abs(to - from)
@@ -670,8 +441,8 @@ export class Scale {
         moveIntervalToNeighbourSlot(
           slots,
           to > from
-            ? from + iteration
-            : from - iteration,
+            ? from + iteration as IntervalTypes.SimpleIntervalClassValue
+            : from - iteration as IntervalTypes.SimpleIntervalClassValue,
           to > from
         )
       }
@@ -704,15 +475,15 @@ export class Scale {
     return intervalClassSlots
       .sort((slotA, slotB) => slotA.intervalClass - slotB.intervalClass)
       .map(({ intervals }) => intervals.sort((intA, intB) => {
-        return SimpleInterval.toSemitones(intA)
-          - SimpleInterval.toSemitones(intB)
+        return Interval.semitones(intA)
+          - Interval.semitones(intB)
       }))
       .flat()
   }
   
-  static toBinaryValue (scale: ScaleTypes.Value): string {
+  static binary (scale: ScaleTypes.Value): string {
     const intervalsAsSemitoneValues = scale.map(interval => absoluteModulo(
-      SimpleInterval.toSemitones(interval),
+      Interval.semitones(interval),
       12
     ))
     const binArray = new Array(12)
@@ -723,32 +494,32 @@ export class Scale {
     return binStr
   }
   
-  static binaryValueToValue (binaryValue: ReturnType<typeof Scale.toBinaryValue>): ScaleTypes.Value {
-    return Scale.reallocateIntervals(binaryValue
+  static fromBinary (binaryValue: ReturnType<typeof Scale.binary>): ScaleTypes.Value {
+    return Scale.reallocate(binaryValue
       .split('')
       .reverse()
       .map((bit, pos) => {
-        if (bit === '1') return Interval.toSimpleInterval(
+        if (bit === '1') return Interval.simplify(
           Interval.rationalize({
             intervalClass: 0,
             alteration: pos
           }, true)
         )
       })
-      .filter((item): item is SimpleIntervalTypes.Value => item !== undefined)
+      .filter((item): item is IntervalTypes.SimpleValue => item !== undefined)
     )
   }
   
-  static toDecimalValue (scale: ScaleTypes.Value): number {
-    return parseInt(Scale.toBinaryValue(scale), 2)
+  static decimal (scale: ScaleTypes.Value): number {
+    return parseInt(Scale.binary(scale), 2)
   }
   
-  static decimalValueToValue (decimalValue: ReturnType<typeof Scale.toDecimalValue>): ScaleTypes.Value {
-    return Scale.binaryValueToValue(decimalValue.toString(2))
+  static fromDecimal (decimalValue: ReturnType<typeof Scale.decimal>): ScaleTypes.Value {
+    return Scale.fromBinary(decimalValue.toString(2))
   }
   
-  static toPatternValue (scale: ScaleTypes.Value): string {
-    return Scale.toBinaryValue(scale)
+  static pattern (scale: ScaleTypes.Value): string {
+    return Scale.binary(scale)
       .split('')
       .reverse()
       .join('')
@@ -756,8 +527,8 @@ export class Scale {
       .replaceAll('0', '-')
   }
   
-  static patternValueToValue (pattern: ReturnType<typeof Scale.toPatternValue>): ScaleTypes.Value {
-    return Scale.binaryValueToValue(pattern
+  static fromPattern (pattern: ReturnType<typeof Scale.pattern>): ScaleTypes.Value {
+    return Scale.fromBinary(pattern
       .split('')
       .reverse()
       .join('')
@@ -766,127 +537,121 @@ export class Scale {
     )
   }
   
-  static distanceFromScale (scaleA: ScaleTypes.Value, scaleB: ScaleTypes.Value): number {
-    const aBits = Scale.toBinaryValue(scaleA).split('').map(bit => parseInt(bit, 10))
-    const bBits = Scale.toBinaryValue(scaleB).split('').map(bit => parseInt(bit, 10))
-    const moves = aBits.map((bit, i) => bit - bBits[i])
-      .filter(bit => bit)
+  static distance (scaleA: ScaleTypes.Value, scaleB: ScaleTypes.Value): number {
+    const aBits = Scale.binary(scaleA).split('').map(bit => parseInt(bit, 10))
+    const bBits = Scale.binary(scaleB).split('').map(bit => parseInt(bit, 10))
+    const moves = aBits.map((bit, i) => bit - (bBits[i] ?? 0)).filter(bit => bit !== 0)
     const positiveMoves = moves.filter(bit => bit === 1)
     const negativeMoves = moves.filter(bit => bit === -1)
     return Math.max(positiveMoves.length, negativeMoves.length)
   }
-  
-  static hasIntervalClass (scale: ScaleTypes.Value, _intervalClass: number|number[]) {
+
+  static hasStep (
+    scale: ScaleTypes.Value,
+    _intervalClass: IntervalTypes.SimpleIntervalClassValue|IntervalTypes.SimpleIntervalClassValue[]
+  ): boolean {
     const intervalClasses = Array.isArray(_intervalClass) ? _intervalClass : [_intervalClass]
-    const intervalClassesInScale = new Set(scale.map(int => int.simpleIntervalClass))
+    const intervalClassesInScale = new Set(scale.map(int => int.intervalClass))
     return intervalClasses.every(intClass => intervalClassesInScale.has(intClass))
   }
-  
-  static toRotations (scale: ScaleTypes.Value): ScaleTypes.Value[] {
-    const scalePattern = Scale.toPatternValue(scale)
+
+  static rotations (scale: ScaleTypes.Value): ScaleTypes.Value[] {
     return new Array(12)
       .fill(null)
       .map((_, rotationPos) => {
-        try {
-          const pretextPitchClass = PitchClass.nameToValue('c')
-          if (pretextPitchClass === undefined) throw new Error('This should normally never happen.')
-          const rotationPosAsInterval = Interval.toSimpleInterval(
-            Interval.rationalize({
-              intervalClass: 0,
-              alteration: -1 * rotationPos
-            }, true)
+        const pretextInterval: IntervalTypes.Value = { intervalClass: 0, alteration: 0 }
+        const rotationPosAsInterval = Interval.simplify(Interval.rationalize({
+          intervalClass: 0,
+          alteration: -1 * rotationPos
+        }, true))
+        return Interval.sort(scale.map(interval => {
+          const pretextIntervalPlusThisInterval = Interval.add(interval, pretextInterval)
+          const pretextIntervalPlusRotationInterval = Interval.add(
+            rotationPosAsInterval,
+            pretextIntervalPlusThisInterval
           )
-          return Interval.sort(scale.map(interval => {
-            const pretextPitchPlusThisInterval = SimpleInterval.addToPitchClass(interval, pretextPitchClass)
-            if (pretextPitchPlusThisInterval === undefined) throw new Error('This should normally never happen.')
-            const pretextPitchPlusRotationInterval = SimpleInterval.addToPitchClass(rotationPosAsInterval, pretextPitchPlusThisInterval)
-            if (pretextPitchPlusRotationInterval === undefined) throw new Error('This should normally never happen.')
-            const outputInterval = SimpleInterval.fromPitchClasses(pretextPitchClass, pretextPitchPlusRotationInterval)
-            return SimpleInterval.toInterval(outputInterval)
-          })).map(interval => Interval.toSimpleInterval(interval))
-        } catch (err) {
-          // This is a less clean way for obtaining the rotation
-          const patternBeginning = scalePattern.slice(0, rotationPos)
-          const patternEnd = scalePattern.slice(rotationPos)
-          const thisRotationPattern = `${patternEnd}${patternBeginning}`
-          const rotatedScale = Scale.patternValueToValue(thisRotationPattern)
-          return rotatedScale
-        }
+          const outputInterval = Interval.between(
+            pretextInterval,
+            pretextIntervalPlusRotationInterval
+          )
+          return outputInterval
+        })).map(interval => Interval.simplify(interval))
       })
   }
   
-  static toRotationalSymmetryAxes (scale: ScaleTypes.Value): number[] {
-    const scalePattern = Scale.toPatternValue(scale)
-    const rotations = Scale.toRotations(scale)
+  static rotationalSymmetryAxes (scale: ScaleTypes.Value): number[] {
+    const scalePattern = Scale.pattern(scale)
+    const rotations = Scale.rotations(scale)
     return rotations
-      .map(rotation => Scale.toPatternValue(rotation))
-      .map((rotationPattern, rotationPos) => rotationPattern === scalePattern ? rotationPos : undefined)
-      .filter((elt): elt is number => elt !== undefined)
+      .map(rotation => Scale.pattern(rotation))
+      .map((rotationPattern, rotationPos) => rotationPattern === scalePattern
+        ? rotationPos
+        : undefined
+      ).filter((elt): elt is number => elt !== undefined)
   }
   
-  static toModes (scale: ScaleTypes.Value): ScaleTypes.Value[] {
-    const rotations = Scale.toRotations(scale)
-    return rotations.filter(rotation => {
-      const decimalValue = Scale.toDecimalValue(rotation)
-      return decimalValue % 2 !== 0
-    })
-  }
-  
-  static toPureModes (scale: ScaleTypes.Value): ScaleTypes.Value[] {
+  static modes (scale: ScaleTypes.Value, pure: boolean = false): ScaleTypes.Value[] {
+    if (!pure) {
+      const rotations = Scale.rotations(scale)
+      return rotations.filter(rotation => {
+        const decimalValue = Scale.decimal(rotation)
+        return decimalValue % 2 !== 0
+      })
+    }
     const lowestInterval = scale.sort((intA, intB) => {
-      const { simpleIntervalClass: intClassA, alteration: altA } = intA
-      const { simpleIntervalClass: intClassB, alteration: altB } = intB
+      const { intervalClass: intClassA, alteration: altA } = intA
+      const { intervalClass: intClassB, alteration: altB } = intB
       if (intClassA === intClassB) return altA - altB
       else return intClassA - intClassB
     }).at(0)
     const lowestIntervalName = lowestInterval !== undefined
-      ? SimpleInterval.valueToName(lowestInterval)
+      ? Interval.name(lowestInterval)
       : undefined
-    const rotations = Scale.toRotations(scale)
+    const rotations = Scale.rotations(scale)
     return rotations.filter(rotation => {
       const rotationLowestInterval = rotation.sort((intA, intB) => {
-        const { simpleIntervalClass: intClassA, alteration: altA } = intA
-        const { simpleIntervalClass: intClassB, alteration: altB } = intB
+        const { intervalClass: intClassA, alteration: altA } = intA
+        const { intervalClass: intClassB, alteration: altB } = intB
         if (intClassA === intClassB) return altA - altB
         else return intClassA - intClassB
       }).at(0)
       const rotationLowestIntervalName = rotationLowestInterval !== undefined
-      ? SimpleInterval.valueToName(rotationLowestInterval)
-      : undefined
+        ? Interval.name(rotationLowestInterval)
+        : undefined
       return rotationLowestIntervalName === lowestIntervalName
     })
   }
   
-  static toReflections (scale: ScaleTypes.Value): ScaleTypes.Value[] {
-    const rotations = Scale.toRotations(scale)
+  static reflections (scale: ScaleTypes.Value): ScaleTypes.Value[] {
+    const rotations = Scale.rotations(scale)
     return rotations.map(rotation => {
-      const patternArr = Scale.toPatternValue(rotation).split('')
+      const patternArr = Scale.pattern(rotation).split('')
       const rotatedPattern = [patternArr[0], ...patternArr.slice(1).reverse()].join('')
-      const reflected = Scale.patternValueToValue(rotatedPattern)
+      const reflected = Scale.fromPattern(rotatedPattern)
       return reflected
     })
   }
   
-  static toReflectionSymmetryAxes (scale: ScaleTypes.Value): number[] {
-    const scalePattern = Scale.toPatternValue(scale)
-    const reflections = Scale.toReflections(scale)
+  static reflectionSymmetryAxes (scale: ScaleTypes.Value): number[] {
+    const scalePattern = Scale.pattern(scale)
+    const reflections = Scale.reflections(scale)
     return reflections
-      .map(reflection => Scale.toPatternValue(reflection))
+      .map(reflection => Scale.pattern(reflection))
       .map((reflectionPattern, reflectionPos) => reflectionPattern === scalePattern ? reflectionPos : undefined)
       .filter((elt): elt is number => elt !== undefined)
   }
   
-  static toNegative (scale: ScaleTypes.Value): ScaleTypes.Value {
-    const scalePattern = Scale.toPatternValue(scale)
+  static negation (scale: ScaleTypes.Value): ScaleTypes.Value {
+    const scalePattern = Scale.pattern(scale)
     const negatedPattern = scalePattern
       .replaceAll('x', 'y')
       .replaceAll('-', 'x')
       .replaceAll('y', '-')
-    return Scale.patternValueToValue(negatedPattern)
+    return Scale.fromPattern(negatedPattern)
   }
   
-  static toSupersets (scale: ScaleTypes.Value): ScaleTypes.Value[] {
-    const pattern = Scale.toPatternValue(scale)
+  static supersets (scale: ScaleTypes.Value): ScaleTypes.Value[] {
+    const pattern = Scale.pattern(scale)
     const nbOfSupersets = parseInt(
       pattern
         .replaceAll('x', '')
@@ -907,13 +672,13 @@ export class Scale {
           .split('')
           .reduce((acc, curr) => acc.replace('-', curr === 'x' ? 'x' : 'y'), pattern)
           .replaceAll('y', '-')
-        const superset = Scale.patternValueToValue(supersetPattern)
+        const superset = Scale.fromPattern(supersetPattern)
         return superset
       })
   }
   
-  static toSubsets (scale: ScaleTypes.Value): ScaleTypes.Value[] {
-    const pattern = Scale.toPatternValue(scale)
+  static subsets (scale: ScaleTypes.Value): ScaleTypes.Value[] {
+    const pattern = Scale.pattern(scale)
     const nbOfSubsets = parseInt(
       pattern
         .replaceAll('-', '')
@@ -934,48 +699,54 @@ export class Scale {
           .split('')
           .reduce((acc, curr) => acc.replace('x', curr === 'x' ? '-' : 'y'), pattern)
           .replaceAll('y', 'x')
-        const subset = Scale.patternValueToValue(subsetPattern)
+        const subset = Scale.fromPattern(subsetPattern)
         return subset
       })
   }
   
-  static toRahmPrimeForm (scale: ScaleTypes.Value): ScaleTypes.Value {
+  static rahmPrimeForm (scale: ScaleTypes.Value): ScaleTypes.Value {
     const allForms = [
-      ...Scale.toRotations(scale),
-      ...Scale.toReflections(scale)
+      ...Scale.rotations(scale),
+      ...Scale.reflections(scale)
     ]
     const minOddDecimalValue = Math.min(...allForms
-      .map(scale => Scale.toDecimalValue(scale))
+      .map(scale => Scale.decimal(scale))
       .filter(scale => scale % 2 !== 0)
     )
-    const asScale = Scale.decimalValueToValue(minOddDecimalValue)
+    const asScale = Scale.fromDecimal(minOddDecimalValue)
     return asScale
   }
   
-  static mergeScale (scaleA: ScaleTypes.Value, scaleB: ScaleTypes.Value): ScaleTypes.Value {
+  static merge (
+    scaleA: ScaleTypes.Value,
+    scaleB: ScaleTypes.Value
+  ): ScaleTypes.Value {
     const merged = [...scaleA, ...scaleB]
-    const asIntervals = merged.map(simpleInt => SimpleInterval.toInterval(simpleInt))
-    const sorted = Interval.sort(asIntervals)
+    const sorted = Interval.sort(merged)
     const deduped = Interval.dedupe(sorted)
-    const asSimpleIntervals = deduped.map(int => Interval.toSimpleInterval(int))
-    return asSimpleIntervals
+    return deduped
   }
   
-  static partScale (scaleA: ScaleTypes.Value, scaleB: ScaleTypes.Value): ScaleTypes.Value {
+  static part (
+    scaleA: ScaleTypes.Value,
+    scaleB: ScaleTypes.Value
+  ): ScaleTypes.Value {
     const scaleAWithNames = scaleA.map(int => ({
-      simpleInterval: int,
-      simpleIntervalName: SimpleInterval.valueToName(int)
+      interval: int,
+      intervalName: Interval.name(int)
     }))
-    const scaleBNames = scaleB.map(int => SimpleInterval.valueToName(int))
-    const filteredScaleAWithNames = scaleAWithNames.filter(item => !scaleBNames.includes(item.simpleIntervalName))
-    return filteredScaleAWithNames.map(item => item.simpleInterval)
+    const scaleBNames = scaleB.map(int => Interval.name(int))
+    const filteredScaleAWithNames = scaleAWithNames.filter(item => !scaleBNames.includes(item.intervalName))
+    return filteredScaleAWithNames.map(item => item.interval)
   }
   
-  static omitSimpleIntervalClasses (
+  static omitStep (
     scale: ScaleTypes.Value,
-    _classes: SimpleIntervalTypes.Class | SimpleIntervalTypes.Class[]): ScaleTypes.Value {
-    const classes = Array.isArray(_classes) ? _classes : [_classes]
-    return scale.filter(int => !classes.includes(int.simpleIntervalClass))
+    _steps: IntervalTypes.SimpleIntervalClassValue
+      | IntervalTypes.SimpleIntervalClassValue[]
+  ): ScaleTypes.Value {
+    const steps = Array.isArray(_steps) ? _steps : [_steps]
+    return scale.filter(int => !steps.includes(int.intervalClass))
   }
   
   static mainQualitiesToNameMap = new Map<ScaleTypes.MainQualities, string>([
@@ -1064,19 +835,19 @@ export class Scale {
   
   static qualityTableSort (_qualityTable: ScaleTypes.QualityTable): ScaleTypes.QualityTable {
     const qualityTable = { ..._qualityTable }
-  
+    type NameAndSemitonesObj = {
+      name: string
+      semitoneValue: number
+    };
     qualityTable.accidents = qualityTable.accidents.map(intClass => {
       return intClass
         .map(intName => {
-          const int = SimpleInterval.nameToValue(intName)
+          const int = Interval.fromName(intName)
           if (int === undefined) return undefined
-          const semitoneValue = SimpleInterval.toSemitones(int)
-          return {
-            name: intName,
-            semitoneValue
-          }
+          const semitoneValue = Interval.semitones(int)
+          return { name: intName, semitoneValue }
         })
-        .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+        .filter((e): e is NameAndSemitonesObj => e !== undefined)
         .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
         .map(e => e.name)
       }) as ScaleTypes.QualityTable['accidents']
@@ -1088,38 +859,38 @@ export class Scale {
             name: intName,
             semitoneValue: -Infinity
           }
-          const int = SimpleInterval.nameToValue(intName)
+          const int = Interval.fromName(intName)
           if (int === undefined) return undefined
-          const semitoneValue = SimpleInterval.toSemitones(int)
+          const semitoneValue = Interval.semitones(int)
           return {
             name: intName,
             semitoneValue
           }
         })
-        .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+        .filter((e): e is NameAndSemitonesObj => e !== undefined)
         .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
         .map(e => e.name)
       }) as ScaleTypes.QualityTable['omissions']
     qualityTable.additions = qualityTable.additions.map(intClass => {
       return intClass
         .map(intName => {
-          const int = SimpleInterval.nameToValue(intName)
+          const int = Interval.fromName(intName)
           if (int === undefined) return undefined
-          const semitoneValue = SimpleInterval.toSemitones(int)
+          const semitoneValue = Interval.semitones(int)
           return {
             name: intName,
             semitoneValue
           }
         })
-        .filter((e): e is { name: string, semitoneValue: number } => e !== undefined)
+        .filter((e): e is NameAndSemitonesObj => e !== undefined)
         .sort((eA, eB) => eA.semitoneValue - eB.semitoneValue)
         .map(e => e.name)
       }) as ScaleTypes.QualityTable['additions']
       return qualityTable
   }
   
-  static toQualityTable (scale: ScaleTypes.Value): ScaleTypes.QualityTable {
-    const namedIntervals = scale.map(int => SimpleInterval.valueToName(int))
+  static qualityTable (scale: ScaleTypes.Value): ScaleTypes.QualityTable {
+    const namedIntervals = scale.map(int => Interval.name(int))
     const hasFirst = namedIntervals.includes('1')
     const hasAnyFirst = namedIntervals.some(int => int.match(/1/igm))
     const hasMajorThird = namedIntervals.includes('3')
@@ -1223,7 +994,7 @@ export class Scale {
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['5'].includes(i))
       } else if (hasAnyFifth) {
         const fifths = qualityTable.leftovers.filter(int => int.match(/5/igm))
-        const [accFifth, ...addFifths] = fifths
+        const [accFifth, ...addFifths] = fifths as [string, ...string[]]
         qualityTable.accidents[4].push(accFifth)
         qualityTable.additions[4].push(...addFifths)
         qualityTable.leftovers = qualityTable.leftovers.filter(int => !fifths.includes(int))
@@ -1244,7 +1015,7 @@ export class Scale {
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3'].includes(i))
       } else if (hasAnyThird) {
         const thirds = qualityTable.leftovers.filter(int => int.match(/3/igm))
-        const [accThird, ...addThirds] = thirds
+        const [accThird, ...addThirds] = thirds as [string, ...string[]]
         qualityTable.accidents[2].push(accThird)
         qualityTable.additions[2].push(...addThirds)
         qualityTable.leftovers = qualityTable.leftovers.filter(int => !thirds.includes(int))
@@ -1791,7 +1562,7 @@ export class Scale {
       const regex = new RegExp(intClassName, 'igm')
       const foundInLeftovers = qualityTable.leftovers.filter(i => i.match(regex))
       foundInLeftovers.forEach(leftover => {
-        qualityTable.additions[intClass].push(leftover)
+        qualityTable.additions[intClass as IntervalTypes.SimpleIntervalClassValue].push(leftover)
       })
     })
   
@@ -1810,8 +1581,8 @@ export class Scale {
     return quality
   }
   
-  static toQuality (scale: ScaleTypes.Value): string {
-    const qualityTable = Scale.toQualityTable(scale)
+  static quality (scale: ScaleTypes.Value): string {
+    const qualityTable = Scale.qualityTable(scale)
     const quality = Scale.qualityTableToQuality(qualityTable)
     return quality
   }
@@ -1861,9 +1632,9 @@ export class Scale {
         .replace(/\)$/, '')
         .split(',')
       omittedIntervalsNames.forEach(intName => {
-        const int = SimpleInterval.nameToValue(intName)
+        const int = Interval.fromName(intName)
         if (int === undefined) return;
-        qualityTable.omissions[int.simpleIntervalClass].push(intName)
+        qualityTable.omissions[int.intervalClass as IntervalTypes.SimpleIntervalClassValue].push(intName)
       })
     })
   
@@ -1876,9 +1647,9 @@ export class Scale {
         .replace(/\)$/, '')
         .split(',')
       addedIntervalsNames.forEach(intName => {
-        const int = SimpleInterval.nameToValue(intName)
+        const int = Interval.fromName(intName)
         if (int === undefined) return;
-        qualityTable.additions[int.simpleIntervalClass].push(intName)
+        qualityTable.additions[int.intervalClass as IntervalTypes.SimpleIntervalClassValue].push(intName)
       })
     })
   
@@ -1891,15 +1662,15 @@ export class Scale {
       if (accident === null) break;
       workingQuality = workingQuality.replace(accident[0], '')
       const intName = accident[0]
-      const int = SimpleInterval.nameToValue(intName)
+      const int = Interval.fromName(intName)
       if (int === undefined) continue;
-      qualityTable.accidents[int.simpleIntervalClass].push(intName)
+      qualityTable.accidents[int.intervalClass as IntervalTypes.SimpleIntervalClassValue].push(intName)
     }
   
     return Scale.qualityTableSort(qualityTable)
   }
   
-  static qualityTableToValue (_qualityTable: ScaleTypes.QualityTable): ScaleTypes.Value {
+  static fromQualityTable (_qualityTable: ScaleTypes.QualityTable): ScaleTypes.Value {
     const {
       hasMinorQuality,
       mainQuality,
@@ -1908,51 +1679,52 @@ export class Scale {
       additions
     } = Scale.qualityTableSort(_qualityTable)
     const mainQualityScaleName = Scale.mainQualitiesToNameMap.get(mainQuality) ?? '1,3,5'
-    let returnedScale = Scale.nameToValue(mainQualityScaleName)
+    let returnedScale = Scale.fromName(mainQualityScaleName)
     if (hasMinorQuality) {
-      returnedScale = Scale.omitSimpleIntervalClasses(returnedScale, 2)
-      returnedScale = Scale.mergeScale(returnedScale, Scale.nameToValue('ß3'))
+      returnedScale = Scale.omitStep(returnedScale, 2)
+      returnedScale = Scale.merge(returnedScale, Scale.fromName('ß3'))
     }
     accidents.forEach((intNames, intClass) => {
       if (intNames.length === 0) return
       const intNamesAsScale = intNames
-        .map(intName => SimpleInterval.nameToValue(intName))
-        .filter((int): int is SimpleIntervalTypes.Value => int !== undefined)
-      returnedScale = Scale.omitSimpleIntervalClasses(returnedScale, intClass)
-      returnedScale = Scale.mergeScale(returnedScale, intNamesAsScale)
+        .map(intName => Interval.fromName(intName))
+        .filter((int): int is IntervalTypes.Value => int !== undefined)
+        .map(int => Interval.simplify(int))
+      returnedScale = Scale.omitStep(returnedScale, intClass as IntervalTypes.SimpleIntervalClassValue)
+      returnedScale = Scale.merge(returnedScale, intNamesAsScale)
     })
     omissions.forEach((intNames, intClass) => {
       intNames.forEach(intName => {
-        if (intName.match(/^![0-9]+$/)) { returnedScale = Scale.omitSimpleIntervalClasses(returnedScale, intClass) }
-        else {
-          const simpleInterval = SimpleInterval.nameToValue(intName)
-          if (simpleInterval === undefined) return;
-          const normalizedIntName = SimpleInterval.valueToName(simpleInterval)
-          returnedScale = Scale.partScale(returnedScale, Scale.nameToValue(normalizedIntName))
+        if (intName.match(/^![0-9]+$/)) {
+          returnedScale = Scale.omitStep(returnedScale, intClass as IntervalTypes.SimpleIntervalClassValue)
+        } else {
+          const interval = Interval.fromName(intName)
+          if (interval === undefined) return;
+          const normalizedIntName = Interval.name(interval)
+          returnedScale = Scale.part(returnedScale, Scale.fromName(normalizedIntName))
         }
       })
     })
     const additionsScaleName = additions
       .flat()
       .map(intName => {
-        const simpleInterval = SimpleInterval.nameToValue(intName)
-        if (simpleInterval === undefined) return;
-        const normalizedIntName = SimpleInterval.valueToName(simpleInterval)
+        const interval = Interval.fromName(intName)
+        if (interval === undefined) return;
+        const normalizedIntName = Interval.name(interval)
         return normalizedIntName
       })
       .filter(name => name !== undefined)
       .join(',')
-    const additionsScale = Scale.nameToValue(additionsScaleName)
-    returnedScale = Scale.mergeScale(returnedScale, additionsScale)
-    const returnedScaleWithIntervals = returnedScale.map(int => SimpleInterval.toInterval(int))
-    returnedScale = Interval.sort(returnedScaleWithIntervals)
-      .map(int => Interval.toSimpleInterval(int))
+    const additionsScale = Scale.fromName(additionsScaleName)
+    returnedScale = Scale.merge(returnedScale, additionsScale)
+    returnedScale = Interval.sort(returnedScale)
+      .map(int => Interval.simplify(int))
     return returnedScale
   }
   
-  static scaleQualityToValue (quality: string): ScaleTypes.Value {
+  static fromQuality (quality: string): ScaleTypes.Value {
     const table = Scale.qualityToQualityTable(quality)
-    return Scale.qualityTableToValue(table)
+    return Scale.fromQualityTable(table)
   }
   
   static mainNamesJson = _scalesMainNamesJson as Record<string, string>
@@ -1977,14 +1749,17 @@ export class Scale {
       .map(([key, names]) => [parseInt(key), names])
   )
   
-  static toCommonName (scale: ScaleTypes.Value): string {
-    const decimalValue = Scale.toDecimalValue(scale)
-    const commonName = Scale.decimalValueToCommonNamesMap.get(decimalValue) ?? Scale.valueToName(scale)
+  static commonName (scale: ScaleTypes.Value): string {
+    const decimalValue = Scale.decimal(scale)
+    const commonName = Scale.decimalValueToCommonNamesMap.get(decimalValue) ?? Scale.name(scale)
     return commonName
   }
   
-  static toThematicNames (scale: ScaleTypes.Value, category: string | null = null): Array<{ category: string, name: string }> {
-    const decimalValue = Scale.toDecimalValue(scale)
+  static thematicNames (
+    scale: ScaleTypes.Value,
+    category: string | null = null
+  ): Array<{ category: string, name: string }> {
+    const decimalValue = Scale.decimal(scale)
     const thematicNames = Scale.decimalValueToThematicNamesMap
       .get(decimalValue) ?? []
     if (category === null) return thematicNames
@@ -1999,16 +1774,19 @@ export class Scale {
       if (names.includes(name)) { foundDecimalValue = decimalValue }
     })
     if (foundDecimalValue === undefined) return;
-    return Scale.decimalValueToValue(foundDecimalValue)
+    return Scale.fromDecimal(foundDecimalValue)
   }
   
-  static commonNameToValue (name: string, excludeThematicNames: boolean = false): ScaleTypes.Value | undefined {
+  static commonNameToValue (
+    name: string,
+    excludeThematicNames: boolean = false
+  ): ScaleTypes.Value | undefined {
     const decimalValueAndNameFromCommonNames = [...Scale.decimalValueToCommonNamesMap
       .entries()]
       .find(([, commonName]) => commonName === name)
     if (decimalValueAndNameFromCommonNames !== undefined) {
       const decimalValue = decimalValueAndNameFromCommonNames[0]
-      return Scale.decimalValueToValue(decimalValue)
+      return Scale.fromDecimal(decimalValue)
     }
     if (excludeThematicNames) return undefined
     return Scale.thematicNameToValue(name)
@@ -2083,11 +1861,11 @@ export class Scale {
 //     const intervals = new Array(7).fill(null).map((_, pos) => lol[pos][sliced[pos]])
 //     if (intervals.includes(undefined as any)) return;
 //     const scaleName = intervals.filter(e => e!== null).join(',')
-//     const scale = Scale.nameToValue(scaleName)
-//     const quality = Scale.toQuality(scale)
+//     const scale = Scale.fromName(scaleName)
+//     const quality = Scale.quality(scale)
 //     const table = Scale.qualityToQualityTable(quality)
-//     const value = Scale.qualityTableToValue(table)
-//     const name = Scale.valueToName(value)
+//     const value = Scale.fromQualityTable(table)
+//     const name = Scale.name(value)
 //     // console.log(scaleName, '——>', quality, '——>', name)
 //     if (scaleName !== name) { console.log(pos, scaleName, '|', scale, '|', quality, '|', name) }
 //     return {
@@ -2122,16 +1900,16 @@ Fm • F^4m • F^+m • § | iv • iv^4 • iv^+ • § | <iv> • <iv>^4 • 
 
 `
 
-// export function Scale.nameToValue (name: ScaleTypes.Name): RomanValue {
+// export function Scale.fromName (name: ScaleTypes.Name): RomanValue {
 //   const parsedIntervalNames = name.split(',')
 //   const intervals = parsedIntervalNames
-//     .map(intervalName => SimpleInterval.nameToValue(intervalName))
+//     .map(intervalName => SimpleInterval.fromName(intervalName))
 //     .filter((int): int is SimpleIntervalTypes.Value => int !== undefined)
 //   return intervals
 // }
 
-// export function Scale.valueToName (scale: ScaleTypes.Value): ScaleTypes.Name {
-//   return scale.map(interval => SimpleInterval.valueToName(interval)).join(',')
+// export function Scale.name (scale: ScaleTypes.Value): ScaleTypes.Name {
+//   return scale.map(interval => SimpleInterval.name(interval)).join(',')
 // }
 
 
