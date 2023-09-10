@@ -8,7 +8,70 @@ import {
   Interval,
   Scale
 } from './index.js'
+import Graph from './modules/dependency-grapher/index.js'
 
+// ========== GRAPH STUFF ==========
+
+console.log('-- Dependencies --')
+new Graph()
+  .add('Alteration.name', [])
+  .add('Alteration.fromName', [])
+  .add('Interval.name', ['Alteration.name'])
+  .add('Interval.fromName', ['Alteration.fromName'])
+  .add('Interval.simplify', ['Alteration.fromName'])
+  .add('Interval.commonNames', ['Interval.simplify', 'Interval.fromName'])
+  .add('Interval.semitones', ['Interval.simplify'])
+  .add('Interval.between', ['Interval.simplify', 'Interval.semitones'])
+  .add('Interval.add', ['Interval.semitones'])
+  .add('Interval.invert', ['Interval.between'])
+  .add('Interval.subtract', ['Interval.invert', 'Interval.add'])
+  .add('Interval.negative', ['Interval.between', 'Interval.add'])
+  .add('Interval.sort', [])
+  .add('Interval.dedupe', ['Interval.name'])
+  .add('Interval.semitoneDedupe', ['Interval.semitones'])
+  .add('Interval.shiftStep', ['Interval.semitones', 'Interval.between'])
+  .add('Interval.rationalize', ['Interval.shiftStep'])
+  .add('Scale.fromName', ['Interval.fromName', 'Interval.simplify'])
+  .add('Scale.name', ['Interval.name'])
+  .add('Scale.reallocate', ['Interval.sort', 'Interval.semitoneDedupe', 'Interval.semitones', 'Interval.shiftStep', 'Interval.simplify'])
+  .add('Scale.binary', ['Interval.semitones'])
+  .add('Scale.fromBinary', ['Scale.reallocate', 'Interval.simplify', 'Interval.rationalize'])
+  .add('Scale.decimal', ['Scale.binary'])
+  .add('Scale.fromDecimal', [])
+  .add('Scale.pattern', ['Scale.binary'])
+  .add('Scale.fromPattern', ['Scale.fromBinary'])
+  .add('Scale.distance', ['Scale.binary'])
+  .add('Scale.intervalsAtStep', [])
+  .add('Scale.hasSteps', ['Scale.intervalsAtStep'])
+  .add('Scale.hasIntervals', [])
+  .add('Scale.rotations', ['Interval.simplify', 'Interval.rationalize', 'Interval.sort', 'Interval.add', 'Interval.between'])
+  .add('Scale.rotationalSymmetryAxes', ['Scale.rotations', 'Scale.pattern'])
+  .add('Scale.modes', ['Scale.rotations', 'Scale.decimal', 'Interval.name'])
+  .add('Scale.reflections', ['Scale.rotations', 'Scale.pattern', 'Scale.fromPattern'])
+  .add('Scale.reflectionSymmetryAxes', ['Scale.reflections', 'Scale.pattern'])
+  .add('Scale.negation', ['Scale.pattern', 'Scale.fromPattern'])
+  .add('Scale.supersets', ['Scale.pattern', 'Scale.fromPattern'])
+  .add('Scale.subsets', ['Scale.pattern', 'Scale.fromPattern'])
+  .add('Scale.rahmPrimeForm', ['Scale.rotations', 'Scale.reflections', 'Scale.fromDecimal'])
+  .add('Scale.merge', ['Interval.sort', 'Interval.dedupe'])
+  .add('Scale.part', ['Interval.name'])
+  .add('Scale.omitStep', [])
+  .add('Scale.qualityTableSort', ['Interval.fromName', 'Interval.semitones'])
+  .add('Scale.isMajor', ['Scale.hasIntervals', 'Interval.commonNames'])
+  .add('Scale.isMinor', ['Scale.isMajor', 'Scale.hasIntervals', 'Interval.commonNames'])
+  .add('Scale.qualityTable', ['Interval.name', 'Scale.qualityTableSort', 'Scale.hasIntervals', 'Interval.commonNames', 'Scale.hasSteps', 'Scale.isMajor', 'Scale.isMinor'])
+  .add('Scale.qualityTableToQuality', [])
+  .add('Scale.quality', ['Scale.qualityTable', 'Scale.qualityTableToQuality'])
+  .add('Scale.qualityToQualityTable', ['Interval.fromName', 'Scale.qualityTableSort', 'Interval.simplify'])
+  .add('Scale.fromQualityTable', ['Scale.qualityTableSort', 'Scale.fromName', 'Scale.omitStep', 'Scale.merge', 'Interval.fromName', 'Interval.simplify', 'Interval.name', 'Scale.part'])
+  .add('Scale.fromQuality', ['Scale.qualityToQualityTable', 'Scale.fromQualityTable'])
+  .add('Scale.commonName', ['Scale.decimal', 'Scale.name'])
+  .add('Scale.thematicNames', ['Scale.decimal', 'Scale.name'])
+  .add('Scale.fromThematicName', ['Scale.fromDecimal'])
+  .add('Scale.fromCommonName', ['Scale.fromDecimal', 'Scale.fromThematicName'])
+  .print()
+
+// ========== ASSERT STUFF ==========
 function assert (label: string, assertion: unknown) {
   if (Array.isArray(assertion)) {
     assertion.forEach((innerAssertion, pos) => {
@@ -258,28 +321,28 @@ console.log(Object
   .join('\n')
 )
 assert('Interval with value 3/-2 name is ßß4', Interval.name({
-  intervalClass: 3,
+  step: 3,
   alteration: -2
 }) === 'ßß4')
 assert('Interval with value -3/-2 name is ßß-4', Interval.name({
-  intervalClass: -3,
+  step: -3,
   alteration: -2
 }) === 'ßß-4')
 assert('Interval with value 55/4 name is ####56', Interval.name({
-  intervalClass: 55,
+  step: 55,
   alteration: 4
 }) === '####56')
 assert('Interval with name ß7 has value 6/-1', () => {
-  const { intervalClass, alteration } = Interval.fromName('ß7') as any
-  return intervalClass === 6 && alteration === -1
+  const { step, alteration } = Interval.fromName('ß7') as any
+  return step === 6 && alteration === -1
 })
 assert('Interval with name #9 has value 8/1', () => {
-  const { intervalClass, alteration } = Interval.fromName('#9') as any
-  return intervalClass === 8 && alteration === 1
+  const { step, alteration } = Interval.fromName('#9') as any
+  return step === 8 && alteration === 1
 })
 assert('Interval with name -14 has value -13/0', () => {
-  const { intervalClass, alteration } = Interval.fromName('-14') as any
-  return intervalClass === -13 && alteration === 0
+  const { step, alteration } = Interval.fromName('-14') as any
+  return step === -13 && alteration === 0
 })
 assert('Interval of ßß-17 is ßß6 as a SimpleInterval', Interval.name(
   Interval.simplify(
@@ -376,13 +439,13 @@ assert('Intervals 1, ßß2, ßßßß3, ßßßßß4, 5 are semitoneDeduped as 1, 
 ]).map(interval => Interval.name(interval))
   .join(',') === '1,5')
 assert('Interval ß3 shifted to interval class 2 (numeric: 1) is #2', Interval.name(
-  Interval.shiftClass(
+  Interval.shiftStep(
     Interval.fromName('ß3') as any,
     1
   ) as any
 ) === '#2')
 assert('Interval ##7 shifted to interval class 5 (numeric: 4) is ######5', Interval.name(
-  Interval.shiftClass(
+  Interval.shiftStep(
     Interval.fromName('##7') as any,
     4
   ) as any
@@ -470,3 +533,67 @@ assert('Scale with intervals 1, ß2, 2, ß3, 3, ßß6, ß6, 6, ß7, 7 is realloc
   Interval.fromName('ß7'),
   Interval.fromName('7')
 ]).map(int => Interval.name(int)).join(',') === '1,ß2,2,ß3,3,##4,#5,6,#6,7')
+
+
+const lol = [
+  ['1', null],
+  ['ß2', '2', null],
+  ['ß3', '3', null],
+  ['4', '#4', null],
+  ['ß5', '5', '#5', null],
+  ['ß6', '6', null],
+  ['ßß7', 'ß7', '7', null]
+]
+
+new Array(Math.pow(4, 7))
+// new Array(1)
+  .fill(0)
+  .map((_, pos) => {
+    const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
+    const reversedBase4Pos = [...base4Pos].reverse()
+    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
+    const sliced = withZeros.slice(0, 7).reverse()
+    const intervals = new Array(7).fill(null).map((_, pos) => lol.at(pos)?.at(sliced.at(pos) as any))
+    if (intervals.includes(undefined as any)) return;
+    const scaleName = intervals.filter(e => e!== null).join(',')
+    const scale = Scale.fromName(scaleName)
+    const quality = Scale.quality(scale)
+    const table = Scale.qualityToQualityTable(quality)
+    const value = Scale.fromQualityTable(table)
+    const name = Scale.name(value)
+    // console.log(scaleName, '——>', quality, '——>', name)
+    if (scaleName !== name) console.log('ERROR', pos, scaleName, '|', scale, '|', quality, '|', name)
+    return {
+      scaleName,
+      scale,
+      quality,
+      table,
+      value,
+      name
+    }
+  })
+
+// console.log(Interval.nameRegexp)
+
+// const regexps = makeRegexpFromStrings([...Scale.mainQualitiesToNameMap].map(([mainQuality]) => mainQuality))
+// const strings = ['a', 'abc', 'abcd', 'bce', 'bcz']
+// const strings = [...Scale.mainQualitiesToNameMap].map(([mainQuality]) => mainQuality)
+
+// const commonNames = [...Scale.decimalValueToCommonNamesMap].map(([, name]) => name)
+// const thematicNames = [...Scale.decimalValueToThematicNamesMap].map(([, items]) => {
+//   return items.map(item => item.name)
+// }).flat()
+
+// console.log(thematicNames.length)
+// const strings = [...commonNames, ...thematicNames]
+// console.log(strings.join(','))
+
+// const regexp = makeRegexpFromStrings(strings)
+// strings.forEach(str => {
+//   console.log(str.match(regexp))
+// })
+// console.log(regexp)
+// console.log(strings)
+// ;(window as any).rrreg = new RegExp(`^${regexp.source}$`)
+
+
