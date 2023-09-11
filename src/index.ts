@@ -1,18 +1,54 @@
 import { romanize, deromanize } from 'romans'
-import scalesMainNamesJson from './scales-names.main.json'
-import scalesAltNamesJson from './scales-names.alt.json'
+import scalesMainNamesJson from './scales-names.main.js'
+import scalesAltNamesJson from './scales-names.alt.js'
 import absoluteModulo from './modules/absolute-modulo/index.js'
 import toAlphanum from './modules/to-alphanum/index.js'
 import stringsToRegexp from './modules/strings-to-regexp/index.js'
 
-/* Alteration */
+function withLabel (label: string): any {
+  return function (method: Function, _context: DecoratorContext) {
+    return function (this: any, ...args: any[]): any {
+      console.group(label)
+      return method.call(this, ...args)
+    }
+  }
+}
+function withLabelEnd (method: Function, _context: DecoratorContext): any {
+  return function (this: any, ...args: any[]): any {
+    console.groupEnd()
+    return method.call(this, ...args)
+  }
+}
+function withTime (method: Function, _context: DecoratorContext): any {
+  return function (this: any, ...args: any[]): any {
+    console.time('duration')
+    const result = method.call(this, ...args)
+    console.timeEnd('duration')
+    return result
+  }
+}
+function withInput (method: Function, _context: DecoratorContext): any {
+  return function (this: any, ...args: any[]): any {
+    console.log('input:', ...args)
+    return method.call(this, ...args)
+  }
+}
+function withResult (method: Function, _context: DecoratorContext): any {
+  return function (this: any, ...args: any[]): any {
+    const result = method.call(this, ...args)
+    console.log('result', result)
+    return result
+  }
+}
 
+/* Alteration */
 export namespace AlterationTypes {
   export type Value = number
   export type Name = string
 }
 export class Alteration {
   static nameRegexp = /(#|ß)+/
+
   static name (value: AlterationTypes.Value): AlterationTypes.Name {
     if (value > 0) return new Array(value).fill('#').join('')
     if (value < 0) return new Array(-1 * value).fill('ß').join('')
@@ -75,6 +111,11 @@ export class Interval {
     }
   }
 
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Interval.simplify')
   static simplify (value: IntervalTypes.Value): IntervalTypes.SimpleValue {
     const { step, alteration } = value
     const simpleStep = Math.floor(
@@ -106,6 +147,11 @@ export class Interval {
 
   static semitonesValues: [0, 2, 4, 5, 7, 9, 11] = [0, 2, 4, 5, 7, 9, 11]
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Interval.semitones')
   static semitones (value: IntervalTypes.Value): number {
     const simplified = Interval.simplify(value)
     const simplifiedStepAsSemitones = Interval.semitonesValues
@@ -177,6 +223,11 @@ export class Interval {
     return distanceAppliedToSecondAxis
   }
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Interval.sort')
   static sort (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
   static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
   static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
@@ -199,6 +250,11 @@ export class Interval {
     return dedupedIntervals
   }
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Interval.semitoneDedupe')
   static semitoneDedupe (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
   static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
   static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
@@ -230,6 +286,11 @@ export class Interval {
     })
   }
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Interval.shiftStep')
   static shiftStep (
     interval: IntervalTypes.Value,
     step: IntervalTypes.StepValue
@@ -475,10 +536,20 @@ export class Scale {
     return intervals
   }
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Scale.name')
   static name (scale: ScaleTypes.Value): ScaleTypes.Name {
     return scale.map(interval => Interval.name(interval)).join(',')
   }
   
+  // @withLabelEnd
+  // @withResult
+  // @withTime
+  // @withInput
+  // @withLabel('Scale.reallocate')
   static reallocate (scale: ScaleTypes.Value): ScaleTypes.Value {
     const sortedDeduped = Interval.sort(Interval.semitoneDedupe(scale))
     const nbIntervals = sortedDeduped.length
@@ -877,6 +948,15 @@ export class Scale {
     const steps = Array.isArray(_steps) ? _steps : [_steps]
     return scale.filter(int => !steps.includes(int.step))
   }
+
+  static isMajor (scale: ScaleTypes.Value): boolean {
+    return Scale.hasIntervals(scale, Interval.commonNames.majorThird)
+  }
+
+  static isMinor (scale: ScaleTypes.Value): boolean {
+    return !Scale.isMajor(scale)
+      && Scale.hasIntervals(scale, Interval.commonNames.minorThird)
+  }
   
   static qualityTableSort (_qualityTable: ScaleTypes.QualityTable): ScaleTypes.QualityTable {
     const qualityTable = { ..._qualityTable }
@@ -932,15 +1012,6 @@ export class Scale {
         .map(e => e.name)
       }) as ScaleTypes.QualityTable['additions']
       return qualityTable
-  }
-
-  static isMajor (scale: ScaleTypes.Value): boolean {
-    return Scale.hasIntervals(scale, Interval.commonNames.majorThird)
-  }
-
-  static isMinor (scale: ScaleTypes.Value): boolean {
-    return !Scale.isMajor(scale)
-      && Scale.hasIntervals(scale, Interval.commonNames.minorThird)
   }
   
   static qualityTable (scale: ScaleTypes.Value): ScaleTypes.QualityTable {
@@ -1078,13 +1149,11 @@ export class Scale {
       }
     }
   
-    // Diminished
-    if (isDim) {
+    if (isDim) { // Diminished
       qualityTable.mainQuality = ScaleTypes.MainQualities.DIM
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
       
-      // dim + 13th
-      if (hasMajorSixth) {
+      if (hasMajorSixth) { // dim + 13th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
@@ -1104,8 +1173,7 @@ export class Scale {
           handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         }
       
-      // dim + ß13th
-      } else if (hasMinorSixth) {
+      } else if (hasMinorSixth) { // dim + ß13th
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
@@ -1125,14 +1193,12 @@ export class Scale {
           handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         }
   
-      // dim + 11th
-      } else if (hasPerfectFourth) {
+      } else if (hasPerfectFourth) { // dim + 11th
         qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
@@ -1141,14 +1207,12 @@ export class Scale {
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
-      // dim + #11th
-      } else if (hasPerfectFourth) {
+      } else if (hasPerfectFourth) { // dim + #11th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
@@ -1157,61 +1221,52 @@ export class Scale {
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         
-      // dim + 9th
-      } else if (hasMajorSecond) {
+      } else if (hasMajorSecond) { // dim + 9th
         qualityTable.mainQuality = ScaleTypes.MainQualities.NINE
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
       
-      // dim + ß9th
-      } else if (hasMinorSecond) {
+      } else if (hasMinorSecond) { // dim + ß9th
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
-      // dim + ßß7th
-      } else if (hasDiminishedSeventh) {
+      } else if (hasDiminishedSeventh) { // dim + ßß7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.DIM_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
       
-      // dim + ß7th
-      } else if (hasMinorSeventh) {
+      } else if (hasMinorSeventh) { // dim + ß7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
       
-      // dim + 7th
-      } else if (hasMajorSeventh) {
+      } else if (hasMajorSeventh) { // dim + 7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
     
-    // Augmented
-    } else if (isAug) {
+    } else if (isAug) { // Augmented
       qualityTable.mainQuality = ScaleTypes.MainQualities.AUG
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3', '#5'].includes(i))
   
-      // aug + 13th
-      if (hasMajorSixth) {
+      if (hasMajorSixth) { // aug + 13th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
@@ -1230,8 +1285,7 @@ export class Scale {
           handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         }
       
-      // aug + ß13th
-      } else if (hasMinorSixth) {
+      } else if (hasMinorSixth) { // aug + ß13th
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
@@ -1250,13 +1304,11 @@ export class Scale {
           handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         }
   
-      // aug + 11th
-      } else if (hasPerfectFourth) {
+      } else if (hasPerfectFourth) { // aug + 11th
         qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
@@ -1265,13 +1317,11 @@ export class Scale {
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
-      // aug + #11th
-      } else if (hasPerfectFourth) {
+      } else if (hasPerfectFourth) { // aug + #11th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
@@ -1280,53 +1330,44 @@ export class Scale {
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         
-      // aug + 9th
-      } else if (hasMajorSecond) {
+      } else if (hasMajorSecond) { // aug + 9th
         qualityTable.mainQuality = ScaleTypes.MainQualities.NINE
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
       
-      // aug + ß9th
-      } else if (hasMinorSecond) {
+      } else if (hasMinorSecond) { // aug + ß9th
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
-        // M
-        if (hasMajorSeventh && !hasMinorSeventh) {
+        if (hasMajorSeventh && !hasMinorSeventh) { // M
           qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
-      // aug + ß7th
-      } else if (hasMinorSeventh) {
+      } else if (hasMinorSeventh) { // aug + ß7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
       
-      // aug + 7th
-      } else if (hasMajorSeventh) {
+      } else if (hasMajorSeventh) { // aug + 7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_MAJ_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       
-      // aug + ßß7th
-      } else if (hasDiminishedSeventh) {
+      } else if (hasDiminishedSeventh) { // aug + ßß7th
         qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_DIM_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
       }
   
-    // Not diminished nor augmented
-    } else {
+    } else { // Not diminished nor augmented
   
-      // 13th
-      if (hasMajorSixth) {
+      if (hasMajorSixth) { // 13th
         qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
@@ -1348,8 +1389,7 @@ export class Scale {
         // 3rd
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
-      // ß13
-      } else if (hasMinorSixth) {
+      } else if (hasMinorSixth) { // ß13
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
@@ -1371,17 +1411,14 @@ export class Scale {
         // 3rd
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
-      // 11
-      } else if (hasPerfectFourth) {
+      } else if (hasPerfectFourth) { // 11
         qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
   
-        // Only 1 and 4 => 4
-        if (namedIntervals.length === 2 && hasFirst) {
+        if (namedIntervals.length === 2 && hasFirst) { // Only 1 and 4 => 4
           qualityTable.mainQuality = ScaleTypes.MainQualities.FOUR
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
-        // No 3 or ß3 => sus4
-        } else if (!hasMajorThird && !hasMinorThird) {
+        } else if (!hasMajorThird && !hasMinorThird) { // No 3 or ß3 => sus4
           qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_4
           if (hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_4
@@ -1413,8 +1450,7 @@ export class Scale {
           // 5th
           handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
   
-        // Has 3 or ß3
-        } else {
+        } else { // Has 3 or ß3
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
@@ -1435,8 +1471,7 @@ export class Scale {
         qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
   
-        // No 3 or ß3, => sus#4
-        if (!hasMajorThird && !hasMinorThird) {
+        if (!hasMajorThird && !hasMinorThird) { // No 3 or ß3, => sus#4
           qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_SHARP_4
           if (hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_SHARP_4
@@ -1468,10 +1503,8 @@ export class Scale {
           // 5th
           handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
   
-        // Has 3 or ß3
-        } else {
-          // M
-          if (hasMajorSeventh && !hasMinorSeventh) {
+        } else { // Has 3 or ß3
+          if (hasMajorSeventh && !hasMinorSeventh) { // M
             qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
@@ -1485,18 +1518,14 @@ export class Scale {
           handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
         }
   
-      // 9
-      } else if (hasMajorSecond) {
+      } else if (hasMajorSecond) { // 9
         qualityTable.mainQuality = ScaleTypes.MainQualities.NINE        
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         
-        // Only 1 and 2 => 2
-        if (namedIntervals.length === 2 && hasFirst) {
+        if (namedIntervals.length === 2 && hasFirst) { // Only 1 and 2 => 2
           qualityTable.mainQuality = ScaleTypes.MainQualities.TWO
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
-        
-        // No 3, ß3 => sus2
-        } else if (!hasMajorThird && !hasMinorThird) {
+        } else if (!hasMajorThird && !hasMinorThird) { // No 3, ß3 => sus2
           qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_2
           if (hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_2
@@ -1507,9 +1536,7 @@ export class Scale {
           }
           // 5th
           handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-        
-        // Has 3 or ß3
-        } else {
+        } else { // Has 3 or ß3
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
@@ -1523,13 +1550,11 @@ export class Scale {
           handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
         }
   
-      // ß9
-      } else if (hasMinorSecond) {
+      } else if (hasMinorSecond) { // ß9
         qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         
-        // No 3, ß3 => susß2
-        if (!hasMajorThird && !hasMinorThird) {
+        if (!hasMajorThird && !hasMinorThird) { // No 3, ß3 => susß2
           qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_FLAT_2
           if (hasMinorSeventh) {
             qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2
@@ -1540,11 +1565,9 @@ export class Scale {
           }
           // 5th
           handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
-  
-        // Has 3 or ß3
-        } else {
-          // M
-          if (hasMajorSeventh && !hasMinorSeventh) {
+
+        } else { // Has 3 or ß3
+          if (hasMajorSeventh && !hasMinorSeventh) { // M
             qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
@@ -1556,8 +1579,7 @@ export class Scale {
           handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
         }
   
-      // 7
-      } else if (hasMinorSeventh) {
+      } else if (hasMinorSeventh) { // 7
         qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
         // 5th
@@ -1565,8 +1587,7 @@ export class Scale {
         // 3rd
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
-      // M7
-      } else if (hasMajorSeventh) {
+      } else if (hasMajorSeventh) { // M7
         qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         // 5th
@@ -1574,18 +1595,15 @@ export class Scale {
         // 3rd
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
-      // No extension
-      } else {
-        // Only 1 and 3 => 3
-        if (namedIntervals.length === 2 && hasFirst && hasMajorThird) {
+      } else { // No extension
+        if (namedIntervals.length === 2 && hasFirst && hasMajorThird) { // Only 1 and 3 => 3
           qualityTable.mainQuality = ScaleTypes.MainQualities.THREE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '3'].includes(i))
-        } else if (namedIntervals.length === 2 && hasFirst && hasMinorThird) {
+        } else if (namedIntervals.length === 2 && hasFirst && hasMinorThird) { // Only 1 and ß3 => m3
           qualityTable.mainQuality = ScaleTypes.MainQualities.THREE
           qualityTable.hasMinorQuality = true
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', 'ß3'].includes(i))
-        // Only 1 and 5 => 5
-        } else if (namedIntervals.length === 2 && hasFirst && hasPerfectFifth) {
+        } else if (namedIntervals.length === 2 && hasFirst && hasPerfectFifth) { // Only 1 and 5 => 5
           qualityTable.mainQuality = ScaleTypes.MainQualities.FIVE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '5'].includes(i))
         }

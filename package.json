@@ -1,6 +1,11 @@
 {
   "devDependencies": {
+    "@babel/core": "^7.22.17",
+    "@babel/plugin-proposal-decorators": "^7.22.15",
+    "@babel/preset-env": "^7.22.15",
+    "@babel/preset-typescript": "^7.22.15",
     "esbuild": "^0.18.17",
+    "esbuild-plugin-babel": "^0.2.3",
     "typescript": "^5.1.6"
   },
   "name": "js-music",
@@ -9,9 +14,7 @@
   "type": "module",
   "scripts": {
     "start": "npx concurrently -n 'build,serve' 'npm run watch' 'npm run serve'",
-    "watch-index": "npx esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --watch --minify --sourcemap",
-    "watch-tests": "npx esbuild src/tests.ts --bundle --outfile=dist/tests.js --format=esm --watch --minify --sourcemap",
-    "watch": "npx concurrently -n 'index,tests' 'npm run watch-index' 'npm run watch-tests'",
+    "watch": "node esbuild.config.js",
     "serve": "npx http-server --cors --port 3000 --c-1"
   },
   "repository": {

@@ -56,9 +56,9 @@ new Graph()
   .add('Scale.merge', ['Interval.sort', 'Interval.dedupe'])
   .add('Scale.part', ['Interval.name'])
   .add('Scale.omitStep', [])
-  .add('Scale.qualityTableSort', ['Interval.fromName', 'Interval.semitones'])
   .add('Scale.isMajor', ['Scale.hasIntervals', 'Interval.commonNames'])
   .add('Scale.isMinor', ['Scale.isMajor', 'Scale.hasIntervals', 'Interval.commonNames'])
+  .add('Scale.qualityTableSort', ['Interval.fromName', 'Interval.semitones'])
   .add('Scale.qualityTable', ['Interval.name', 'Scale.qualityTableSort', 'Scale.hasIntervals', 'Interval.commonNames', 'Scale.hasSteps', 'Scale.isMajor', 'Scale.isMinor'])
   .add('Scale.qualityTableToQuality', [])
   .add('Scale.quality', ['Scale.qualityTable', 'Scale.qualityTableToQuality'])
@@ -535,43 +535,43 @@ assert('Scale with intervals 1, ß2, 2, ß3, 3, ßß6, ß6, 6, ß7, 7 is realloc
 ]).map(int => Interval.name(int)).join(',') === '1,ß2,2,ß3,3,##4,#5,6,#6,7')
 
 
-const lol = [
-  ['1', null],
-  ['ß2', '2', null],
-  ['ß3', '3', null],
-  ['4', '#4', null],
-  ['ß5', '5', '#5', null],
-  ['ß6', '6', null],
-  ['ßß7', 'ß7', '7', null]
-]
+// const lol = [
+//   ['1', null],
+//   ['ß2', '2', null],
+//   ['ß3', '3', null],
+//   ['4', '#4', null],
+//   ['ß5', '5', '#5', null],
+//   ['ß6', '6', null],
+//   ['ßß7', 'ß7', '7', null]
+// ]
 
-new Array(Math.pow(4, 7))
-// new Array(1)
-  .fill(0)
-  .map((_, pos) => {
-    const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
-    const reversedBase4Pos = [...base4Pos].reverse()
-    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
-    const sliced = withZeros.slice(0, 7).reverse()
-    const intervals = new Array(7).fill(null).map((_, pos) => lol.at(pos)?.at(sliced.at(pos) as any))
-    if (intervals.includes(undefined as any)) return;
-    const scaleName = intervals.filter(e => e!== null).join(',')
-    const scale = Scale.fromName(scaleName)
-    const quality = Scale.quality(scale)
-    const table = Scale.qualityToQualityTable(quality)
-    const value = Scale.fromQualityTable(table)
-    const name = Scale.name(value)
-    // console.log(scaleName, '——>', quality, '——>', name)
-    if (scaleName !== name) console.log('ERROR', pos, scaleName, '|', scale, '|', quality, '|', name)
-    return {
-      scaleName,
-      scale,
-      quality,
-      table,
-      value,
-      name
-    }
-  })
+// new Array(Math.pow(4, 7))
+// // new Array(1)
+//   .fill(0)
+//   .map((_, pos) => {
+//     const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
+//     const reversedBase4Pos = [...base4Pos].reverse()
+//     const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
+//     const sliced = withZeros.slice(0, 7).reverse()
+//     const intervals = new Array(7).fill(null).map((_, pos) => lol.at(pos)?.at(sliced.at(pos) as any))
+//     if (intervals.includes(undefined as any)) return;
+//     const scaleName = intervals.filter(e => e!== null).join(',')
+//     const scale = Scale.fromName(scaleName)
+//     const quality = Scale.quality(scale)
+//     const table = Scale.qualityToQualityTable(quality)
+//     const value = Scale.fromQualityTable(table)
+//     const name = Scale.name(value)
+//     // console.log(scaleName, '——>', quality, '——>', name)
+//     if (scaleName !== name) console.log('ERROR', pos, scaleName, '|', scale, '|', quality, '|', name)
+//     return {
+//       scaleName,
+//       scale,
+//       quality,
+//       table,
+//       value,
+//       name
+//     }
+//   })
 
 // console.log(Interval.nameRegexp)
 
