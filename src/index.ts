@@ -1,54 +1,33 @@
-import { romanize, deromanize } from 'romans'
-import scalesMainNamesJson from './scales-names.main.js'
-import scalesAltNamesJson from './scales-names.alt.js'
+import { romanize, deromanize } from './modules/romans-safe/index.js'
+import { REGEXPS } from './regexps.js'
 import absoluteModulo from './modules/absolute-modulo/index.js'
 import toAlphanum from './modules/to-alphanum/index.js'
-import stringsToRegexp from './modules/strings-to-regexp/index.js'
+import * as regexpUtils from './modules/regexp-utils/index.js'
+import { MainQualities, qualitiesToIntervalsNameMap } from './data/scales-qualities.js'
+import * as scalesData from './data/scales-names.js'
 
-function withLabel (label: string): any {
-  return function (method: Function, _context: DecoratorContext) {
-    return function (this: any, ...args: any[]): any {
-      console.group(label)
-      return method.call(this, ...args)
-    }
-  }
-}
-function withLabelEnd (method: Function, _context: DecoratorContext): any {
-  return function (this: any, ...args: any[]): any {
-    console.groupEnd()
-    return method.call(this, ...args)
-  }
-}
-function withTime (method: Function, _context: DecoratorContext): any {
-  return function (this: any, ...args: any[]): any {
-    console.time('duration')
-    const result = method.call(this, ...args)
-    console.timeEnd('duration')
-    return result
-  }
-}
-function withInput (method: Function, _context: DecoratorContext): any {
-  return function (this: any, ...args: any[]): any {
-    console.log('input:', ...args)
-    return method.call(this, ...args)
-  }
-}
-function withResult (method: Function, _context: DecoratorContext): any {
-  return function (this: any, ...args: any[]): any {
-    const result = method.call(this, ...args)
-    console.log('result', result)
-    return result
-  }
-}
+/*
+
+interval('c^4') === pitch('c^4')
+chord('C^4mixolydian') === key('C^4mixolydian')
+pitch('c^4', scale) => gives a scale context to the pitch
+so you can do pitch('!4', majorScale) => access the fourth of the major scale  
+pitch('')
+
+by default, method calls on instance do mutate value or not ?
+- pitch.clone().doStuff() ?
+- pitch.doStuff().mutate(pitch) ?
+
+*/
 
 /* Alteration */
+
 export namespace AlterationTypes {
   export type Value = number
   export type Name = string
 }
-export class Alteration {
-  static nameRegexp = /(#|ß)+/
 
+export class Alteration {
   static name (value: AlterationTypes.Value): AlterationTypes.Name {
     if (value > 0) return new Array(value).fill('#').join('')
     if (value < 0) return new Array(-1 * value).fill('ß').join('')
@@ -59,6 +38,17 @@ export class Alteration {
     const sharps = chars.filter(char => char === '#').length
     const flats = chars.filter(char => char === 'ß').length
     return sharps - flats
+  }
+
+  static lessAltered (...alterations: AlterationTypes.Value[]): AlterationTypes.Value | undefined {
+    const sorted = alterations
+      .map(alt => ({
+        value: alt,
+        weight: alt > 0 ? alt + .5 : Math.abs(alt)
+      }))
+      .sort((itemA, itemB) => itemA.weight - itemB.weight)
+      .map(item => item.value)
+    return sorted.at(0)
   }
 }
 
@@ -78,10 +68,6 @@ export namespace IntervalTypes {
 }
 
 export class Interval {
-  static simpleStepNameRegexp = /1|2|3|4|5|6|7/
-  static stepNameRegexp = /-?[1-9]([0-9])*/
-  static simpleNameRegexp = new RegExp(`(${Alteration.nameRegexp.source})?(${Interval.simpleStepNameRegexp.source})`)
-  static nameRegexp = new RegExp(`(${Alteration.nameRegexp.source})?(${Interval.stepNameRegexp.source})`)
   static name (value: IntervalTypes.Value): IntervalTypes.Name {
     const { step, alteration } = value
     const alterationName = Alteration.name(alteration)
@@ -111,11 +97,6 @@ export class Interval {
     }
   }
 
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Interval.simplify')
   static simplify (value: IntervalTypes.Value): IntervalTypes.SimpleValue {
     const { step, alteration } = value
     const simpleStep = Math.floor(
@@ -127,6 +108,7 @@ export class Interval {
     }
   }
 
+  // [WIP] should find a way to put getters here
   static commonNames = {
     first: Interval.simplify(Interval.fromName('1', true)),
     majorSecond: Interval.simplify(Interval.fromName('2', true)),
@@ -147,11 +129,6 @@ export class Interval {
 
   static semitonesValues: [0, 2, 4, 5, 7, 9, 11] = [0, 2, 4, 5, 7, 9, 11]
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Interval.semitones')
   static semitones (value: IntervalTypes.Value): number {
     const simplified = Interval.simplify(value)
     const simplifiedStepAsSemitones = Interval.semitonesValues
@@ -223,11 +200,6 @@ export class Interval {
     return distanceAppliedToSecondAxis
   }
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Interval.sort')
   static sort (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
   static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
   static sort (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
@@ -250,11 +222,6 @@ export class Interval {
     return dedupedIntervals
   }
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Interval.semitoneDedupe')
   static semitoneDedupe (intervals: IntervalTypes.SimpleValue[]): IntervalTypes.SimpleValue[]
   static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[]
   static semitoneDedupe (intervals: IntervalTypes.Value[]): IntervalTypes.Value[] {
@@ -286,11 +253,6 @@ export class Interval {
     })
   }
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Interval.shiftStep')
   static shiftStep (
     interval: IntervalTypes.Value,
     step: IntervalTypes.StepValue
@@ -344,191 +306,27 @@ export class Interval {
 export namespace ScaleTypes {
   export type Value = IntervalTypes.SimpleValue[]
   export type Name = string
-  export enum MainQualities {
-    OMITTED_MAJOR = '',
-    EXPLICIT_MAJOR = 'maj',
-    TWO = '2',
-    THREE = '3',
-    FOUR = '4',
-    FIVE = '5',
-    SUS_2 = 'sus2',
-    SUS_FLAT_2 = 'susß2',
-    SUS_SHARP_2 = 'sus#2',
-    SUS_4 = 'sus4',
-    SUS_FLAT_4 = 'susß4',
-    SUS_SHARP_4 = 'sus#4',
-    DIM = 'dim',
-    AUG = 'aug',
-    SIX = '6',
-    FLAT_SIX = 'ß6',
-    SHARP_SIX = '#6',
-    SEVEN = '7',
-    FLAT_SEVEN = 'ß7',
-    MAJ_SEVEN = 'M7',
-    DIM_SEVEN = 'dim7',
-    DIM_FLAT_SEVEN = 'dimß7',
-    DIM_DIM_SEVEN = 'dimßß7',
-    DIM_MAJ_SEVEN = 'dimM7',
-    AUG_SEVEN = 'aug7',
-    AUG_FLAT_SEVEN = 'augß7',
-    AUG_DIM_SEVEN = 'augßß7',
-    AUG_MAJ_SEVEN = 'augM7',
-    SUS_24 = 'sus24',
-    SUS_FLAT_2_4 = 'susß24',
-    SUS_SHARP_2_4 = 'sus#24',
-    SUS_2_FLAT_4 = 'sus2ß4',
-    SUS_2_SHARP_4 = 'sus2#4',
-    SUS_FLAT_2_FLAT_4 = 'susß2ß4',
-    SUS_FLAT_2_SHARP_4 = 'susß2#4',
-    SUS_SHARP_2_FLAT_4 = 'sus#2ß4',
-    SUS_SHARP_2_SHARP_4 = 'sus#2#4',
-    SEVEN_SUS_2 = '7sus2',
-    SEVEN_SUS_FLAT_2 = '7susß2',
-    SEVEN_SUS_SHARP_2 = '7sus#2',
-    MAJ_SEVEN_SUS_2 = 'M7sus2',
-    MAJ_SEVEN_SUS_FLAT_2 = 'M7susß2',
-    MAJ_SEVEN_SUS_SHARP_2 = 'M7sus#2',
-    SEVEN_SUS_4 = '7sus4',
-    SEVEN_SUS_FLAT_4 = '7susß4',
-    SEVEN_SUS_SHARP_4 = '7sus#4',
-    MAJ_SEVEN_SUS_4 = 'M7sus4',
-    MAJ_SEVEN_SUS_FLAT_4 = 'M7susß4',
-    MAJ_SEVEN_SUS_SHARP_4 = 'M7sus#4',
-    NINE = '9',
-    FLAT_NINE = 'ß9',
-    SHARP_NINE = '#9',
-    MAJ_NINE = 'M9',
-    MAJ_FLAT_NINE = 'Mß9',
-    MAJ_SHARP_NINE = 'M#9',
-    SEVEN_SUS_24 = '7sus24',
-    SEVEN_SUS_FLAT_2_4 = '7susß24',
-    SEVEN_SUS_SHARP_2_4 = '7sus#24',
-    SEVEN_SUS_2_FLAT_4 = '7sus2ß4',
-    SEVEN_SUS_2_SHARP_4 = '7sus2#4',
-    SEVEN_SUS_FLAT_2_FLAT_4 = '7susß2ß4',
-    SEVEN_SUS_FLAT_2_SHARP_4 = '7susß2#4',
-    SEVEN_SUS_SHARP_2_FLAT_4 = '7sus#2ß4',
-    SEVEN_SUS_SHARP_2_SHARP_4 = '7sus#2#4',
-    MAJ_SEVEN_SUS_24 = 'M7sus24',
-    MAJ_SEVEN_SUS_FLAT_2_4 = 'M7susß24',
-    MAJ_SEVEN_SUS_SHARP_2_4 = 'M7sus#24',
-    MAJ_SEVEN_SUS_2_FLAT_4 = 'M7sus2ß4',
-    MAJ_SEVEN_SUS_2_SHARP_4 = 'M7sus2#4',
-    MAJ_SEVEN_SUS_FLAT_2_FLAT_4 = 'M7susß2ß4',
-    MAJ_SEVEN_SUS_FLAT_2_SHARP_4 = 'M7susß2#4',
-    MAJ_SEVEN_SUS_SHARP_2_FLAT_4 = 'M7sus#2ß4',
-    MAJ_SEVEN_SUS_SHARP_2_SHARP_4 = 'M7sus#2#4',
-    ELEVEN = '11',
-    MAJ_ELEVEN = 'M11',
-    SHARP_ELEVEN = '#11',
-    MAJ_SHARP_ELEVEN = 'M#11',
-    THIRTEEN = '13',
-    MAJ_THIRTEEN = 'M13',
-    FLAT_THIRTEEN = 'ß13',
-    MAJ_FLAT_THIRTEEN = 'Mß13'
-  }
   type S = string[]
   export type QualityTable = {
-    mainQuality: ScaleTypes.MainQualities
+    mainQuality: MainQualities
     hasMinorQuality: boolean
     accidents: [S, S, S, S, S, S, S]
     omissions: [S, S, S, S, S, S, S]
     additions: [S, S, S, S, S, S, S]
     leftovers: string[]
+    inversion: IntervalTypes.SimpleValue | IntervalTypes.SimpleStepValue | null
   }
 }
 
 export class Scale {
-  static mainQualitiesToNameMap = new Map<ScaleTypes.MainQualities, string>([
-    [ScaleTypes.MainQualities.OMITTED_MAJOR, '1,3,5'],
-    [ScaleTypes.MainQualities.EXPLICIT_MAJOR, '1,3,5'],
-    [ScaleTypes.MainQualities.TWO, '1,2'],
-    [ScaleTypes.MainQualities.THREE, '1,3'],
-    [ScaleTypes.MainQualities.FOUR, '1,4'],
-    [ScaleTypes.MainQualities.FIVE, '1,5'],
-    [ScaleTypes.MainQualities.SUS_2, '1,2,5'],
-    [ScaleTypes.MainQualities.SUS_FLAT_2, '1,ß2,5'],
-    [ScaleTypes.MainQualities.SUS_SHARP_2, '1,#2,5'],
-    [ScaleTypes.MainQualities.SUS_4, '1,4,5'],
-    [ScaleTypes.MainQualities.SUS_FLAT_4, '1,ß4,5'],
-    [ScaleTypes.MainQualities.SUS_SHARP_4, '1,#4,5'],
-    [ScaleTypes.MainQualities.DIM, '1,ß3,ß5'],
-    [ScaleTypes.MainQualities.AUG, '1,3,#5'],
-    [ScaleTypes.MainQualities.SIX, '1,3,5,6'],
-    [ScaleTypes.MainQualities.FLAT_SIX, '1,3,5,ß6'],
-    [ScaleTypes.MainQualities.SHARP_SIX, '1,3,5,#6'],
-    [ScaleTypes.MainQualities.SEVEN, '1,3,5,ß7'],
-    [ScaleTypes.MainQualities.FLAT_SEVEN, '1,3,5,ß7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN, '1,3,5,7'],
-    [ScaleTypes.MainQualities.DIM_SEVEN, '1,ß3,ß5,ßß7'],
-    [ScaleTypes.MainQualities.DIM_FLAT_SEVEN, '1,ß3,ß5,ß7'],
-    [ScaleTypes.MainQualities.DIM_DIM_SEVEN, '1,ß3,ß5,ßß7'],
-    [ScaleTypes.MainQualities.DIM_MAJ_SEVEN, '1,ß3,ß5,7'],
-    [ScaleTypes.MainQualities.AUG_SEVEN, '1,3,#5,ß7'],
-    [ScaleTypes.MainQualities.AUG_FLAT_SEVEN, '1,3,#5,ß7'],
-    [ScaleTypes.MainQualities.AUG_DIM_SEVEN, '1,3,#5,ßß7'],
-    [ScaleTypes.MainQualities.AUG_MAJ_SEVEN, '1,3,#5,7'],
-    [ScaleTypes.MainQualities.SUS_24, '1,2,4,5'],
-    [ScaleTypes.MainQualities.SUS_FLAT_2_4, '1,ß2,4,5'],
-    [ScaleTypes.MainQualities.SUS_SHARP_2_4, '1,#2,4,5'],
-    [ScaleTypes.MainQualities.SUS_2_FLAT_4, '1,2,ß4,5'],
-    [ScaleTypes.MainQualities.SUS_2_SHARP_4, '1,2,#4,5'],
-    [ScaleTypes.MainQualities.SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5'],
-    [ScaleTypes.MainQualities.SUS_FLAT_2_SHARP_4, '1,ß2,#4,5'],
-    [ScaleTypes.MainQualities.SUS_SHARP_2_FLAT_4, '1,#2,ß4,5'],
-    [ScaleTypes.MainQualities.SUS_SHARP_2_SHARP_4, '1,#2,#4,5'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_2, '1,2,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2, '1,ß2,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_SHARP_2, '1,#2,5,ß7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_2, '1,2,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2, '1,ß2,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_2, '1,#2,5,7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_4, '1,4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_FLAT_4, '1,ß4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_SHARP_4, '1,#4,5,ß7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_4, '1,4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_4, '1,ß4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_4, '1,#4,5,7'],
-    [ScaleTypes.MainQualities.NINE, '1,3,5,ß7,2'],
-    [ScaleTypes.MainQualities.FLAT_NINE, '1,3,5,ß7,ß2'],
-    [ScaleTypes.MainQualities.SHARP_NINE, '1,3,5,ß7,#2'],
-    [ScaleTypes.MainQualities.MAJ_NINE, '1,3,5,7,2'],
-    [ScaleTypes.MainQualities.MAJ_FLAT_NINE, '1,3,5,7,ß2'],
-    [ScaleTypes.MainQualities.MAJ_SHARP_NINE, '1,3,5,7,#2'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_24, '1,2,4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2_4, '1,ß2,4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_SHARP_2_4, '1,#2,4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_2_FLAT_4, '1,2,ß4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_2_SHARP_4, '1,2,#4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2_SHARP_4, '1,ß2,#4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,ß4,5,ß7'],
-    [ScaleTypes.MainQualities.SEVEN_SUS_SHARP_2_SHARP_4, '1,#2,#4,5,ß7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_24, '1,2,4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2_4, '1,ß2,4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_2_4, '1,#2,4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_2_FLAT_4, '1,2,ß4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_2_SHARP_4, '1,2,#4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2_FLAT_4, '1,ß2,ß4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4, '1,ß2,#4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_2_FLAT_4, '1,#2,ß4,5,7'],
-    [ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_2_SHARP_4, '1,#2,#4,5,7'],
-    [ScaleTypes.MainQualities.ELEVEN, '1,3,5,ß7,2,4'],
-    [ScaleTypes.MainQualities.MAJ_ELEVEN, '1,3,5,7,2,4'],
-    [ScaleTypes.MainQualities.SHARP_ELEVEN, '1,3,5,ß7,2,#4'],
-    [ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN, '1,3,5,7,2,#4'],
-    [ScaleTypes.MainQualities.THIRTEEN, '1,3,5,ß7,2,4,6'],
-    [ScaleTypes.MainQualities.MAJ_THIRTEEN, '1,3,5,7,2,4,6'],
-    [ScaleTypes.MainQualities.FLAT_THIRTEEN, '1,3,5,ß7,2,4,ß6'],
-    [ScaleTypes.MainQualities.MAJ_FLAT_THIRTEEN, '1,3,5,7,2,4,ß6']
-  ])
-  static ownStepNameRegexp = new RegExp(`!(${Interval.simpleStepNameRegexp.source})`)
-  static nameRegexp = new RegExp(`${Interval.nameRegexp.source}(,${Interval.nameRegexp.source})*`)
-  static minorQualityRegexp = /m/
-  static mainQualityRegexp = new RegExp(`${stringsToRegexp([...Scale.mainQualitiesToNameMap].map(([e]) => e))}`)
+  static isMainQuality (string: string): string is MainQualities {
+    return Object
+      .values(MainQualities)
+      .includes(string as any)
+  }
 
-  static fromName (name: ScaleTypes.Name): ScaleTypes.Value {
-    const parsedIntervalNames = name.split(',')
+  static fromIntervalsName (name: string): ScaleTypes.Value {
+    const parsedIntervalNames = name.split(regexpUtils.setFlags(REGEXPS.intervalsNameSeparator, 'g'))
     const intervals = parsedIntervalNames
       .map(intervalName => Interval.fromName(intervalName))
       .filter((int): int is IntervalTypes.Value => int !== undefined)
@@ -536,20 +334,10 @@ export class Scale {
     return intervals
   }
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Scale.name')
-  static name (scale: ScaleTypes.Value): ScaleTypes.Name {
-    return scale.map(interval => Interval.name(interval)).join(',')
+  static intervalsName (scale: ScaleTypes.Value): string {
+    return scale.map(interval => Interval.name(interval)).join(REGEXPS.intervalsNameSeparator.source)
   }
   
-  // @withLabelEnd
-  // @withResult
-  // @withTime
-  // @withInput
-  // @withLabel('Scale.reallocate')
   static reallocate (scale: ScaleTypes.Value): ScaleTypes.Value {
     const sortedDeduped = Interval.sort(Interval.semitoneDedupe(scale))
     const nbIntervals = sortedDeduped.length
@@ -945,6 +733,7 @@ export class Scale {
     _steps: IntervalTypes.SimpleStepValue
       | IntervalTypes.SimpleStepValue[]
   ): ScaleTypes.Value {
+    // [WIP] use Scale.part and Scale.intervalsAtStep ?
     const steps = Array.isArray(_steps) ? _steps : [_steps]
     return scale.filter(int => !steps.includes(int.step))
   }
@@ -980,7 +769,8 @@ export class Scale {
     qualityTable.omissions = qualityTable.omissions.map(step => {
       return step
         .map(intName => {
-          if (intName.match(/^![0-9]+$/)) return {
+          const isOwnStep = regexpUtils.stringIs(intName, REGEXPS.ownStep)
+          if (isOwnStep) return {
             name: intName,
             semitoneValue: -Infinity
           }
@@ -1014,7 +804,7 @@ export class Scale {
       return qualityTable
   }
   
-  static qualityTable (scale: ScaleTypes.Value): ScaleTypes.QualityTable {
+  static qualityTable (scale: ScaleTypes.Value): ScaleTypes.QualityTable {    
     const hasFirst = Scale.hasIntervals(scale, Interval.commonNames.first)
     const hasAnyFirst = Scale.hasSteps(scale, 0)
     const hasMajorSecond = Scale.hasIntervals(scale, Interval.commonNames.majorSecond)
@@ -1045,12 +835,13 @@ export class Scale {
     type S = string[]
     const namedIntervals = scale.map(int => Interval.name(int))
     const qualityTable = {
-      mainQuality: ScaleTypes.MainQualities.OMITTED_MAJOR,
+      mainQuality: MainQualities.OMITTED_MAJOR,
       hasMinorQuality: false,
       accidents: new Array(7).fill(null).map(_ => ([] as S)) as ScaleTypes.QualityTable['accidents'],
       omissions: new Array(7).fill(null).map(_ => ([] as S)) as ScaleTypes.QualityTable['omissions'],
       additions: new Array(7).fill(null).map(_ => ([] as S)) as ScaleTypes.QualityTable['additions'],
-      leftovers: namedIntervals
+      leftovers: namedIntervals,
+      inversion: null
     }
 
     const isDim = !hasMajorThird
@@ -1150,19 +941,19 @@ export class Scale {
     }
   
     if (isDim) { // Diminished
-      qualityTable.mainQuality = ScaleTypes.MainQualities.DIM
+      qualityTable.mainQuality = MainQualities.DIM
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß3', 'ß5'].includes(i))
       
       if (hasMajorSixth) { // dim + 13th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
+        qualityTable.mainQuality = MainQualities.SIX
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.THIRTEEN
+          qualityTable.mainQuality = MainQualities.THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1174,15 +965,15 @@ export class Scale {
         }
       
       } else if (hasMinorSixth) { // dim + ß13th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
+        qualityTable.mainQuality = MainQualities.FLAT_SIX
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_THIRTEEN
+          qualityTable.mainQuality = MainQualities.FLAT_THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_FLAT_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1194,12 +985,12 @@ export class Scale {
         }
   
       } else if (hasPerfectFourth) { // dim + 11th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
+        qualityTable.mainQuality = MainQualities.ELEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
+          qualityTable.mainQuality = MainQualities.MAJ_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1208,12 +999,12 @@ export class Scale {
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
       } else if (hasPerfectFourth) { // dim + #11th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
+        qualityTable.mainQuality = MainQualities.SHARP_ELEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
+          qualityTable.mainQuality = MainQualities.MAJ_SHARP_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1222,59 +1013,59 @@ export class Scale {
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         
       } else if (hasMajorSecond) { // dim + 9th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.NINE
+        qualityTable.mainQuality = MainQualities.NINE
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
+          qualityTable.mainQuality = MainQualities.MAJ_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
       
       } else if (hasMinorSecond) { // dim + ß9th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
+        qualityTable.mainQuality = MainQualities.FLAT_NINE
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
+          qualityTable.mainQuality = MainQualities.MAJ_FLAT_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
       } else if (hasDiminishedSeventh) { // dim + ßß7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.DIM_SEVEN
+        qualityTable.mainQuality = MainQualities.DIM_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
       
       } else if (hasMinorSeventh) { // dim + ß7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN
+        qualityTable.mainQuality = MainQualities.SEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
       
       } else if (hasMajorSeventh) { // dim + 7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN
+        qualityTable.mainQuality = MainQualities.MAJ_SEVEN
         qualityTable.hasMinorQuality = true
         qualityTable.accidents[4].push('ß5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       }
     
     } else if (isAug) { // Augmented
-      qualityTable.mainQuality = ScaleTypes.MainQualities.AUG
+      qualityTable.mainQuality = MainQualities.AUG
       qualityTable.leftovers = qualityTable.leftovers.filter(i => !['3', '#5'].includes(i))
   
       if (hasMajorSixth) { // aug + 13th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
+        qualityTable.mainQuality = MainQualities.SIX
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.THIRTEEN
+          qualityTable.mainQuality = MainQualities.THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1286,14 +1077,14 @@ export class Scale {
         }
       
       } else if (hasMinorSixth) { // aug + ß13th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
+        qualityTable.mainQuality = MainQualities.FLAT_SIX
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_THIRTEEN
+          qualityTable.mainQuality = MainQualities.FLAT_THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_FLAT_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1305,11 +1096,11 @@ export class Scale {
         }
   
       } else if (hasPerfectFourth) { // aug + 11th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
+        qualityTable.mainQuality = MainQualities.ELEVEN
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
+          qualityTable.mainQuality = MainQualities.MAJ_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1318,11 +1109,11 @@ export class Scale {
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
       } else if (hasPerfectFourth) { // aug + #11th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
+        qualityTable.mainQuality = MainQualities.SHARP_ELEVEN
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
+          qualityTable.mainQuality = MainQualities.MAJ_SHARP_ELEVEN
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 9th
@@ -1331,50 +1122,50 @@ export class Scale {
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
         
       } else if (hasMajorSecond) { // aug + 9th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.NINE
+        qualityTable.mainQuality = MainQualities.NINE
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
+          qualityTable.mainQuality = MainQualities.MAJ_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
       
       } else if (hasMinorSecond) { // aug + ß9th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
+        qualityTable.mainQuality = MainQualities.FLAT_NINE
         qualityTable.accidents[4].push('#5')
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         if (hasMajorSeventh && !hasMinorSeventh) { // M
-          qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
+          qualityTable.mainQuality = MainQualities.MAJ_FLAT_NINE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         }
         // 7th
         handleSeventhsWhenExpected(hasMajorSeventh, hasMinorSeventh)
   
       } else if (hasMinorSeventh) { // aug + ß7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_SEVEN
+        qualityTable.mainQuality = MainQualities.AUG_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
       
       } else if (hasMajorSeventh) { // aug + 7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_MAJ_SEVEN
+        qualityTable.mainQuality = MainQualities.AUG_MAJ_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
       
       } else if (hasDiminishedSeventh) { // aug + ßß7th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.AUG_DIM_SEVEN
+        qualityTable.mainQuality = MainQualities.AUG_DIM_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ßß7'].includes(i))
       }
   
     } else { // Not diminished nor augmented
   
       if (hasMajorSixth) { // 13th
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SIX
+        qualityTable.mainQuality = MainQualities.SIX
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.THIRTEEN
+          qualityTable.mainQuality = MainQualities.THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1390,13 +1181,13 @@ export class Scale {
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
       } else if (hasMinorSixth) { // ß13
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_SIX
+        qualityTable.mainQuality = MainQualities.FLAT_SIX
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß6'].includes(i))
         if (hasExtensionsBelowThirteenth) {
-          qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_THIRTEEN
+          qualityTable.mainQuality = MainQualities.FLAT_THIRTEEN
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_THIRTEEN
+            qualityTable.mainQuality = MainQualities.MAJ_FLAT_THIRTEEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 11th
@@ -1412,39 +1203,39 @@ export class Scale {
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
       } else if (hasPerfectFourth) { // 11
-        qualityTable.mainQuality = ScaleTypes.MainQualities.ELEVEN
+        qualityTable.mainQuality = MainQualities.ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['4'].includes(i))
   
         if (namedIntervals.length === 2 && hasFirst) { // Only 1 and 4 => 4
-          qualityTable.mainQuality = ScaleTypes.MainQualities.FOUR
+          qualityTable.mainQuality = MainQualities.FOUR
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
         } else if (!hasMajorThird && !hasMinorThird) { // No 3 or ß3 => sus4
-          qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_4
+          qualityTable.mainQuality = MainQualities.SUS_4
           if (hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_4
+            qualityTable.mainQuality = MainQualities.SEVEN_SUS_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
             if (hasMajorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_24
+              qualityTable.mainQuality = MainQualities.SEVEN_SUS_24
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
             } else if (hasMinorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2_4
+              qualityTable.mainQuality = MainQualities.SEVEN_SUS_FLAT_2_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
             }
           } else if (hasMajorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_4
+            qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
             if (hasMajorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_24
+              qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_24
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
             } else if (hasMinorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2_4
+              qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_FLAT_2_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
             }
           } else if (hasMajorSecond) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_24
+            qualityTable.mainQuality = MainQualities.SUS_24
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           } else if (hasMinorSecond) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_FLAT_2_4
+            qualityTable.mainQuality = MainQualities.SUS_FLAT_2_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
           // 5th
@@ -1453,7 +1244,7 @@ export class Scale {
         } else { // Has 3 or ß3
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_ELEVEN
+            qualityTable.mainQuality = MainQualities.MAJ_ELEVEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 9th
@@ -1468,36 +1259,36 @@ export class Scale {
   
       // #11
       } else if (hasAugmentedFourth) {
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SHARP_ELEVEN
+        qualityTable.mainQuality = MainQualities.SHARP_ELEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['#4'].includes(i))
   
         if (!hasMajorThird && !hasMinorThird) { // No 3 or ß3, => sus#4
-          qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_SHARP_4
+          qualityTable.mainQuality = MainQualities.SUS_SHARP_4
           if (hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_SHARP_4
+            qualityTable.mainQuality = MainQualities.SEVEN_SUS_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
             if (hasMajorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_2_SHARP_4
+              qualityTable.mainQuality = MainQualities.SEVEN_SUS_2_SHARP_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
             } else if (hasMinorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2_SHARP_4
+              qualityTable.mainQuality = MainQualities.SEVEN_SUS_FLAT_2_SHARP_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
             }
           } else if (hasMajorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_SHARP_4
+            qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
             if (hasMajorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_2_SHARP_4
+              qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_2_SHARP_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
             } else if (hasMinorSecond) {
-              qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4
+              qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_FLAT_2_SHARP_4
               qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
             }
           } else if (hasMajorSecond) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_2_SHARP_4
+            qualityTable.mainQuality = MainQualities.SUS_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
           } else if (hasMinorSecond) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_FLAT_2_SHARP_4
+            qualityTable.mainQuality = MainQualities.SUS_FLAT_2_SHARP_4
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
           }
           // 5th
@@ -1505,7 +1296,7 @@ export class Scale {
   
         } else { // Has 3 or ß3
           if (hasMajorSeventh && !hasMinorSeventh) { // M
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SHARP_ELEVEN
+            qualityTable.mainQuality = MainQualities.MAJ_SHARP_ELEVEN
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 9th
@@ -1519,19 +1310,19 @@ export class Scale {
         }
   
       } else if (hasMajorSecond) { // 9
-        qualityTable.mainQuality = ScaleTypes.MainQualities.NINE        
+        qualityTable.mainQuality = MainQualities.NINE        
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['2'].includes(i))
         
         if (namedIntervals.length === 2 && hasFirst) { // Only 1 and 2 => 2
-          qualityTable.mainQuality = ScaleTypes.MainQualities.TWO
+          qualityTable.mainQuality = MainQualities.TWO
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1'].includes(i))
         } else if (!hasMajorThird && !hasMinorThird) { // No 3, ß3 => sus2
-          qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_2
+          qualityTable.mainQuality = MainQualities.SUS_2
           if (hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_2
+            qualityTable.mainQuality = MainQualities.SEVEN_SUS_2
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
           } else if (hasMajorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_2
+            qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_2
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 5th
@@ -1539,7 +1330,7 @@ export class Scale {
         } else { // Has 3 or ß3
           // M
           if (hasMajorSeventh && !hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_NINE
+            qualityTable.mainQuality = MainQualities.MAJ_NINE
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 7th
@@ -1551,16 +1342,16 @@ export class Scale {
         }
   
       } else if (hasMinorSecond) { // ß9
-        qualityTable.mainQuality = ScaleTypes.MainQualities.FLAT_NINE
+        qualityTable.mainQuality = MainQualities.FLAT_NINE
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß2'].includes(i))
         
         if (!hasMajorThird && !hasMinorThird) { // No 3, ß3 => susß2
-          qualityTable.mainQuality = ScaleTypes.MainQualities.SUS_FLAT_2
+          qualityTable.mainQuality = MainQualities.SUS_FLAT_2
           if (hasMinorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN_SUS_FLAT_2
+            qualityTable.mainQuality = MainQualities.SEVEN_SUS_FLAT_2
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
           } else if (hasMajorSeventh) {
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN_SUS_FLAT_2
+            qualityTable.mainQuality = MainQualities.MAJ_SEVEN_SUS_FLAT_2
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 5th
@@ -1568,7 +1359,7 @@ export class Scale {
 
         } else { // Has 3 or ß3
           if (hasMajorSeventh && !hasMinorSeventh) { // M
-            qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_FLAT_NINE
+            qualityTable.mainQuality = MainQualities.MAJ_FLAT_NINE
             qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
           }
           // 7th
@@ -1580,7 +1371,7 @@ export class Scale {
         }
   
       } else if (hasMinorSeventh) { // 7
-        qualityTable.mainQuality = ScaleTypes.MainQualities.SEVEN
+        qualityTable.mainQuality = MainQualities.SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['ß7'].includes(i))
         // 5th
         handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1588,7 +1379,7 @@ export class Scale {
         handleThirdsWhenExpected(isMajor, isMinor, hasAnyThird)
   
       } else if (hasMajorSeventh) { // M7
-        qualityTable.mainQuality = ScaleTypes.MainQualities.MAJ_SEVEN
+        qualityTable.mainQuality = MainQualities.MAJ_SEVEN
         qualityTable.leftovers = qualityTable.leftovers.filter(i => !['7'].includes(i))
         // 5th
         handleFifthsWhenExpected(hasPerfectFifth, hasAnyFifth)
@@ -1597,14 +1388,14 @@ export class Scale {
   
       } else { // No extension
         if (namedIntervals.length === 2 && hasFirst && hasMajorThird) { // Only 1 and 3 => 3
-          qualityTable.mainQuality = ScaleTypes.MainQualities.THREE
+          qualityTable.mainQuality = MainQualities.THREE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '3'].includes(i))
         } else if (namedIntervals.length === 2 && hasFirst && hasMinorThird) { // Only 1 and ß3 => m3
-          qualityTable.mainQuality = ScaleTypes.MainQualities.THREE
+          qualityTable.mainQuality = MainQualities.THREE
           qualityTable.hasMinorQuality = true
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', 'ß3'].includes(i))
         } else if (namedIntervals.length === 2 && hasFirst && hasPerfectFifth) { // Only 1 and 5 => 5
-          qualityTable.mainQuality = ScaleTypes.MainQualities.FIVE
+          qualityTable.mainQuality = MainQualities.FIVE
           qualityTable.leftovers = qualityTable.leftovers.filter(i => !['1', '5'].includes(i))
         }
         // 5th
@@ -1647,9 +1438,13 @@ export class Scale {
     quality += qualityTable.mainQuality
     qualityTable.accidents.flat().forEach(accident => { quality += `${accident}` })
     const flattenedOmissions = qualityTable.omissions.flat()
-    if (flattenedOmissions.length > 0) { quality += `no(${flattenedOmissions.join(',')})` }
+    if (flattenedOmissions.length > 0) {
+      quality += `no(${flattenedOmissions.join(REGEXPS.intervalsNameSeparator.source)})`
+    }
     const flattenedAdditions = qualityTable.additions.flat()
-    if (flattenedAdditions.length > 0) { quality += `add(${flattenedAdditions.join(',')})` }
+    if (flattenedAdditions.length > 0) {
+      quality += `add(${flattenedAdditions.join(REGEXPS.intervalsNameSeparator.source)})`
+    }
     return quality
   }
   
@@ -1658,68 +1453,95 @@ export class Scale {
     const quality = Scale.qualityTableToQuality(qualityTable)
     return quality
   }
-  
+
+  // [WIP] invertedQualities
+
   static qualityToQualityTable (quality: string): ScaleTypes.QualityTable {
     let workingQuality = quality
     const qualityTable: ScaleTypes.QualityTable = {
-      mainQuality: ScaleTypes.MainQualities.OMITTED_MAJOR,
+      mainQuality: MainQualities.OMITTED_MAJOR,
       hasMinorQuality: false,
       accidents: new Array(7).fill(null).map(e => ([])) as unknown as ScaleTypes.QualityTable['accidents'],
       omissions: new Array(7).fill(null).map(e => ([])) as unknown as ScaleTypes.QualityTable['omissions'],
       additions: new Array(7).fill(null).map(e => ([])) as unknown as ScaleTypes.QualityTable['additions'],
-      leftovers: []
+      leftovers: [],
+      inversion: null
+    }
+
+    // Inversion
+    const inversionBlockRegexp = regexpUtils.setFlags(REGEXPS.inversion, 'g')
+    const inversionBlockMatchArr = workingQuality.match(inversionBlockRegexp) ?? []
+    const inversionBlock = inversionBlockMatchArr.at(0)
+    if (inversionBlock !== undefined) {
+      workingQuality = workingQuality.replace(inversionBlockRegexp, '')
+      const inversionIdentifierRegexp = regexpUtils.fromStart(REGEXPS.inversionIdentifier, 'g')
+      const inversionIntOrOwnStep = inversionBlock.replace(inversionIdentifierRegexp, '')
+      const isOwnStep = regexpUtils.stringIs(inversionIntOrOwnStep, REGEXPS.ownStep)
+      if (isOwnStep) {
+        const ownStepStartRegexp = regexpUtils.fromStart(REGEXPS.ownStepStart, 'g')
+        const stepStr = inversionIntOrOwnStep.replace(ownStepStartRegexp, '')
+        const intFromStep = Interval.fromName(stepStr)
+        if (intFromStep !== undefined) {
+          const int = Interval.simplify(intFromStep)
+          qualityTable.inversion = int.step
+        }
+      } else {
+        const int = Interval.fromName(inversionIntOrOwnStep)
+        if (int !== undefined) { qualityTable.inversion = Interval.simplify(int) }
+      }
     }
   
     // Minor quality
-    const minorQualityRegexp = new RegExp(`^${Scale.minorQualityRegexp.source}`)
-    qualityTable.hasMinorQuality = workingQuality.match(minorQualityRegexp) !== null
+    const minorQualityRegexp = regexpUtils.fromStart(REGEXPS.minorQuality, 'g')
+    qualityTable.hasMinorQuality = minorQualityRegexp.test(workingQuality)
     if (qualityTable.hasMinorQuality) workingQuality = workingQuality.replace(minorQualityRegexp, '')
   
     // Main quality
-    const mainQualitiesArr = Object
-      .entries(ScaleTypes.MainQualities)
-      .map(([_, val]) => val)
-      .filter(qual => qual !== '')
-      .sort((qualA, qualB) => qualB.length - qualA.length)
-    qualityTable.mainQuality = mainQualitiesArr.find(qual => {
-      const qualLength = qual.length
-      const workingQualityFirstChars = workingQuality.slice(0, qualLength)
-      return workingQualityFirstChars === qual
-    }) ?? ScaleTypes.MainQualities.OMITTED_MAJOR
+    const mainQualityRegexp = regexpUtils.fromStart(REGEXPS.mainQuality, 'g')
+    const foundMainQuality = regexpUtils.stringStartsWith(workingQuality, mainQualityRegexp, true)?.at(0)
+    if (foundMainQuality !== undefined && Scale.isMainQuality(foundMainQuality)) {
+      qualityTable.mainQuality = foundMainQuality
+    }
     workingQuality = workingQuality.slice(qualityTable.mainQuality.length)
   
-    const intervalOrStepRegex = new RegExp(`((${Interval.nameRegexp.source})|(${Scale.ownStepNameRegexp.source}))`)
-    const intervalOrStepBlockRegex = new RegExp(`${intervalOrStepRegex.source}(,${intervalOrStepRegex.source})*`)
-    const omissionBlockRegex = new RegExp(`no\\(${intervalOrStepBlockRegex.source}\\)`, 'igm')
-    const additionBlockRegex = new RegExp(`add\\(${Scale.nameRegexp.source}\\)`, 'igm')
-  
     // Omissions
-    const omissionsBlocks = workingQuality.match(omissionBlockRegex) ?? []
+    const omissionBlocksRegex = regexpUtils.setFlags(REGEXPS.omissions, 'g')
+    const omissionsBlocks = (workingQuality.match(omissionBlocksRegex) ?? [])      
     omissionsBlocks.forEach(omissionBlock => {
       workingQuality = workingQuality.replace(omissionBlock, '')
+      const blockStartRegexp = regexpUtils.fromStart(REGEXPS.omissionsStart)
+      const blockEndRegexp = regexpUtils.toEnd(REGEXPS.omissionsEnd)
       const omittedIntervalsNames = omissionBlock
-        .replace(/^no\(/, '')
-        .replace(/\)$/, '')
-        .split(',')
-      omittedIntervalsNames.forEach(intName => {
+        .replace(blockStartRegexp, '')
+        .replace(blockEndRegexp, '')
+        .split(regexpUtils.setFlags(REGEXPS.intervalsNameSeparator, 'g'))
+      omittedIntervalsNames.forEach(intNameOrOwnStep => {
+        const ownStepIdentifierRegexp = regexpUtils.fromStart(REGEXPS.ownStepStart, 'g')
+        const intName = intNameOrOwnStep.replace(ownStepIdentifierRegexp, '')
         const int = Interval.fromName(intName)
         if (int === undefined) return;
-        qualityTable.omissions[Interval.simplify(int).step].push(intName)
+        const step = Interval.simplify(int).step
+        qualityTable.omissions[step].push(intNameOrOwnStep)
       })
     })
   
     // Additions
-    const additionsBlocks = workingQuality.match(additionBlockRegex) ?? []
+    const additionsBlocksRegex = regexpUtils.setFlags(REGEXPS.additions, 'g')
+    const additionsBlocks = (workingQuality.match(additionsBlocksRegex) ?? [])
+      .filter(e => typeof e === 'string')
     additionsBlocks.forEach(additionBlock => {
       workingQuality = workingQuality.replace(additionBlock, '')
+      const additionsBlockStartRegexp = regexpUtils.fromStart(REGEXPS.additionsStart, 'g')
+      const additionsBlockEndRegexp = regexpUtils.toEnd(REGEXPS.additionsEnd, 'g')
       const addedIntervalsNames = additionBlock
-        .replace(/^add\(/, '')
-        .replace(/\)$/, '')
-        .split(',')
+        .replace(additionsBlockStartRegexp, '')
+        .replace(additionsBlockEndRegexp, '')
+        .split(regexpUtils.setFlags(REGEXPS.intervalsNameSeparator, 'g'))
       addedIntervalsNames.forEach(intName => {
         const int = Interval.fromName(intName)
         if (int === undefined) return;
-        qualityTable.additions[Interval.simplify(int).step].push(intName)
+        const step = Interval.simplify(int).step
+        qualityTable.additions[step].push(intName)
       })
     })
   
@@ -1728,13 +1550,15 @@ export class Scale {
     while (true) {
       whileLoopsCnt++
       if (whileLoopsCnt >= 100) break;
-      const accident = workingQuality.match(Interval.nameRegexp)
-      if (accident === null) break;
-      workingQuality = workingQuality.replace(accident[0], '')
-      const intName = accident[0]
+      const accidentMatchArray = regexpUtils.stringStartsWith(workingQuality, REGEXPS.interval, true, 'g')
+      const accident = accidentMatchArray?.at(0)
+      if (accident === undefined) break;
+      workingQuality = workingQuality.replace(accident, '')
+      const intName = accident
       const int = Interval.fromName(intName)
       if (int === undefined) continue;
-      qualityTable.accidents[Interval.simplify(int).step].push(intName)
+      const step = Interval.simplify(int).step
+      qualityTable.accidents[step].push(intName)
     }
   
     return Scale.qualityTableSort(qualityTable)
@@ -1746,14 +1570,21 @@ export class Scale {
       mainQuality,
       accidents,
       omissions,
-      additions
+      additions,
+      inversion
     } = Scale.qualityTableSort(_qualityTable)
-    const mainQualityScaleName = Scale.mainQualitiesToNameMap.get(mainQuality) ?? '1,3,5'
-    let returnedScale = Scale.fromName(mainQualityScaleName)
+    
+    // Main quality
+    const mainQualityScaleName = qualitiesToIntervalsNameMap.get(mainQuality) ?? '1,3,5'
+    let returnedScale = Scale.fromIntervalsName(mainQualityScaleName)
+    
+    // Minor quality
     if (hasMinorQuality) {
       returnedScale = Scale.omitStep(returnedScale, 2)
-      returnedScale = Scale.merge(returnedScale, Scale.fromName('ß3'))
+      returnedScale = Scale.merge(returnedScale, Scale.fromIntervalsName('ß3'))
     }
+
+    // Accidents
     accidents.forEach((intNames, step) => {
       if (intNames.length === 0) return
       const intNamesAsScale = intNames
@@ -1763,18 +1594,23 @@ export class Scale {
       returnedScale = Scale.omitStep(returnedScale, step as IntervalTypes.SimpleStepValue)
       returnedScale = Scale.merge(returnedScale, intNamesAsScale)
     })
+
+    // Omissions
     omissions.forEach((intNames, step) => {
       intNames.forEach(intName => {
-        if (intName.match(/^![0-9]+$/)) {
+        const isOwnStep = regexpUtils.stringStartsWith(intName, REGEXPS.ownStep)
+        if (isOwnStep) {
           returnedScale = Scale.omitStep(returnedScale, step as IntervalTypes.SimpleStepValue)
         } else {
           const interval = Interval.fromName(intName)
           if (interval === undefined) return;
           const normalizedIntName = Interval.name(interval)
-          returnedScale = Scale.part(returnedScale, Scale.fromName(normalizedIntName))
+          returnedScale = Scale.part(returnedScale, Scale.fromIntervalsName(normalizedIntName))
         }
       })
     })
+
+    // Additions
     const additionsScaleName = additions
       .flat()
       .map(intName => {
@@ -1784,44 +1620,45 @@ export class Scale {
         return normalizedIntName
       })
       .filter(name => name !== undefined)
-      .join(',')
-    const additionsScale = Scale.fromName(additionsScaleName)
+      .join(REGEXPS.intervalsNameSeparator.source)
+    const additionsScale = Scale.fromIntervalsName(additionsScaleName)
     returnedScale = Scale.merge(returnedScale, additionsScale)
-    returnedScale = Interval.sort(returnedScale)
+
+    // Inversion
+    let inversionAsInterval: IntervalTypes.SimpleValue | undefined = undefined
+    if (typeof inversion === 'number') { // on own step
+      const ownIntervals = Scale.intervalsAtStep(returnedScale, inversion)
+      const lesserAlteration = Alteration.lessAltered(...ownIntervals.map(int => int.alteration))
+      if (lesserAlteration !== undefined) {
+        const ownInterval = ownIntervals.find(int => int.alteration === lesserAlteration)
+        inversionAsInterval = ownInterval
+      }
+    } else if (inversion !== null) { // on interval
+      inversionAsInterval = inversion
+    }
+    if (inversionAsInterval !== undefined) {
+      if (!Scale.hasIntervals(returnedScale, inversionAsInterval)) {
+        returnedScale.push(inversionAsInterval)
+        returnedScale = Interval.dedupe(Interval.sort(returnedScale))
+      }
+      const invIntAsSemitones = Interval.semitones(inversionAsInterval)
+      const rotations = Scale.rotations(returnedScale)
+      const inverted = rotations.at(invIntAsSemitones)
+      if (inverted !== undefined) { returnedScale = Interval.sort(inverted) }
+    }
+
+    return Interval.sort(returnedScale)
       .map(int => Interval.simplify(int))
-    return returnedScale
   }
   
   static fromQuality (quality: string): ScaleTypes.Value {
     const table = Scale.qualityToQualityTable(quality)
     return Scale.fromQualityTable(table)
   }
-  
-  static decimalValueToCommonNamesMap = (() => new Map(Object
-    .entries(scalesMainNamesJson as Record<string, string>)
-    .map(([key, mainName]) => [
-      parseInt(key),
-      toAlphanum(mainName, '_').toLowerCase()
-    ])
-  ))()
-  
-  static thematicNamesCategories = (() => new Set(Object
-    .entries(scalesAltNamesJson as Record<string, Array<{ category: string, name: string }>>)
-    .map(([, nameItems]) => nameItems.map(nameItem => toAlphanum(nameItem.category, '_').toLowerCase()))
-    .flat()
-  ))()
-  
-  static decimalValueToThematicNamesMap = (() => new Map(Object
-    .entries(scalesAltNamesJson as Record<string, Array<{ category: string, name: string }>>)
-    .map(([key, nameItems]) => [parseInt(key), nameItems.map(nameItem => ({
-      category: toAlphanum(nameItem.category, '_').toLowerCase(),
-      name: toAlphanum(nameItem.name, '_').toLowerCase()
-    }))])
-  ))()
-  
-  static commonName (scale: ScaleTypes.Value): string {
+
+  static commonName (scale: ScaleTypes.Value): ScaleTypes.Name | undefined {
     const decimalValue = Scale.decimal(scale)
-    const commonName = Scale.decimalValueToCommonNamesMap.get(decimalValue) ?? Scale.name(scale)
+    const commonName = scalesData.decimalValueToCommonNamesMap.get(decimalValue)
     return commonName
   }
   
@@ -1830,40 +1667,71 @@ export class Scale {
     category: string | null = null
   ): Array<{ category: string, name: string }> {
     const decimalValue = Scale.decimal(scale)
-    const thematicNames = Scale.decimalValueToThematicNamesMap
+    const thematicNames = scalesData.decimalValueToThematicNamesMap
       .get(decimalValue) ?? []
     if (category === null) return thematicNames
     return thematicNames.filter(item => item.category === category)
   }
   
-  static fromThematicName (name: string): ScaleTypes.Value | undefined {
+  static fromThematicName (name: string, defaultToMajor: true): ScaleTypes.Value
+  static fromThematicName (name: string, defaultToMajor: false): ScaleTypes.Value | undefined
+  static fromThematicName (name: string): ScaleTypes.Value | undefined
+  static fromThematicName (name: string, defaultToMajor = false): ScaleTypes.Value | undefined {
+    const defaultReturn = defaultToMajor ? Scale.fromIntervalsName('1,2,3,4,5,6,7') : undefined
+    const [nameRootAndMods, inversionBlock] = name.split(regexpUtils.setFlags(REGEXPS.inversionIdentifier, 'g'))
+    if (nameRootAndMods === undefined) return defaultReturn
+    const [nameRoot, ...modifiersArr] = nameRootAndMods.split(regexpUtils.setFlags(REGEXPS.intervalsNameSeparator, 'g'))
+    if (nameRoot === undefined) return defaultReturn
+    const modifiersBlock = modifiersArr.join(REGEXPS.intervalsNameSeparator.source)
     let foundDecimalValue: number | undefined = undefined
-    Scale.decimalValueToThematicNamesMap.forEach((nameItems, decimalValue) => {
+    scalesData.decimalValueToThematicNamesMap.forEach((nameItems, decimalValue) => {
       if (foundDecimalValue !== undefined) return;
       const names = nameItems.map(nameItem => nameItem.name)
-      if (names.includes(name)) { foundDecimalValue = decimalValue }
+      if (names.includes(toAlphanum(nameRoot, '_').toLowerCase())) { foundDecimalValue = decimalValue }
     })
-    if (foundDecimalValue === undefined) return;
-    return Scale.fromDecimal(foundDecimalValue)
+    if (foundDecimalValue !== undefined) {
+      const scaleRoot = Scale.fromDecimal(foundDecimalValue)
+      const scaleRootQuality = Scale.quality(scaleRoot)
+      const inversionIdiom = inversionBlock !== undefined
+        && inversionBlock !== ''
+        ? `/${inversionBlock}`
+        : ''
+      const scaleQualityWithModsAndInv = `${scaleRootQuality}${modifiersBlock}${inversionIdiom}`
+      return Scale.fromQuality(scaleQualityWithModsAndInv)
+    }
+    return defaultReturn
   }
-  
-  static fromCommonName (
-    name: string,
-    excludeThematicNames: boolean = false
-  ): ScaleTypes.Value | undefined {
-    const decimalValueAndNameFromCommonNames = [...Scale.decimalValueToCommonNamesMap
+
+  static fromCommonName (name: string, excludeThematicNames: boolean, defaultToMajor: true): ScaleTypes.Value
+  static fromCommonName (name: string, excludeThematicNames: boolean, defaultToMajor: false): ScaleTypes.Value | undefined
+  static fromCommonName (name: string): ScaleTypes.Value | undefined
+  static fromCommonName (name: string, excludeThematicNames = false, defaultToMajor = false): ScaleTypes.Value | undefined {
+    const defaultReturn = defaultToMajor ? Scale.fromIntervalsName('1,2,3,4,5,6,7') : undefined
+    const [nameRootAndMods, inversionBlock] = name.split(regexpUtils.setFlags(REGEXPS.inversionIdentifier, 'g'))
+    if (nameRootAndMods === undefined) return defaultReturn
+    const [nameRoot, ...modifiersArr] = nameRootAndMods.split(regexpUtils.setFlags(REGEXPS.intervalsNameSeparator, 'g'))
+    if (nameRoot === undefined) return defaultReturn
+    const modifiersBlock = modifiersArr.join(REGEXPS.intervalsNameSeparator.source)
+    const decimalValueAndNameFromCommonNames = [...scalesData.decimalValueToCommonNamesMap
       .entries()]
-      .find(([, commonName]) => commonName === name)
+      .find(([, commonName]) => commonName === toAlphanum(nameRoot, '_').toLowerCase())
     if (decimalValueAndNameFromCommonNames !== undefined) {
       const decimalValue = decimalValueAndNameFromCommonNames[0]
-      return Scale.fromDecimal(decimalValue)
+      const scaleRoot = Scale.fromDecimal(decimalValue)
+      const scaleRootQuality = Scale.quality(scaleRoot)
+      const inversionIdiom = inversionBlock !== undefined
+        && inversionBlock !== ''
+        ? `/${inversionBlock}`
+        : ''
+      const scaleQualityWithModsAndInv = `${scaleRootQuality}${modifiersBlock}${inversionIdiom}`
+      return Scale.fromQuality(scaleQualityWithModsAndInv)
     }
-    if (excludeThematicNames) return undefined
-    return Scale.fromThematicName(name)
+    if (excludeThematicNames) return defaultReturn
+    return defaultToMajor
+      ? Scale.fromThematicName(name, true)
+      : Scale.fromThematicName(name)
   }
 }
-
-
 
 // COMMON NAMES
 
@@ -1919,30 +1787,139 @@ export namespace ChordTypes {
 }
 
 export class Chord {
+  // name => (alt)? (sign)? (roman) ((name + mod | quality + mod) / (inv) \ (root))?
+  // ß-IV
+
   static name (value: ChordTypes.Value) {
     const alterationName = Alteration.name(value.base.alteration)
     const baseStep = value.base.step
     const offsetBaseStep = baseStep >= 0 ? baseStep + 1 : baseStep - 1
     const isMinor = Scale.isMinor(value.scale)
-    const romanName = isMinor
-      ? romanize(offsetBaseStep).toLowerCase()
-      : romanize(offsetBaseStep).toUpperCase()
+    const offsetBaseStepIsPositive = offsetBaseStep > 0
+    const romanized = romanize(Math.abs(offsetBaseStep)) ?? 'I' // romanize should be safe here and never return undefined
+    const romanName = isMinor ? romanized.toLowerCase() : romanized.toUpperCase()
+    const romanSign = offsetBaseStepIsPositive ? '' : '-'
     const rawQuality = Scale.quality(value.scale)
+    const minorQualityRegexp = regexpUtils.fromStart(REGEXPS.minorQuality, 'g')
     const quality = isMinor
-      ? rawQuality.replace(/^m/igm, '')
+      ? rawQuality.replace(minorQualityRegexp, '')
       : rawQuality
-    return `${alterationName}${romanName}${quality}`
+    return `${alterationName}${romanSign}${romanName}${quality}`
+  }
+
+  static fromName (name: ChordTypes.Name) {
+    let workingName = name
+    // Alteration
+    const alterationMatchArr = (regexpUtils.stringStartsWith(workingName, REGEXPS.alteration, true) ?? [])
+      .filter(str => str !== '')
+      .sort((a, b) => b.length - a.length)
+    const alterationStr = alterationMatchArr.at(0) ?? ''
+    const alteration = alterationStr !== '' ? Alteration.fromName(alterationStr) : 0
+    workingName = workingName.replace(alterationStr, '')
+    // Sign
+    const signMatchArr = (regexpUtils.stringStartsWith(workingName, /-/, true) ?? [])
+      .filter(str => str !== '')
+      .sort((a, b) => b.length - a.length)
+    const signStr = signMatchArr.at(0) ?? ''
+    const isNegative = signStr === '-'
+    workingName = workingName.replace(signStr, '')
+    // Offset
+    const offsetMatchArr = (regexpUtils.stringEndsWith(workingName, REGEXPS.offset, true) ?? [])
+      .filter(str => str !== '')
+      .sort((a, b) => b.length - a.length)
+    const offsetStr = offsetMatchArr.at(0) ?? ''
+    const offset = offsetStr
+    workingName = workingName.replace(regexpUtils.toEnd(REGEXPS.offset), '')
+    // Inversion
+    const inversionMatchArr = (regexpUtils.stringEndsWith(workingName, REGEXPS.inversion, true) ?? [])
+      .filter(str => str !== '')
+      .sort((a, b) => b.length - a.length)
+    const inversionStr = inversionMatchArr.at(0) ?? ''
+    const inversion = inversionStr
+    workingName = workingName.replace(regexpUtils.toEnd(REGEXPS.inversion), '')
+    // Quality or common name root
+    let qualityOrCommonNameRootStr: string
+    let qualityOrCommonNameExtensionStr: string
+    const qualityRootRegexp = regexpUtils.setFlags(REGEXPS.qualityRoot, 'g')
+    const qualityMatchArr = (workingName.match(qualityRootRegexp) ?? []) //regexpUtils.stringEndsWith(workingName, REGEXPS.quality, true) ?? []
+      .filter(str => str !== '')
+      .sort((a, b) => b.length - a.length)
+    const qualityStr = qualityMatchArr.at(0)
+    if (qualityStr !== undefined && qualityStr !== '') {
+      qualityOrCommonNameRootStr = qualityStr
+      workingName = workingName.replace(qualityStr, '')
+      const qualityExtensionRegexp = regexpUtils.toEnd(regexpUtils.setFlags(REGEXPS.qualityExtension, 'g')) // regexpUtils.stringEndsWith(workingName, REGEXPS.qualityExtension, true)
+      const qualityExtensionMatchArr = (workingName.match(qualityExtensionRegexp) ?? [])
+        .filter(str => str !== '')
+        .sort((a, b) => b.length - a.length)
+      const qualityExtStr = qualityExtensionMatchArr.at(0)
+      console.log(workingName)
+      console.log(qualityExtensionRegexp.source)
+      qualityOrCommonNameExtensionStr = qualityExtStr ?? ''
+      workingName = workingName.replace(qualityExtensionRegexp, '')
+    } else {
+      const commonNameRootRegexp = regexpUtils.setFlags(REGEXPS.commonNameRoot, 'g')
+      const commonNameMatchArr = (workingName.match(commonNameRootRegexp) ?? []) //regexpUtils.stringEndsWith(workingName, REGEXPS.commonName, true) ?? []
+        .filter(str => str !== '')
+        .sort((a, b) => b.length - a.length)
+      const commonNameStr = commonNameMatchArr.at(0)
+      if (commonNameStr !== undefined && commonNameStr !== '') {
+        qualityOrCommonNameRootStr = commonNameStr
+        workingName = workingName.replace(commonNameStr, '')
+        const commonNameExtensionRegexp = regexpUtils.toEnd(regexpUtils.setFlags(REGEXPS.commonNameExtension, 'g')) // regexpUtils.stringEndsWith(workingName, REGEXPS.commonNameExtension, true)
+        const commonNameExtensionMatchArr = (workingName.match(commonNameExtensionRegexp) ?? [])
+          .filter(str => str !== '')
+          .sort((a, b) => b.length - a.length)
+        const commonNameExtStr = commonNameExtensionMatchArr.at(0)
+        qualityOrCommonNameExtensionStr = commonNameExtStr ?? ''
+        workingName = workingName.replace(commonNameExtensionRegexp, '')
+      } else {
+        const thematicNameRootRegexp = regexpUtils.setFlags(REGEXPS.thematicNameRoot, 'g')
+        const thematicNameMatchArr = (workingName.match(thematicNameRootRegexp) ?? []) //regexpUtils.stringEndsWith(workingName, REGEXPS.thematicName, true) ?? []
+          .filter(str => str !== '')
+          .sort((a, b) => b.length - a.length)
+        const thematicNameStr = thematicNameMatchArr.at(0)
+        if (thematicNameStr !== undefined && thematicNameStr !== '') {
+          qualityOrCommonNameRootStr = thematicNameStr
+          workingName = workingName.replace(thematicNameStr, '')
+          const thematicNameExtensionRegexp = regexpUtils.toEnd(regexpUtils.setFlags(REGEXPS.thematicNameExtension, 'g')) // regexpUtils.stringEndsWith(workingName, REGEXPS.thematicNameExtension, true)
+          const thematicNameExtensionMatchArr = (workingName.match(thematicNameExtensionRegexp) ?? [])
+            .filter(str => str !== '')
+            .sort((a, b) => b.length - a.length)
+          const thematicNameExtStr = thematicNameExtensionMatchArr.at(0)
+          qualityOrCommonNameExtensionStr = thematicNameExtStr ?? ''
+          workingName = workingName.replace(thematicNameExtensionRegexp, '')
+        } else {
+          qualityOrCommonNameRootStr = ''
+          qualityOrCommonNameExtensionStr = ''
+        }
+      }
+    }
+    
+    // Roman
+    const romanRegexp = regexpUtils.setFlags(REGEXPS.roman, 'ig')
+    const romanMatchArr = regexpUtils.stringStartsWith(workingName, romanRegexp, true) ?? []
+    const romanStr = romanMatchArr.sort((a, b) => b.length - a.length).at(0) ?? ''
+    const romanHasMinorQuality = !(/[A-Z]+/.test(romanStr))
+    const romanValue = deromanize(romanStr.toUpperCase()) ?? '1' // deromanize should be safe here and never return undefined
+    workingName = workingName.replace(romanStr, '')
+    // Chord own steps
+    console.log({
+      alteration,
+      offset,
+      inversion,
+      isNegative,
+      romanValue,
+      romanHasMinorQuality,
+      qualityOrCommonNameRootStr,
+      qualityOrCommonNameExtensionStr,
+      workingName
+    })
   }
 }
 
-  const base = Interval.fromName('ß4', true)
-  const scale = Scale.fromQuality('aug7') ?? []
-  const chord = { base, scale };
-  // console.log(Chord.name(chord))
-  // console.log(Scale.name(scale));
-  // [...Scale.decimalValueToCommonNamesMap].forEach(item => {
-  //   console.log(item[1])
-  // })
+// [WIP] when parsing chord name, the m of mixolydian gets interpreted as a m of minor...
+Chord.fromName('ß-IVmixolydian,no(!3)add(2)/!4\\!!2')
 
 ;`
 f  • f^4  • f^+  • § | 4  • 4^4  • 4^+  • § | <4>  • <4>^4  • <4>^+  • § |
@@ -1954,14 +1931,14 @@ Fm • F^4m • F^+m • § | iv • iv^4 • iv^+ • § | <iv> • <iv>^4 • 
 
 `
 
-// export function Scale.fromName (name: ScaleTypes.Name): RomanValue {
-//   const parsedIntervalNames = name.split(',')
-//   const intervals = parsedIntervalNames
-//     .map(intervalName => SimpleInterval.fromName(intervalName))
-//     .filter((int): int is SimpleIntervalTypes.Value => int !== undefined)
-//   return intervals
-// }
 
-// export function Scale.name (scale: ScaleTypes.Value): ScaleTypes.Name {
-//   return scale.map(interval => SimpleInterval.name(interval)).join(',')
-// }
+
+/*  
+from: https://www.youtube.com/watch?v=SF8CdxcdJgw
+1, 5 => stable notes
+ß3, 3 => modal notes
+6, ß7 => hollow notes
+2, 4 => unstable notes
+7, ß6 => leading notes
+ß2, #4 => uncanny notes
+*/

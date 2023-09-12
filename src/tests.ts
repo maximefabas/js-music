@@ -6,90 +6,366 @@ import {
   // Pitch,
   // SimpleInterval,
   Interval,
-  Scale
+  Scale,
+  Chord
 } from './index.js'
+import assert from './modules/assert/index.js'
 import Graph from './modules/dependency-grapher/index.js'
+
+
+const lol = [
+  ['1', null],
+  ['ß2', '2', null],
+  ['ß3', '3', null],
+  ['4', '#4', null],
+  ['ß5', '5', '#5', null],
+  ['ß6', '6', null],
+  ['ßß7', 'ß7', '7', null]
+]
+
+new Array(Math.pow(4, 7))
+// new Array(1)
+  .fill(0)
+  .map((_, pos) => {
+    const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
+    const reversedBase4Pos = [...base4Pos].reverse()
+    const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
+    const sliced = withZeros.slice(0, 7).reverse()
+    const intervals = new Array(7).fill(null).map((_, pos) => lol.at(pos)?.at(sliced.at(pos) as any))
+    if (intervals.includes(undefined as any)) return;
+    // console.log(pos)
+    const scaleName = intervals.filter(e => e!== null).join(',')
+    const scale = Scale.fromIntervalsName(scaleName)
+    const quality = Scale.quality(scale)
+    const table = Scale.qualityToQualityTable(quality)
+    const value = Scale.fromQualityTable(table)
+    const name = Scale.intervalsName(value)
+    // console.log(scaleName, '——>', quality, '——>', name)
+    if (scaleName !== name) console.log('ERROR', pos, scaleName, '|', scale, '|', quality, '|', name)
+    return {
+      scaleName,
+      scale,
+      quality,
+      table,
+      value,
+      name
+    }
+  })
+
+// IVmM7ß!!5no(!!5)add()
 
 // ========== GRAPH STUFF ==========
 
-console.log('-- Dependencies --')
-new Graph()
-  .add('Alteration.name', [])
-  .add('Alteration.fromName', [])
-  .add('Interval.name', ['Alteration.name'])
-  .add('Interval.fromName', ['Alteration.fromName'])
-  .add('Interval.simplify', ['Alteration.fromName'])
-  .add('Interval.commonNames', ['Interval.simplify', 'Interval.fromName'])
-  .add('Interval.semitones', ['Interval.simplify'])
-  .add('Interval.between', ['Interval.simplify', 'Interval.semitones'])
-  .add('Interval.add', ['Interval.semitones'])
-  .add('Interval.invert', ['Interval.between'])
-  .add('Interval.subtract', ['Interval.invert', 'Interval.add'])
-  .add('Interval.negative', ['Interval.between', 'Interval.add'])
-  .add('Interval.sort', [])
-  .add('Interval.dedupe', ['Interval.name'])
-  .add('Interval.semitoneDedupe', ['Interval.semitones'])
-  .add('Interval.shiftStep', ['Interval.semitones', 'Interval.between'])
-  .add('Interval.rationalize', ['Interval.shiftStep'])
-  .add('Scale.fromName', ['Interval.fromName', 'Interval.simplify'])
-  .add('Scale.name', ['Interval.name'])
-  .add('Scale.reallocate', ['Interval.sort', 'Interval.semitoneDedupe', 'Interval.semitones', 'Interval.shiftStep', 'Interval.simplify'])
-  .add('Scale.binary', ['Interval.semitones'])
-  .add('Scale.fromBinary', ['Scale.reallocate', 'Interval.simplify', 'Interval.rationalize'])
-  .add('Scale.decimal', ['Scale.binary'])
-  .add('Scale.fromDecimal', [])
-  .add('Scale.pattern', ['Scale.binary'])
-  .add('Scale.fromPattern', ['Scale.fromBinary'])
-  .add('Scale.distance', ['Scale.binary'])
-  .add('Scale.intervalsAtStep', [])
-  .add('Scale.hasSteps', ['Scale.intervalsAtStep'])
-  .add('Scale.hasIntervals', [])
-  .add('Scale.rotations', ['Interval.simplify', 'Interval.rationalize', 'Interval.sort', 'Interval.add', 'Interval.between'])
-  .add('Scale.rotationalSymmetryAxes', ['Scale.rotations', 'Scale.pattern'])
-  .add('Scale.modes', ['Scale.rotations', 'Scale.decimal', 'Interval.name'])
-  .add('Scale.reflections', ['Scale.rotations', 'Scale.pattern', 'Scale.fromPattern'])
-  .add('Scale.reflectionSymmetryAxes', ['Scale.reflections', 'Scale.pattern'])
-  .add('Scale.negation', ['Scale.pattern', 'Scale.fromPattern'])
-  .add('Scale.supersets', ['Scale.pattern', 'Scale.fromPattern'])
-  .add('Scale.subsets', ['Scale.pattern', 'Scale.fromPattern'])
-  .add('Scale.rahmPrimeForm', ['Scale.rotations', 'Scale.reflections', 'Scale.fromDecimal'])
-  .add('Scale.merge', ['Interval.sort', 'Interval.dedupe'])
-  .add('Scale.part', ['Interval.name'])
-  .add('Scale.omitStep', [])
-  .add('Scale.isMajor', ['Scale.hasIntervals', 'Interval.commonNames'])
-  .add('Scale.isMinor', ['Scale.isMajor', 'Scale.hasIntervals', 'Interval.commonNames'])
-  .add('Scale.qualityTableSort', ['Interval.fromName', 'Interval.semitones'])
-  .add('Scale.qualityTable', ['Interval.name', 'Scale.qualityTableSort', 'Scale.hasIntervals', 'Interval.commonNames', 'Scale.hasSteps', 'Scale.isMajor', 'Scale.isMinor'])
-  .add('Scale.qualityTableToQuality', [])
-  .add('Scale.quality', ['Scale.qualityTable', 'Scale.qualityTableToQuality'])
-  .add('Scale.qualityToQualityTable', ['Interval.fromName', 'Scale.qualityTableSort', 'Interval.simplify'])
-  .add('Scale.fromQualityTable', ['Scale.qualityTableSort', 'Scale.fromName', 'Scale.omitStep', 'Scale.merge', 'Interval.fromName', 'Interval.simplify', 'Interval.name', 'Scale.part'])
-  .add('Scale.fromQuality', ['Scale.qualityToQualityTable', 'Scale.fromQualityTable'])
-  .add('Scale.commonName', ['Scale.decimal', 'Scale.name'])
-  .add('Scale.thematicNames', ['Scale.decimal', 'Scale.name'])
-  .add('Scale.fromThematicName', ['Scale.fromDecimal'])
-  .add('Scale.fromCommonName', ['Scale.fromDecimal', 'Scale.fromThematicName'])
-  .print()
+// console.log('-- Dependencies --')
+// new Graph()
+//   .add('Alteration.name', [])
+//   .add('Alteration.fromName', [])
+//   .add('Interval.name', ['Alteration.name'])
+//   .add('Interval.fromName', ['Alteration.fromName'])
+//   .add('Interval.simplify', ['Alteration.fromName'])
+//   .add('Interval.commonNames', ['Interval.simplify', 'Interval.fromName'])
+//   .add('Interval.semitones', ['Interval.simplify'])
+//   .add('Interval.between', ['Interval.simplify', 'Interval.semitones'])
+//   .add('Interval.add', ['Interval.semitones'])
+//   .add('Interval.invert', ['Interval.between'])
+//   .add('Interval.subtract', ['Interval.invert', 'Interval.add'])
+//   .add('Interval.negative', ['Interval.between', 'Interval.add'])
+//   .add('Interval.sort', [])
+//   .add('Interval.dedupe', ['Interval.name'])
+//   .add('Interval.semitoneDedupe', ['Interval.semitones'])
+//   .add('Interval.shiftStep', ['Interval.semitones', 'Interval.between'])
+//   .add('Interval.rationalize', ['Interval.shiftStep'])
+//   .add('Scale.isMainQuality', [])
+//   .add('Scale.fromIntervalsName', ['Interval.fromName', 'Interval.simplify'])
+//   .add('Scale.intervalsName', ['Interval.name'])
+//   .add('Scale.reallocate', ['Interval.sort', 'Interval.semitoneDedupe', 'Interval.semitones', 'Interval.shiftStep', 'Interval.simplify'])
+//   .add('Scale.binary', ['Interval.semitones'])
+//   .add('Scale.fromBinary', ['Scale.reallocate', 'Interval.simplify', 'Interval.rationalize'])
+//   .add('Scale.decimal', ['Scale.binary'])
+//   .add('Scale.fromDecimal', [])
+//   .add('Scale.pattern', ['Scale.binary'])
+//   .add('Scale.fromPattern', ['Scale.fromBinary'])
+//   .add('Scale.distance', ['Scale.binary'])
+//   .add('Scale.intervalsAtStep', [])
+//   .add('Scale.hasSteps', ['Scale.intervalsAtStep'])
+//   .add('Scale.hasIntervals', [])
+//   .add('Scale.rotations', ['Interval.simplify', 'Interval.rationalize', 'Interval.sort', 'Interval.add', 'Interval.between'])
+//   .add('Scale.rotationalSymmetryAxes', ['Scale.rotations', 'Scale.pattern'])
+//   .add('Scale.modes', ['Scale.rotations', 'Scale.decimal', 'Interval.name'])
+//   .add('Scale.reflections', ['Scale.rotations', 'Scale.pattern', 'Scale.fromPattern'])
+//   .add('Scale.reflectionSymmetryAxes', ['Scale.reflections', 'Scale.pattern'])
+//   .add('Scale.negation', ['Scale.pattern', 'Scale.fromPattern'])
+//   .add('Scale.supersets', ['Scale.pattern', 'Scale.fromPattern'])
+//   .add('Scale.subsets', ['Scale.pattern', 'Scale.fromPattern'])
+//   .add('Scale.rahmPrimeForm', ['Scale.rotations', 'Scale.reflections', 'Scale.fromDecimal'])
+//   .add('Scale.merge', ['Interval.sort', 'Interval.dedupe'])
+//   .add('Scale.part', ['Interval.name'])
+//   .add('Scale.omitStep', [])
+//   .add('Scale.isMajor', ['Scale.hasIntervals', 'Interval.commonNames'])
+//   .add('Scale.isMinor', ['Scale.isMajor', 'Scale.hasIntervals', 'Interval.commonNames'])
+//   .add('Scale.qualityTableSort', ['Interval.fromName', 'Interval.semitones'])
+//   .add('Scale.qualityTable', ['Interval.name', 'Scale.qualityTableSort', 'Scale.hasIntervals', 'Interval.commonNames', 'Scale.hasSteps', 'Scale.isMajor', 'Scale.isMinor'])
+//   .add('Scale.qualityTableToQuality', [])
+//   .add('Scale.quality', ['Scale.qualityTable', 'Scale.qualityTableToQuality'])
+//   .add('Scale.qualityToQualityTable', ['Interval.fromName', 'Scale.qualityTableSort', 'Interval.simplify', 'Scale.isMainQuality'])
+//   .add('Scale.fromQualityTable', ['Scale.qualityTableSort', 'Scale.fromIntervalsName', 'Scale.omitStep', 'Scale.merge', 'Interval.fromName', 'Interval.simplify', 'Interval.name', 'Scale.part'])
+//   .add('Scale.fromQuality', ['Scale.qualityToQualityTable', 'Scale.fromQualityTable'])
+//   .add('Scale.commonName', ['Scale.decimal', 'Scale.intervalsName'])
+//   .add('Scale.thematicNames', ['Scale.decimal', 'Scale.intervalsName'])
+//   .add('Scale.fromThematicName', ['Scale.fromDecimal'])
+//   .add('Scale.fromCommonName', ['Scale.fromDecimal', 'Scale.fromThematicName'])
+//   .print()
 
-// ========== ASSERT STUFF ==========
-function assert (label: string, assertion: unknown) {
-  if (Array.isArray(assertion)) {
-    assertion.forEach((innerAssertion, pos) => {
-      assert(`${label} (${pos})`, innerAssertion)
-    })
-  }
-  else if (typeof assertion === 'function') {
-    try {
-      const result = assertion()
-      if (result === false) throw new Error(`🚫 FAILURE: "${label}""`)
-      else console.info(`✅ SUCCESS: "${label}"`)
-    } catch (err) {
-      throw new Error(`🚫 FAILURE: "${err}""`)
-    }
-  }
-  else if (assertion === false) throw new Error(`🚫 FAILURE: "${label}""`)
-  else console.info(`✅ SUCCESS: "${label}"`)
-}
+// // ========== Tests ==========
+
+// /* Alteration */
+// console.log('-- Alteration --')
+// console.log(Object
+//   .entries(Object.getOwnPropertyDescriptors(Alteration))
+//   .filter(([, desc]) => desc.writable === true)
+//   .map(([key]) => key)
+//   .join('\n')
+// )
+// assert('Alteration of -2 is named ßß', Alteration.name(-2) === 'ßß')
+// assert('Alteration of 3 is named ###', Alteration.name(3) === '###')
+
+// /* Interval */
+// console.log('-- Interval --')
+// console.log(Object
+//   .entries(Object.getOwnPropertyDescriptors(Interval))
+//   .filter(([, desc]) => desc.writable === true)
+//   .map(([key]) => key)
+//   .join('\n')
+// )
+// assert('Interval with value 3/-2 name is ßß4', Interval.name({
+//   step: 3,
+//   alteration: -2
+// }) === 'ßß4')
+// assert('Interval with value -3/-2 name is ßß-4', Interval.name({
+//   step: -3,
+//   alteration: -2
+// }) === 'ßß-4')
+// assert('Interval with value 55/4 name is ####56', Interval.name({
+//   step: 55,
+//   alteration: 4
+// }) === '####56')
+// assert('Interval with name ß7 has value 6/-1', () => {
+//   const { step, alteration } = Interval.fromName('ß7') as any
+//   return step === 6 && alteration === -1
+// })
+// assert('Interval with name #9 has value 8/1', () => {
+//   const { step, alteration } = Interval.fromName('#9') as any
+//   return step === 8 && alteration === 1
+// })
+// assert('Interval with name -14 has value -13/0', () => {
+//   const { step, alteration } = Interval.fromName('-14') as any
+//   return step === -13 && alteration === 0
+// })
+// assert('Interval of ßß-17 is ßß6 as a SimpleInterval', Interval.name(
+//   Interval.simplify(
+//     Interval.fromName('ßß-17') as any
+//   )
+// ) === 'ßß6')
+// assert('Interval of -12 is -19 semitones', Interval.semitones(
+//   Interval.fromName('-12') as any
+// ) === -19)
+// assert('Interval of 1 is 0 semitones', Interval.semitones(
+//   Interval.fromName('1') as any
+// ) === 0)
+// assert('Interval of ßß3 is 2 semitones', Interval.semitones(
+//   Interval.fromName('ßß3') as any
+// ) === 2)
+// assert('Interval ß5 inverted is #-5', Interval.name(
+//   Interval.invert(
+//     Interval.fromName('ß5') as any
+//   ) as any
+// ) === '#-5')
+// assert('Interval -8 inverted is 8', Interval.name(
+//   Interval.invert(
+//     Interval.fromName('-8') as any
+//   ) as any
+// ) === '8')
+// assert('Interval 2 inverted is ß-2', Interval.name(
+//   Interval.invert(
+//     Interval.fromName('2') as any
+//   ) as any
+// ) === 'ß-2')
+// assert('Interval between intervals ß-7 and #14 is ##20', Interval.name(
+//   Interval.between(
+//     Interval.fromName('ß-7') as any,
+//     Interval.fromName('#14') as any
+//   ) as any
+// ) === '##20')
+// assert('Intervals ßß7, #5 and 2 are sorted as 2, #5, ßß7', 
+//   Interval.sort([
+//     Interval.fromName('ßß7') as any,
+//     Interval.fromName('#5') as any,
+//     Interval.fromName('2') as any
+//   ]).map(interval => Interval.name(interval))
+//     .join(',') === '2,#5,ßß7')
+// assert('Intervals 1, ßß2, 3, 3, 5 are deduped as 1, ßß2, 3, 5', Interval.dedupe([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('ßß2') as any,
+//   Interval.fromName('3') as any,
+//   Interval.fromName('3') as any,
+//   Interval.fromName('5') as any
+// ]).map(interval => Interval.name(interval))
+//   .join(',') === '1,ßß2,3,5')
+// assert('Intervals 1, ßß2, ßßßß3, ßßßßß4, 5 are semitoneDeduped as 1, 5', Interval.semitoneDedupe([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('ßß2') as any,
+//   Interval.fromName('ßßßß3') as any,
+//   Interval.fromName('ßßßßß4') as any,
+//   Interval.fromName('5') as any
+// ]).map(interval => Interval.name(interval))
+//   .join(',') === '1,5')
+// assert('Interval ß3 shifted to interval class 2 (numeric: 1) is #2', Interval.name(
+//   Interval.shiftStep(
+//     Interval.fromName('ß3') as any,
+//     1
+//   ) as any
+// ) === '#2')
+// assert('Interval ##7 shifted to interval class 5 (numeric: 4) is ######5', Interval.name(
+//   Interval.shiftStep(
+//     Interval.fromName('##7') as any,
+//     4
+//   ) as any
+// ) === '######5')
+// assert('Interval ####3 rationalized is #5', Interval.name(
+//   Interval.rationalize(
+//     Interval.fromName('####3') as any
+//   )
+// ) === '#5')
+// assert('Interval ####3 hard rationalized is ß6', Interval.name(
+//   Interval.rationalize(
+//     Interval.fromName('####3') as any,
+//     true
+//   )
+// ) === 'ß6')
+
+// /* Scale */
+// console.log('-- Scale --')
+// console.log(Object
+//   .entries(Object.getOwnPropertyDescriptors(Scale))
+//   .filter(([, desc]) => desc.writable === true)
+//   .map(([key]) => key)
+//   .join('\n')
+// )
+
+// assert('Scale named 1,#4,ß2,3,#2 has intervals 1 #4 ß2 3 #2', Scale.fromIntervalsName('1,#4,ß2,3,#2')
+//   .map(e => Interval.name(e)).join(' ') === '1 #4 ß2 3 #2')
+// assert('Scale with values 1 ß3 5 7 is named 1,ß3,5,7', Scale.intervalsName([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('ß3'),
+//   Interval.fromName('5'),
+//   Interval.fromName('7')
+// ]) === '1,ß3,5,7')
+// assert('Scale with values ß3 1 5 7 is named ß3,1,5,7', Scale.intervalsName([
+//   Interval.fromName('ß3') as any,
+//   Interval.fromName('1'),
+//   Interval.fromName('5'),
+//   Interval.fromName('7')
+// ]) === 'ß3,1,5,7')
+
+// assert('Scale with intervals 1, ##1, ####1, #####1, #######1, #########1, ###########1 is reallocated as 1,2,3,4,5,6,7', Scale.reallocate([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('##1'),
+//   Interval.fromName('####1'),
+//   Interval.fromName('#####1'),
+//   Interval.fromName('#######1'),
+//   Interval.fromName('#########1'),
+//   Interval.fromName('###########1')
+// ]).map(int => Interval.name(int)).join(',') === '1,2,3,4,5,6,7')
+
+// assert('Scale with intervals 1, #1, 2, 4, ß5, ß6, 6, #6, 7 is reallocated as 1,ß2,2,#3,#4,#5,6,#6,7', Scale.reallocate([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('#1'),
+//   Interval.fromName('2'),
+//   Interval.fromName('4'),
+//   Interval.fromName('ß5'),
+//   Interval.fromName('ß6'),
+//   Interval.fromName('6'),
+//   Interval.fromName('#6'),
+//   Interval.fromName('7')
+// ]).map(int => Interval.name(int)).join(',') === '1,ß2,2,#3,#4,#5,6,#6,7')
+
+// assert('Scale with intervals 7, ßß7, ßßßß7, ßßßßß7, ßßßßßßß7, ßßßßßßßßß7, ßßßßßßßßßßß7 is reallocated as 1,2,3,#4,5,6,7', Scale.reallocate([
+//   Interval.fromName('7') as any,
+//   Interval.fromName('ßß7'),
+//   Interval.fromName('ßßßß7'),
+//   Interval.fromName('ßßßßß7'),
+//   Interval.fromName('ßßßßßßß7'),
+//   Interval.fromName('ßßßßßßßßß7'),
+//   Interval.fromName('ßßßßßßßßßßß7')
+// ]).map(int => Interval.name(int)).join(',') === '1,2,3,#4,5,6,7')
+
+// assert('Scale with intervals 1, ß2, 2, ß3, 3, ßß6, ß6, 6, ß7, 7 is reallocated as 1,ß2,2,ß3,3,##4,#5,6,#6,7', Scale.reallocate([
+//   Interval.fromName('1') as any,
+//   Interval.fromName('ß2'),
+//   Interval.fromName('2'),
+//   Interval.fromName('ß3'),
+//   Interval.fromName('3'),
+//   Interval.fromName('ßß6'),
+//   Interval.fromName('ß6'),
+//   Interval.fromName('6'),
+//   Interval.fromName('ß7'),
+//   Interval.fromName('7')
+// ]).map(int => Interval.name(int)).join(',') === '1,ß2,2,ß3,3,##4,#5,6,#6,7')
+
+  ;(window as any).Alteration = Alteration
+  ;(window as any).Interval = Interval
+  ;(window as any).Scale = Scale
+  ;(window as any).Chord = Chord
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*  OLD STUFF  */
+
+
 
 /* PitchClassLetter */
 // console.log('-- PitchClassLetter --')
@@ -111,17 +387,6 @@ function assert (label: string, assertion: unknown) {
 // assert('PitchClassLetter b value is 6', PitchClassLetter.fromName('b') === 6)
 // assert('PitchClassLetter ehz!r!hearhaa value is 6', PitchClassLetter.fromName('ehz!r!hearhaa') === 5)
 // assert('PitchClassLetter h value is undefined', PitchClassLetter.fromName('h') === undefined)
-
-/* Alteration */
-console.log('-- Alteration --')
-console.log(Object
-  .entries(Object.getOwnPropertyDescriptors(Alteration))
-  .filter(([, desc]) => desc.writable === true)
-  .map(([key]) => key)
-  .join('\n')
-)
-assert('Alteration of -2 is named ßß', Alteration.name(-2) === 'ßß')
-assert('Alteration of 3 is named ###', Alteration.name(3) === '###')
 
 /* PitchClass */
 // console.log('-- PitchClass --')
@@ -312,52 +577,6 @@ assert('Alteration of 3 is named ###', Alteration.name(3) === '###')
 //   ) as any
 // ) === '##6')
 
-/* Interval */
-console.log('-- Interval --')
-console.log(Object
-  .entries(Object.getOwnPropertyDescriptors(Interval))
-  .filter(([, desc]) => desc.writable === true)
-  .map(([key]) => key)
-  .join('\n')
-)
-assert('Interval with value 3/-2 name is ßß4', Interval.name({
-  step: 3,
-  alteration: -2
-}) === 'ßß4')
-assert('Interval with value -3/-2 name is ßß-4', Interval.name({
-  step: -3,
-  alteration: -2
-}) === 'ßß-4')
-assert('Interval with value 55/4 name is ####56', Interval.name({
-  step: 55,
-  alteration: 4
-}) === '####56')
-assert('Interval with name ß7 has value 6/-1', () => {
-  const { step, alteration } = Interval.fromName('ß7') as any
-  return step === 6 && alteration === -1
-})
-assert('Interval with name #9 has value 8/1', () => {
-  const { step, alteration } = Interval.fromName('#9') as any
-  return step === 8 && alteration === 1
-})
-assert('Interval with name -14 has value -13/0', () => {
-  const { step, alteration } = Interval.fromName('-14') as any
-  return step === -13 && alteration === 0
-})
-assert('Interval of ßß-17 is ßß6 as a SimpleInterval', Interval.name(
-  Interval.simplify(
-    Interval.fromName('ßß-17') as any
-  )
-) === 'ßß6')
-assert('Interval of -12 is -19 semitones', Interval.semitones(
-  Interval.fromName('-12') as any
-) === -19)
-assert('Interval of 1 is 0 semitones', Interval.semitones(
-  Interval.fromName('1') as any
-) === 0)
-assert('Interval of ßß3 is 2 semitones', Interval.semitones(
-  Interval.fromName('ßß3') as any
-) === 2)
 // assert('Interval between pitch b^2 and d^4 is ß10', Interval.name(
 //   Interval.fromPitches(
 //     Pitch.fromName('b^2') as any,
@@ -382,21 +601,7 @@ assert('Interval of ßß3 is 2 semitones', Interval.semitones(
 //     Pitch.fromName('ßßc^4') as any
 //   ) as any
 // ) === 'ßßßßb^3')
-assert('Interval ß5 inverted is #-5', Interval.name(
-  Interval.invert(
-    Interval.fromName('ß5') as any
-  ) as any
-) === '#-5')
-assert('Interval -8 inverted is 8', Interval.name(
-  Interval.invert(
-    Interval.fromName('-8') as any
-  ) as any
-) === '8')
-assert('Interval 2 inverted is ß-2', Interval.name(
-  Interval.invert(
-    Interval.fromName('2') as any
-  ) as any
-) === 'ß-2')
+
 // assert('Interval -2 subtracted to Pitch b^3 gives pitch c^4', Pitch.valueToName(
 //   Interval.subtractToPitch(
 //     Interval.fromName('-2') as any,
@@ -409,169 +614,6 @@ assert('Interval 2 inverted is ß-2', Interval.name(
 //     Pitch.fromName('ßßßßb^3') as any
 //   ) as any
 // ) === 'ßßc^4')
-assert('Interval between intervals ß-7 and #14 is ##20', Interval.name(
-  Interval.between(
-    Interval.fromName('ß-7') as any,
-    Interval.fromName('#14') as any
-  ) as any
-) === '##20')
-assert('Intervals ßß7, #5 and 2 are sorted as 2, #5, ßß7', 
-  Interval.sort([
-    Interval.fromName('ßß7') as any,
-    Interval.fromName('#5') as any,
-    Interval.fromName('2') as any
-  ]).map(interval => Interval.name(interval))
-    .join(',') === '2,#5,ßß7')
-assert('Intervals 1, ßß2, 3, 3, 5 are deduped as 1, ßß2, 3, 5', Interval.dedupe([
-  Interval.fromName('1') as any,
-  Interval.fromName('ßß2') as any,
-  Interval.fromName('3') as any,
-  Interval.fromName('3') as any,
-  Interval.fromName('5') as any
-]).map(interval => Interval.name(interval))
-  .join(',') === '1,ßß2,3,5')
-assert('Intervals 1, ßß2, ßßßß3, ßßßßß4, 5 are semitoneDeduped as 1, 5', Interval.semitoneDedupe([
-  Interval.fromName('1') as any,
-  Interval.fromName('ßß2') as any,
-  Interval.fromName('ßßßß3') as any,
-  Interval.fromName('ßßßßß4') as any,
-  Interval.fromName('5') as any
-]).map(interval => Interval.name(interval))
-  .join(',') === '1,5')
-assert('Interval ß3 shifted to interval class 2 (numeric: 1) is #2', Interval.name(
-  Interval.shiftStep(
-    Interval.fromName('ß3') as any,
-    1
-  ) as any
-) === '#2')
-assert('Interval ##7 shifted to interval class 5 (numeric: 4) is ######5', Interval.name(
-  Interval.shiftStep(
-    Interval.fromName('##7') as any,
-    4
-  ) as any
-) === '######5')
-assert('Interval ####3 rationalized is #5', Interval.name(
-  Interval.rationalize(
-    Interval.fromName('####3') as any
-  )
-) === '#5')
-assert('Interval ####3 hard rationalized is ß6', Interval.name(
-  Interval.rationalize(
-    Interval.fromName('####3') as any,
-    true
-  )
-) === 'ß6')
-// scaleNameToValue
-// scaleValueToName
-// scaleReallocateIntervals
-
-/* Scale */
-console.log('-- Scale --')
-console.log(Object
-  .entries(Object.getOwnPropertyDescriptors(Scale))
-  .filter(([, desc]) => desc.writable === true)
-  .map(([key]) => key)
-  .join('\n')
-)
-
-assert('Scale named 1,#4,ß2,3,#2 has intervals 1 #4 ß2 3 #2', Scale.fromName('1,#4,ß2,3,#2')
-  .map(e => Interval.name(e)).join(' ') === '1 #4 ß2 3 #2')
-assert('Scale with values 1 ß3 5 7 is named 1,ß3,5,7', Scale.name([
-  Interval.fromName('1') as any,
-  Interval.fromName('ß3'),
-  Interval.fromName('5'),
-  Interval.fromName('7')
-]) === '1,ß3,5,7')
-assert('Scale with values ß3 1 5 7 is named ß3,1,5,7', Scale.name([
-  Interval.fromName('ß3') as any,
-  Interval.fromName('1'),
-  Interval.fromName('5'),
-  Interval.fromName('7')
-]) === 'ß3,1,5,7')
-
-assert('Scale with intervals 1, ##1, ####1, #####1, #######1, #########1, ###########1 is reallocated as 1,2,3,4,5,6,7', Scale.reallocate([
-  Interval.fromName('1') as any,
-  Interval.fromName('##1'),
-  Interval.fromName('####1'),
-  Interval.fromName('#####1'),
-  Interval.fromName('#######1'),
-  Interval.fromName('#########1'),
-  Interval.fromName('###########1')
-]).map(int => Interval.name(int)).join(',') === '1,2,3,4,5,6,7')
-
-assert('Scale with intervals 1, #1, 2, 4, ß5, ß6, 6, #6, 7 is reallocated as 1,ß2,2,#3,#4,#5,6,#6,7', Scale.reallocate([
-  Interval.fromName('1') as any,
-  Interval.fromName('#1'),
-  Interval.fromName('2'),
-  Interval.fromName('4'),
-  Interval.fromName('ß5'),
-  Interval.fromName('ß6'),
-  Interval.fromName('6'),
-  Interval.fromName('#6'),
-  Interval.fromName('7')
-]).map(int => Interval.name(int)).join(',') === '1,ß2,2,#3,#4,#5,6,#6,7')
-
-assert('Scale with intervals 7, ßß7, ßßßß7, ßßßßß7, ßßßßßßß7, ßßßßßßßßß7, ßßßßßßßßßßß7 is reallocated as 1,2,3,#4,5,6,7', Scale.reallocate([
-  Interval.fromName('7') as any,
-  Interval.fromName('ßß7'),
-  Interval.fromName('ßßßß7'),
-  Interval.fromName('ßßßßß7'),
-  Interval.fromName('ßßßßßßß7'),
-  Interval.fromName('ßßßßßßßßß7'),
-  Interval.fromName('ßßßßßßßßßßß7')
-]).map(int => Interval.name(int)).join(',') === '1,2,3,#4,5,6,7')
-
-assert('Scale with intervals 1, ß2, 2, ß3, 3, ßß6, ß6, 6, ß7, 7 is reallocated as 1,ß2,2,ß3,3,##4,#5,6,#6,7', Scale.reallocate([
-  Interval.fromName('1') as any,
-  Interval.fromName('ß2'),
-  Interval.fromName('2'),
-  Interval.fromName('ß3'),
-  Interval.fromName('3'),
-  Interval.fromName('ßß6'),
-  Interval.fromName('ß6'),
-  Interval.fromName('6'),
-  Interval.fromName('ß7'),
-  Interval.fromName('7')
-]).map(int => Interval.name(int)).join(',') === '1,ß2,2,ß3,3,##4,#5,6,#6,7')
-
-
-// const lol = [
-//   ['1', null],
-//   ['ß2', '2', null],
-//   ['ß3', '3', null],
-//   ['4', '#4', null],
-//   ['ß5', '5', '#5', null],
-//   ['ß6', '6', null],
-//   ['ßß7', 'ß7', '7', null]
-// ]
-
-// new Array(Math.pow(4, 7))
-// // new Array(1)
-//   .fill(0)
-//   .map((_, pos) => {
-//     const base4Pos = (pos + 0).toString(4).split('').map(e => parseInt(e))
-//     const reversedBase4Pos = [...base4Pos].reverse()
-//     const withZeros = [...reversedBase4Pos, 0, 0, 0, 0, 0, 0, 0]
-//     const sliced = withZeros.slice(0, 7).reverse()
-//     const intervals = new Array(7).fill(null).map((_, pos) => lol.at(pos)?.at(sliced.at(pos) as any))
-//     if (intervals.includes(undefined as any)) return;
-//     const scaleName = intervals.filter(e => e!== null).join(',')
-//     const scale = Scale.fromName(scaleName)
-//     const quality = Scale.quality(scale)
-//     const table = Scale.qualityToQualityTable(quality)
-//     const value = Scale.fromQualityTable(table)
-//     const name = Scale.name(value)
-//     // console.log(scaleName, '——>', quality, '——>', name)
-//     if (scaleName !== name) console.log('ERROR', pos, scaleName, '|', scale, '|', quality, '|', name)
-//     return {
-//       scaleName,
-//       scale,
-//       quality,
-//       table,
-//       value,
-//       name
-//     }
-//   })
 
 // console.log(Interval.nameRegexp)
 
