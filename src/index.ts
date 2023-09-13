@@ -1921,6 +1921,10 @@ export class Chord {
 // [WIP] when parsing chord name, the m of mixolydian gets interpreted as a m of minor...
 Chord.fromName('ß-IVmixolydian,no(!3)add(2)/!4\\!!2')
 
+// [WIP]
+// - single parser function, write full template <alt><base><quality/name><modifiers><inv><offset><voice> ?
+// - Interval could be of type relative or absolute in order to manage pitch related stuff ?
+
 ;`
 f  • f^4  • f^+  • § | 4  • 4^4  • 4^+  • § | <4>  • <4>^4  • <4>^+  • § |
 
