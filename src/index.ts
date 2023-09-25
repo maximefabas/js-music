@@ -3,22 +3,21 @@ import { REGEXPS } from './regexps.js'
 import absoluteModulo from './modules/absolute-modulo/index.js'
 import toAlphanum from './modules/to-alphanum/index.js'
 import * as regexpUtils from './modules/regexp-utils/index.js'
-import { MainQualities, qualitiesToIntervalsNameMap } from './data/scales-qualities.js'
+import { MainQualities, mainQualitiesToIntervalsNameMap } from './data/scales-qualities.js'
 import * as scalesData from './data/scales-names.js'
+import { Synth, now, start, Time, Transport } from 'tone'
+import { lol, InstructionType } from './experimentation.js'
 
-/*
+// parse('#C^4')
+console.log(lol({
+  string: '#C-^^4',
+  type: InstructionType.RAW
+}))
 
-interval('c^4') === pitch('c^4')
-chord('C^4mixolydian') === key('C^4mixolydian')
-pitch('c^4', scale) => gives a scale context to the pitch
-so you can do pitch('!4', majorScale) => access the fourth of the major scale  
-pitch('')
-
-by default, method calls on instance do mutate value or not ?
-- pitch.clone().doStuff() ?
-- pitch.doStuff().mutate(pitch) ?
-
-*/
+console.log(lol({
+  string: '#c-^^4',
+  type: InstructionType.RAW
+}))
 
 /* Alteration */
 
@@ -33,6 +32,7 @@ export class Alteration {
     if (value < 0) return new Array(-1 * value).fill('ß').join('')
     return ''
   }
+  
   static fromName (name: AlterationTypes.Name): AlterationTypes.Value {
     const chars = name.split('')
     const sharps = chars.filter(char => char === '#').length
@@ -110,21 +110,21 @@ export class Interval {
 
   // [WIP] should find a way to put getters here
   static commonNames = {
-    first: Interval.simplify(Interval.fromName('1', true)),
-    majorSecond: Interval.simplify(Interval.fromName('2', true)),
-    minorSecond: Interval.simplify(Interval.fromName('ß2', true)),
-    majorThird: Interval.simplify(Interval.fromName('3', true)),
-    minorThird: Interval.simplify(Interval.fromName('ß3', true)),
-    perfectFourth: Interval.simplify(Interval.fromName('4', true)),
-    augmentedFourth: Interval.simplify(Interval.fromName('#4', true)),
-    perfectFifth: Interval.simplify(Interval.fromName('5', true)),
-    diminishedFifth: Interval.simplify(Interval.fromName('ß5', true)),
-    augmentedFifth: Interval.simplify(Interval.fromName('#5', true)),
-    majorSixth: Interval.simplify(Interval.fromName('6', true)),
-    minorSixth: Interval.simplify(Interval.fromName('ß6', true)),
-    majorSeventh: Interval.simplify(Interval.fromName('7', true)),
-    minorSeventh: Interval.simplify(Interval.fromName('ß7', true)),
-    diminishedSeventh: Interval.simplify(Interval.fromName('ßß7', true))
+    first: Interval.simplify({ step: 0, alteration: 0 }),
+    majorSecond: Interval.simplify({ step: 1, alteration: 0 }),
+    minorSecond: Interval.simplify({ step: 1, alteration: -1 }),
+    majorThird: Interval.simplify({ step: 2, alteration: 0 }),
+    minorThird: Interval.simplify({ step: 2, alteration: -1 }),
+    perfectFourth: Interval.simplify({ step: 3, alteration: 0 }),
+    augmentedFourth: Interval.simplify({ step: 3, alteration: 1 }),
+    perfectFifth: Interval.simplify({ step: 4, alteration: 0 }),
+    diminishedFifth: Interval.simplify({ step: 4, alteration: -1 }),
+    augmentedFifth: Interval.simplify({ step: 4, alteration: 1 }),
+    majorSixth: Interval.simplify({ step: 5, alteration: 0 }),
+    minorSixth: Interval.simplify({ step: 5, alteration: -1 }),
+    majorSeventh: Interval.simplify({ step: 6, alteration: 0 }),
+    minorSeventh: Interval.simplify({ step: 6, alteration: -1 }),
+    diminishedSeventh: Interval.simplify({ step: 6, alteration: -2 })
   }
 
   static semitonesValues: [0, 2, 4, 5, 7, 9, 11] = [0, 2, 4, 5, 7, 9, 11]
@@ -1454,6 +1454,25 @@ export class Scale {
     return quality
   }
 
+  static qualityWeight (scale: ScaleTypes.Value): number {
+    let weight = Math.abs(scale.length - 3) * 100
+    if (scale.length < 3) { weight += 800 }
+    if (!Scale.hasSteps(scale, 0)) { weight += 10000 }
+    if (!Scale.hasIntervals(scale, Interval.commonNames.majorThird)) { weight += 1 }
+    if (!Scale.hasSteps(scale, 2)) { weight += 10 }
+    if (!Scale.hasIntervals(scale, Interval.commonNames.perfectFifth)) { weight += 2 }
+    if (!Scale.hasSteps(scale, 4)) { weight += 10 }
+    if (scale.length === 4 && !Scale.hasSteps(scale, 6)) { weight += 10 }
+    if (scale.length === 5 && !Scale.hasSteps(scale, 1)) { weight += 10 }
+    if (scale.length === 6 && !Scale.hasSteps(scale, 3)) { weight += 10 }
+    if (scale.length === 7 && !Scale.hasSteps(scale, 5)) { weight += 10 }
+    const { accidents, omissions, additions } = Scale.qualityTable(scale)
+    weight += accidents.flat().length * 200
+    weight += omissions.flat().length * 1000
+    weight += additions.flat().length * 1000
+    return weight
+  }
+
   // [WIP] invertedQualities
 
   static qualityToQualityTable (quality: string): ScaleTypes.QualityTable {
@@ -1575,7 +1594,7 @@ export class Scale {
     } = Scale.qualityTableSort(_qualityTable)
     
     // Main quality
-    const mainQualityScaleName = qualitiesToIntervalsNameMap.get(mainQuality) ?? '1,3,5'
+    const mainQualityScaleName = mainQualitiesToIntervalsNameMap.get(mainQuality) ?? '1,3,5'
     let returnedScale = Scale.fromIntervalsName(mainQualityScaleName)
     
     // Minor quality
@@ -1807,8 +1826,36 @@ export class Chord {
     return `${alterationName}${romanSign}${romanName}${quality}`
   }
 
+  static fromScaleAndStep (
+    scale: ScaleTypes.Value,
+    step: IntervalTypes.SimpleStepValue): ChordTypes.Value[] {
+    const intervals = Scale.intervalsAtStep(scale, step)
+    const chords = intervals
+      .map(interval => {
+        const intervalsAsSemitoneValues = Interval.semitones(interval)
+        const scaleRotation = Scale.rotations(scale).at(intervalsAsSemitoneValues)
+        if (scaleRotation === undefined) return undefined
+        const subsets = [scaleRotation, ...Scale.subsets(scaleRotation)]
+        return subsets.map(subset => ({
+          base: interval as IntervalTypes.Value,
+          scale: subset,
+          weight: Scale.qualityWeight(subset)
+        }))
+      })
+      .flat()
+      .filter((e): e is ChordTypes.Value & { weight: number } => e !== undefined)
+      .sort((chA, chB) => chB.weight - chA.weight)
+      .map(withWeight => ({
+        base: withWeight.base,
+        scale: withWeight.scale,
+        weight: withWeight.weight
+      }))
+    return chords
+  }
+
   static fromName (name: ChordTypes.Name) {
     let workingName = name
+    
     // Alteration
     const alterationMatchArr = (regexpUtils.stringStartsWith(workingName, REGEXPS.alteration, true) ?? [])
       .filter(str => str !== '')
@@ -1816,6 +1863,7 @@ export class Chord {
     const alterationStr = alterationMatchArr.at(0) ?? ''
     const alteration = alterationStr !== '' ? Alteration.fromName(alterationStr) : 0
     workingName = workingName.replace(alterationStr, '')
+    
     // Sign
     const signMatchArr = (regexpUtils.stringStartsWith(workingName, /-/, true) ?? [])
       .filter(str => str !== '')
@@ -1823,6 +1871,7 @@ export class Chord {
     const signStr = signMatchArr.at(0) ?? ''
     const isNegative = signStr === '-'
     workingName = workingName.replace(signStr, '')
+    
     // Offset
     const offsetMatchArr = (regexpUtils.stringEndsWith(workingName, REGEXPS.offset, true) ?? [])
       .filter(str => str !== '')
@@ -1830,6 +1879,7 @@ export class Chord {
     const offsetStr = offsetMatchArr.at(0) ?? ''
     const offset = offsetStr
     workingName = workingName.replace(regexpUtils.toEnd(REGEXPS.offset), '')
+    
     // Inversion
     const inversionMatchArr = (regexpUtils.stringEndsWith(workingName, REGEXPS.inversion, true) ?? [])
       .filter(str => str !== '')
@@ -1837,6 +1887,7 @@ export class Chord {
     const inversionStr = inversionMatchArr.at(0) ?? ''
     const inversion = inversionStr
     workingName = workingName.replace(regexpUtils.toEnd(REGEXPS.inversion), '')
+    
     // Quality or common name root
     let qualityOrCommonNameRootStr: string
     let qualityOrCommonNameExtensionStr: string
@@ -1903,6 +1954,7 @@ export class Chord {
     const romanHasMinorQuality = !(/[A-Z]+/.test(romanStr))
     const romanValue = deromanize(romanStr.toUpperCase()) ?? '1' // deromanize should be safe here and never return undefined
     workingName = workingName.replace(romanStr, '')
+    
     // Chord own steps
     console.log({
       alteration,
@@ -1918,8 +1970,745 @@ export class Chord {
   }
 }
 
+/* Voice */
+
+export namespace VoiceTypes {
+  export type Value = IntervalTypes.Value[]
+  export type Descriptor = (IntervalTypes.Value | IntervalTypes.StepValue)[][]
+}
+
+export class Voice {
+  static fromScale (
+    scale: ScaleTypes.Value,
+    descriptor?: VoiceTypes.Descriptor
+  ): VoiceTypes.Value {
+    if (descriptor === undefined) return [...scale]
+    const returned: VoiceTypes.Value = []
+    descriptor.forEach((intsOrSteps, octave) => {
+      intsOrSteps.forEach(intOrStep => {
+        if (typeof intOrStep === 'number') {
+          const simpleStep = Interval.simplify({ step: intOrStep, alteration: 0 }).step
+          const foundIntervals = Scale.intervalsAtStep(scale, simpleStep)
+          const octaveStep = 7 * octave + Math.floor((intOrStep - simpleStep) / 7) * 7
+          foundIntervals.forEach(interval => {
+            returned.push(Interval.add(interval, { step: octaveStep, alteration: 0 }))
+          })
+        } else {
+          const octaveStep = 7 * octave
+          returned.push(Interval.add(intOrStep, { step: octaveStep, alteration: 0 }))
+        }
+      })
+    })
+    return returned
+  }
+  
+  static fromChord (
+    chord: ChordTypes.Value,
+    descriptor?: VoiceTypes.Descriptor
+  ): VoiceTypes.Value {
+    const voicedScale = Voice.fromScale(chord.scale, descriptor)
+    return voicedScale.map(int => Interval.add(chord.base, int))
+  }
+}
+
+/* Note */
+
+export namespace NoteTypes {
+  export type Value = {
+    pitch: IntervalTypes.Value
+    duration: string | number
+    velocity: number
+  }
+  export type DurationDescriptor = string
+    | number
+    | ((int: IntervalTypes.Value | undefined, pos?: number) => string | number)
+  export type VelocityDescriptor = number
+    | ((int: IntervalTypes.Value | undefined, pos?: number) => number)
+}
+
+export class Note {
+  static fromVoice (
+    voice: VoiceTypes.Value,
+    durationDescriptor?: NoteTypes.DurationDescriptor,
+    velocityDescriptor?: NoteTypes.VelocityDescriptor
+  ): NoteTypes.Value[] {
+    return voice.map((pitch, pos) => {
+      let duration: string | number = 0
+      if (typeof durationDescriptor === 'number') { duration = durationDescriptor }
+      else if (typeof durationDescriptor === 'string') { duration = durationDescriptor }
+      else if (durationDescriptor !== undefined) { duration = durationDescriptor(pitch, pos) }
+      let velocity: number = 0
+      if (typeof velocityDescriptor === 'number') { velocity = velocityDescriptor }
+      else if (velocityDescriptor !== undefined) { velocity = velocityDescriptor(pitch, pos) }
+      return { pitch, duration, velocity }
+    })
+  }
+}
+
+/* Sound */
+
+export namespace SoundTypes {
+  export type Value = {
+    frequency: number
+    duration: string | number
+    velocity: number
+  }
+
+  export type Tuner = (int: IntervalTypes.Value) => number
+}
+
+export class Sound {
+  static twelveTetTuner: SoundTypes.Tuner = (int: IntervalTypes.Value) => {
+    const c0Freq = 16.35160
+    const semitoneValue = Interval.semitones(int)
+    return Math.pow(2, semitoneValue / 12) * c0Freq
+  }
+
+  static fromNote (
+    note: NoteTypes.Value,
+    tuner: SoundTypes.Tuner = Sound.twelveTetTuner
+  ): SoundTypes.Value {
+    return {
+      frequency: tuner(note.pitch),
+      duration: note.duration,
+      velocity: note.velocity
+    }
+  }
+
+  static playNow (
+    { frequency, duration, velocity }: SoundTypes.Value,
+    synth: Synth = new Synth().toDestination()
+  ) {
+    synth.triggerAttackRelease(
+      frequency,
+      duration,
+      now(),
+      velocity
+    )
+  }
+}
+
+/* Sequence */
+export namespace SequenceTypes {
+  export type Value = {
+    duration: string | number
+    timedNotes: Array<{
+      normalizedTime: number,
+      note: NoteTypes.Value
+    }>
+  }
+  export type NotesArr = Array<NoteTypes.Value | NotesArr>
+}
+
+export class Sequence {
+  static notesArrToTimedSounds (
+    notesArr: SequenceTypes.NotesArr,
+    duration = 1,
+    offset = 0
+  ): SequenceTypes.Value['timedNotes'] {
+    const returned: SequenceTypes.Value['timedNotes'] = []
+    notesArr.forEach((soundOrArr, pos, arr) => {
+      const thisDuration = duration / arr.length
+      const thisOffset = offset + (pos * duration / arr.length)      
+      if (Array.isArray(soundOrArr)) returned.push(...Sequence.notesArrToTimedSounds(
+        soundOrArr,
+        thisDuration,
+        thisOffset
+      ))
+      else returned.push({
+        note: soundOrArr,
+        normalizedTime: thisOffset
+      })
+    })
+    return returned
+  }
+  
+  static fromNotes (
+    notesArr: SequenceTypes.NotesArr,
+    duration: string | number
+  ) {
+    const sequence: SequenceTypes.Value = {
+      duration,
+      timedNotes: Sequence.notesArrToTimedSounds(notesArr)
+    }
+    return sequence
+  }
+}
+
+const majorScale = Scale.fromCommonName('harmonic-minor') ?? []
+console.log(Scale.intervalsName(majorScale))
+const c4note: IntervalTypes.Value = {
+  step: 4 * 7 - 3,
+  alteration: 0
+}
+const cMajorChord: ChordTypes.Value = {
+  base: c4note,
+  scale: majorScale
+}
+
+
+/*
+- une séquence est une liste d'évènements programmés dans le temps, d'une durée donnée
+
+
+- Event {
+  payload:
+    - joue pitch, key interval, key step, chord interval, chord step
+      - #c^^, #2, <#2>, #<2>, !2, <!2>, #<!2>, {#2}, #{2}, {!2}, #{!2}
+    - joue chord, chord from key int, from key step, from chord int, from chord step
+      - #C^^, #II, <#II>, #<II>, !II, <!II>, #<!II>, {#II}, {!II}, #{!II}
+    - set chord
+      - {{!II} mixolydian}
+    - set chord scale
+      - {{} mixolydian}
+    - set chord base
+      - {<!II> ~}
+    - set key
+      - <<!III> ~mod(3)>
+    - set key scale
+      - <<> phrygian>
+    - set key base
+      - <<!III> ~>
+    - set / ramp instrument setting
+      ?instr.trumpet.distortion = 0.5
+    - set time signature
+    - set / ramp tuning
+    - set / ramp bpm
+    - start / end loop ?
+}
+
+- Event : note / notes
+
+- NoteCommons = {
+  - context: 'key' | 'chord' | 'absolute'
+  - alteration: Alteration
+  - octaveOffset: number | null
+}
+- StepNote = NoteCommons & { step: number }
+- IntervalNote = NoteCommons & { interval: Interval }
+- Note = StepNote | IntervalNote
+
+note('#<#2>') => {
+  context: 'key',
+  interval: { step: 1, alteration: 1 },
+  alteration: 1,
+  octaveOffset: 0
+}
+
+note('#{!2}') => {
+  context: 'chord',
+  step: 1,
+  alteration: 1,
+  octaveOffset: 0
+}
+
+notes('<#II^^>') => [
+  { context: 'key', interval: { step: 1, alteration: 1 }, alteration: 0, octaveOffset: 2 },
+  { context: 'key', interval: { step: 3, alteration: 2 }, alteration: 0, octaveOffset: 2 },
+  { context: 'key', interval: { step: 5, alteration: 1 }, alteration: 0, octaveOffset: 2 },
+  { context: 'key', interval: { step: 7, alteration: 1 }, alteration: 0, octaveOffset: 2 }
+]
+
+notes('<!II-^>') => [
+  { context: 'key', step: 1, alteration: 0, octaveOffset: -1 },
+  { context: 'key', step: 3, alteration: 0, octaveOffset: -1 },
+  { context: 'key', step: 5, alteration: 0, octaveOffset: -1 },
+  { context: 'key', step: 7, alteration: 0, octaveOffset: -1 }
+]
+
+note('#c') => {
+  context: 'absolute',
+  interval: { step: 0, alteration: 1 },
+  alteration: 0,
+  octaveOffset: 0
+}
+
+note('#c^4') => {
+  context: 'absolute',
+  interval: { step: 28, alteration: 1 },
+  alteration: 0,
+  octaveOffset: null
+}
+
+notes('ßDm7') => [
+  { context: 'absolute', interval: { step: 1, alteration: -1 }, alteration: 0, octaveOffset: 0 },
+  { context: 'absolute', interval: { step: 3, alteration: 0 },  alteration: 0, octaveOffset: 0 },
+  { context: 'absolute', interval: { step: 5, alteration: -1 }, alteration: 0, octaveOffset: 0 },
+  { context: 'absolute', interval: { step: 7, alteration: -1 }, alteration: 0, octaveOffset: 0 }
+]
+
+notes('ßDm7^4') => [
+  { context: 'absolute', interval: { step: 29, alteration: -1 }, alteration: 0, octaveOffset: null },
+  { context: 'absolute', interval: { step: 31, alteration: 0 },  alteration: 0, octaveOffset: null },
+  { context: 'absolute', interval: { step: 33, alteration: -1 }, alteration: 0, octaveOffset: null },
+  { context: 'absolute', interval: { step: 35, alteration: -1 }, alteration: 0, octaveOffset: null }
+]
+
+
+- RelativeTime {
+  numerator: number
+  denominator: number
+}
+
+- Pattern {
+  event?: Event
+  grid: Array<(undefined | {
+    relativeDuration: RelativeTime
+    intensity: number
+  })>
+}
+- Line {
+  timeline: Array<{
+    relativeDuration: RelativeTime
+    event: Event
+  }>
+}
+- Sequence {
+  duration: string | number | RelativeTime
+  timedEvents: Array<{
+    relativeTime: RelativeTime
+    event: Event
+  }>
+}
+
+const mySeq = sequence([1 / 4], [
+  { relativeTime: [1 / 32], event: {...} },
+  { relativeTime: [1 / 32], event: {...} },
+  { relativeTime: [1 / 32], event: {...} },
+  { relativeTime: [1 / 32], event: {...} }
+])
+
+- Instrument {
+  tuning: Tuning
+  key: Chord
+  chord: Chord
+  texture: Tone.Instrument
+  sequences: Sequence<string | number>[]
+}
+
+- Track {
+  bpm: Bpm
+  signature: TimeSignature
+  tuning: Tuning
+  key: Chord
+  chord: Chord
+  instruments: Instrument[]
+}
+
+*/
+
+
+
+
+
+
+/* * * * * * * * * * * * * * * * * * * * 
+ *
+ * INTERACTIONS
+ * 
+ * * * * * * * * * * * * * * * * * * * */
+
+// const voiced = Voice.fromChord(cMajorChord, [
+//   [0, 1, 2, 3, 4, 5, 6],
+//   [0, 1, 2, 3, 4, 5, 6, 7]
+// ])
+const voiced = Voice.fromChord(cMajorChord, [[0, 2, 4, 6]])
+const notes = Note.fromVoice(voiced, '4n', 1)
+console.log(notes)
+const sounds = notes.map(note => Sound.fromNote(note))
+const upAndDownSounds = [
+  ...sounds,
+  // ...[...sounds.slice(0, -1)].reverse()
+]
+
+const seq = Sequence.fromNotes(
+  []
+/*[{
+  pitch: { step: 4 * 7, alteration: 0 },
+  duration: '2n',
+  velocity: 1
+}, [
+  {
+    pitch: { step: 4 * 7 + 1, alteration: 0 },
+    duration: '4n',
+    velocity: 1
+  }, [
+    {
+      pitch: { step: 4 * 7, alteration: 0 },
+      duration: '8n',
+      velocity: 1
+    }, [
+      {
+        pitch: { step: 4 * 7 + 1, alteration: 0 },
+        duration: '16n',
+        velocity: 1
+      },
+      {
+        pitch: { step: 4 * 7 + 4, alteration: 0 },
+        duration: '16n',
+        velocity: 1
+      },
+    ]]
+]]*/, '1n')
+
+document.querySelector('.play')?.addEventListener('click', () => {
+  Transport.stop()
+  const { duration: sequenceDuration, timedNotes } = seq
+  timedNotes.forEach(timedSound => {
+    const {
+      normalizedTime,
+      note: {
+        pitch,
+        duration,
+        velocity
+      }
+    } = timedSound
+    Transport.schedule(time => {
+      const synth = new Synth().toDestination()
+      synth.triggerAttackRelease(
+        Sound.twelveTetTuner(pitch),
+        duration,
+        time + Time(sequenceDuration).toSeconds() * normalizedTime,
+        velocity
+      )
+    }, Transport.now())
+  })
+  Transport.start()
+})
+
+const enableBtn = document.querySelector('.audio-enable')
+enableBtn?.addEventListener('click', () => {
+  start()
+  if (enableBtn !== undefined) {
+    enableBtn.setAttribute('disabled', '')
+    enableBtn.innerHTML = 'Audio enabled.'
+  }
+})
+
+
+
+
+
+
+
+
+
+/* * * * * * * * * * * * * * * * * * * * 
+ *
+ * BLOC NOTES
+ * 
+ * * * * * * * * * * * * * * * * * * * */
+
+/*
+
+ÉVÈNEMENTS :
+setup clé courante (Chord<base, scale>)
+  setup base, setup scale
+  * scale peut être une transformation depuis la clé
+  * scale peut être une transformation depuis l'accord courant
+  * base peut être
+    * un pitch
+    ou
+    * un intervalle,
+    * ou un step
+    de
+    * la clé
+    * ou de l'accord courant
+
+setup accord courant (Chord<base, scale>)
+  * scale peut être une transformation depuis la clé
+  * scale peut être une transformation depuis l'accord courant
+  * base peut être
+    * un pitch
+    ou
+    * un intervalle,
+    * ou un step
+    de
+    * la clé
+    * ou de l'accord courant
+
+setup tempo, temporamp
+setup tuning
+setup time signature
+
+play individual notes (melody)
+play voiced chords
+
+let ring (notes and voices)
+
+setup / play loops
+
+
+
+
+pitch class ßd
+pitch letter !d
+own (scale ?) interval ß9
+own (scale ?) step !9
+key interval <ß9>
+key step <!9>
+chord interval {ß9}
+chord step {!9}
+
+pitch chord ßDm7
+pitch letter chord <!D>m7 // Find the D in the current key
+                   {!D}m7 // find the D in the current chord
+
+key chord         <ii>m7 [-x-x,--x-,x]
+                  <ii>m7 [!3, <!5>, {!7}, ß9]
+                  <!II:13> <acc,omi,add> <invert> <offset> <voice>
+
+chord chord       {!II:7} // Find the chord 2 steps above the current chord
+
+
+
+
+
+
+key interval chord 
+
+// SHEET MUSIC
+
+tune              `${tuning}`
+key               `ßa^3 mixolydian`
+sign              `4/4`
+bpm               `${bpm}`
+
+
+
+
+
+
+
+
+tune              12tet
+key               ßa^3 mixolydian
+sign              4/4
+bpm               75
+-
+inst trumpet      <preset>
+inst drums        <preset>
+inst organ        <preset>
+-
+
+chord mychord     <II:13>
+prog prog1        I - IV - iiß6 - ii!ß6 - $mychord
+prog prog2        (transformations plus compliquées de scales notamment)
+prog prog3        Dm7 - ii7 - <II:13>no(9, !11, <9>, <!11>, {9}, {!11})/{!3}
+
+pattern patt3     key       | ßa^3 mixolydian |               |                |                |
+                  chord     | <II:13>        |                |                |                |
+                  velocity  | <velocity func>;                                                  |
+                  !7      * |----x~~~----xx--|--5---8---------|----------------|----------------| * 
+                  {!7}    * |-xxx---xxx~---x-|----------------|----------------|----------------| *
+                  !5      * |---x----x-------|------6---------|----------------|----------------| *
+                  !3      * |--x-------X-----|----------------|----------------|----------------| *
+                  !1      * |x---x---x---x---|----------------|----------------|----------------| *
+
+sequence intro {
+  duration               1m
+  bpm                    180 1m
+  chords                 | <!II:13>• <!I:7>• <!V:6> • <!I>   |
+  pattern                | {I}     • {I}   • {I}    • {I}    |
+             {!13}      *|--------|--------|--------|--------|
+             {!7}       *|-3~~----|-3~~----|-3~~----|-3~~----|
+             {!5}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+             {!3}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+             {!1}       *|7~~~----|7~~~----|7~~~----|7~~~----|
+}
+
+loop introloop {
+  sequence               $sequence.intro
+  loops                  16
+  looper                 $looper.mylooper
+}
+
+seq myseq         4 measures
+spread            $prog.prog1    1 | 2 | 3 | [4 | 5]
+* key             ßb^4
+* to trumpet      $patt3 | $patt2 | $patt1 | [ $patt4 | $patt8 ]
+* to drums        !7   |----x~~~----xx--|----------------|----------------|----------------|
+                  {!7} |-xxx---xxx~---x-|----------------|----------------|----------------|
+                  !5   |---x----x-------|----------------|----------------|----------------|
+                  !3   |--x-------X-----|----------------|----------------|----------------|
+                  !1   |x---x---x---x---|----------------|----------------|----------------|
+
+
+
+
+*                 <II>-^no(<!6>) c^4   • ~      • {!I}   • {!V}
+*                 ~
+*                 
+
+
+seq               1 measure
+spread            $prog.prog1    1, 2, 3, [4, 5]
+  sub 1           {!I:13} [x------,-------]
+  sub 2
+    sub 1         <!1>                 • <!4>   • <!6>   • <!3>
+    sub 2         ~ <!1,!4>
+    sub 3         
+    sub 4
+  sub 3
+  sub 4  
+    | c // joue le c le plus proche de la clé
+    | 1 // joue la note 1 de la clé
+    | !1 // joue la note 1 de l'accord
+    | ßVII M7 // joue l'accord en fonction de la clé
+    | A-^^ // Accord de A à 2 octaves sous la clé 
+    | A!-^// Accord de A à 1 octave sous l'accord
+
+
+
+
+
+
+
+
+loop              4 measures (4 notes / beats / 16ths / ...)
+spread prog1      1, 2, 3, [4, 5]
+play              | c . c . c . c ; c . c . c . c . c . c ; c . c . c . c . c . c ; c . c . c . c . c . 
+                  | 1 . 2 . 6 . c ; c . c . c . c . c . c ; c . c . c . c . c . c ; c . c . c . c . c . 
+                  |
+                  |
+
+
+
+
+Une note : c  __  #c^4
+Une note, relativement à la clé :  c-^^ (the c, 2 octaves lower. eg key base is ßa^3, c-^^= c^1)
+Une note, relativement à l'échelle ? : c-!!^ (n'a pas de sens à priori)
+Une note, relativement à un accord : 
+
+
+
+
+
+
+
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// const sequence: any = null
+// const loop: any = null
+// const key: any = null
+// const instrument: any = null
+// const bpm: any = null
+
+// key('start key', 'ßa^3 mixolydian')
+
+// bpm('start bpm', { value: 60 })
+// bpm('after intro bpm', { value: 180 })
+
+// sequence('intro', (intro: any) => ({
+//   key:                    key.get('start key'),
+//   duration:               '1m',
+//   bpm: {                  value: bpm.get('after intro bpm').value,
+//                           ramp: '1m',
+//                           from: bpm.get('start bpm').value
+//   },
+//   chords:                 `            | <!II:13>• <!I:7>• <!V:6> • <!I>   |`,
+//   pattern:                `{!13}      *|--------|--------|--------|--------|
+//                            {!7}       *|-3~~----|-3~~----|-3~~----|-3~~----|
+//                            {!5}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+//                            {!3}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+//                            {!1}       *|7~~~----|7~~~----|7~~~----|7~~~----|`            
+// }))
+
+// loop('intro loop', (introLoop: any) => ({
+//   sequence:             sequence.get('intro'),
+//   loops:                16,
+//   looper:               (sequence: any, loopNb: any) => {
+//     return sequence
+//   }
+// }))
+
+// instrument('trumpet', (trumpet: any) => ({
+  
+// }))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// sequence intro {
+//   duration               1m
+//   bpm                    180 1m
+//   chords                 | <!II:13>• <!I:7>• <!V:6> • <!I>   |
+//   pattern                | {I}     • {I}   • {I}    • {I}    |
+//              {!13}      *|--------|--------|--------|--------|
+//              {!7}       *|-3~~----|-3~~----|-3~~----|-3~~----|
+//              {!5}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+//              {!3}       *|-5~~----|-5~~----|-5~~----|-5~~----|
+//              {!1}       *|7~~~----|7~~~----|7~~~----|7~~~----|
+// }
+
+// loop introloop {
+//   sequence               $sequence.intro
+//   loops                  16
+//   looper                 $looper.mylooper
+// }
+
+
+// Chord.fromScaleAndStep(
+//   Scale.fromIntervalsName('1,ß3,ß5,ßß7') as any,
+//   0
+// ).map(chord => {
+//   console.log(`${Interval.name(chord.base)} ${Scale.quality(chord.scale)} // ${Scale.pattern(chord.scale)} // ${(chord as any).weight} // ${chord.scale.length}`)
+// })
+
+// <root><scale><modifiers><inversion><root><voicing> ?
+// root =>
+//    interval: ß4
+//    interval with octave : ß4^4
+//    pitch: ßC^4
+//    step from parent scale with octave : !!4^4
+// root+scale =>
+//    any of the above + scale (commonname or quality)
+//    step + length : !4{5}
+
+
 // [WIP] when parsing chord name, the m of mixolydian gets interpreted as a m of minor...
-Chord.fromName('ß-IVmixolydian,no(!3)add(2)/!4\\!!2')
+// Chord.fromName('ß-IVmixolydian,no(!3)add(2)/!4\\!!2')
+
+// [WIP]
+// - single parser function, write full template <alt><base><quality/name><modifiers><inv><offset><voice> ?
+// - Interval could be of type relative or absolute in order to manage pitch related stuff ?
 
 // [WIP]
 // - single parser function, write full template <alt><base><quality/name><modifiers><inv><offset><voice> ?
@@ -1934,8 +2723,13 @@ Fm • F^4m • F^+m • § | iv • iv^4 • iv^+ • § | <iv> • <iv>^4 • 
 
 
 `
-
-
+// const context = {} as any
+// context.key = key('ßa^3 mixolydian')
+// const progression = [
+//   context.key.get('<!II:7>'),
+//   context.key.get('<!V:7>'),
+//   context.key.get('<!I:7>')
+// ]
 
 /*  
 from: https://www.youtube.com/watch?v=SF8CdxcdJgw
