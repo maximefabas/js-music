@@ -29,6 +29,7 @@
   "homepage": "https://github.com/maximefabas/js-music#readme",
   "description": "",
   "dependencies": {
-    "romans": "^2.0.8"
+    "romans": "^2.0.8",
+    "tone": "^14.7.77"
   }
 }

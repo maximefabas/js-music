@@ -1,5 +1,5 @@
 import stringsToRegexp from './modules/strings-to-regexp/index.js'
-import { qualitiesToIntervalsNameMap } from './data/scales-qualities.js'
+import { mainQualitiesToIntervalsNameMap } from './data/scales-qualities.js'
 import * as scalesData from './data/scales-names.js'
 import { setFlags } from './modules/regexp-utils/index.js'
 
@@ -18,7 +18,7 @@ const ownStep = new RegExp(`(${ownStepStart.source})(${step.source})`)
 const intervalsNameSeparator = /,/
 const intervalsName = new RegExp(`${interval.source}(${intervalsNameSeparator.source}${interval.source})*`)
 const minorQuality = /m/
-const mainQuality = new RegExp(`${stringsToRegexp([...qualitiesToIntervalsNameMap.keys()]).source}`)
+const mainQuality = new RegExp(`${stringsToRegexp([...mainQualitiesToIntervalsNameMap.keys()]).source}`)
 const intervalOrOwnStep = new RegExp(`(${interval.source})|(${ownStep.source})`)
 const intervalOrOwnStepList = new RegExp(`(${intervalOrOwnStep.source})(${intervalsNameSeparator.source}${intervalOrOwnStep.source})*`)
 const accidents = new RegExp(`(${interval.source})+`)
