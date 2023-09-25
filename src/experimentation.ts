@@ -1,5 +1,7 @@
 /* ALTERATION */
 
+import { mergeFlags, setFlags, stringStartsWith } from "./modules/regexp-utils/index.js"
+
 export namespace AlterationTypes {
   export type Value = number
 }
@@ -86,7 +88,299 @@ export class Chord {
   } 
 }
 
-/* SOUND */
+/* NOTE */
+
+// descriptor
+// c => context = 'absolute', alt = 0, { step: 0, alteration: 0 }, octaveOffset = 0
+// #2 => context = 'absolute', alt = 0, { step: 1, alteration: 1 }, octaveOffset = 0
+// !2 means => the closest step you have from a 2 natural, so :
+// - !#2 means => #2
+// - #!2 means => the closest step you have from 2, sharpened by 1
+
+// #!2 => context = 'absolute', alt = 1, step = 1, octaveOffset = 0
+// !#2 => context = 'absolute', alt = 0, interval = { step: 1, alteration: 1 }, octaveOffset = 0
+// #{!2-^^} => context = 'chord', alt = 1, step = 1, octaveOffset = -2
+// #{!2-^4} => context = 'chord', alt = 1, step = 29, octaveOffset = null
+
+// Use intervals to create extended single note chords like :
+// ß3 add(3, 5, 7)
+// chord descriptor
+// C^^, C^^m7, C^^ add(9), C^^ no(d, !d, !d^,  ß!9, !ß9 === ß9, 9, !9, ß!9, <7>, <!7>, ) add(...)
+// add(<7>, <!7>, #<7>, #<#7>)
+// <!II> <!II:3> <!II:4> <!II7>
+// #<!ßIX-^^ mM7 add(#{!5})>
+
+
+/* Alteration */
+// #|ß
+const alteration = /(#|ß)+/
+
+/* Interval */
+// SimpleStep : 0 | 1 | 2 | 3 | 4 | 5 | 6
+// PitchLetter : a | b | c | d | e | f | g
+// Step : number
+// Octaver : -?\^+[0-9]*
+// Interval : <alteration? /> <step /> <octaver? />
+// Pitch : <alteration? /> <pitch-letter /> <octaver? />
+// const simpleStep = /1|2|3|4|5|6|7/
+const pitchLetter = /a|b|c|d|e|f|g/
+const step = /-?[1-9]([0-9])*/
+const octaver = /-?\^+[1-9]([0-9])*/
+// const simpleInterval = new RegExp(`(${alteration.source})?(${simpleStep.source})`)
+const interval = new RegExp(`(${alteration.source})?(${step.source})(${octaver.source})?`)
+const pitch = new RegExp(`(${alteration.source})?(${pitchLetter.source})(${octaver.source})?`)
+
+/* Step marker */
+// !
+const stepMarker = /!/
+
+/* Step int or pitch */
+// <step-marker? /> <interval | pitch /> <octaver? /> 
+const stepIntOrPitch = new RegExp(`(${stepMarker.source})?((${interval.source})|(${pitch.source}))(${octaver.source})?`)
+
+/* Context */
+// <|{  - end: -  >|}
+const contextStart = /<|\{/
+const contextEnd = />|\}/
+
+/* Note */
+// <alteration? /> <context?> <step-int-or-pitch /> </context?>
+const note = new RegExp(`(${alteration.source})?(${contextStart.source})?(${stepIntOrPitch.source})(${contextEnd.source})?`)
+
+/* Roman */
+const roman = /(M{1,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|M{0,4}(CM|C?D|D?C{1,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})|M{0,4}(CM|CD|D?C{0,3})(XC|X?L|L?X{1,3})(IX|IV|V?I{0,3})|M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|I?V|V?I{1,3}))/
+
+/* Capital  A | B | C | D | E | F | G */
+const capital = /A|B|C|D|E|F|G/
+
+const romanOrCapital = new RegExp(`(${roman.source})|(${capital.source})`)
+
+/* Extensions */
+// The idea behind <!II:7> in order to get the second main chord of the current key, with it's extension on it's 7th
+// :2 => !1, !2, !5
+// :3 => !1, !3
+// :4 => !1, !4, !5
+// :5 => !1, !5
+// :6 => !1, !3, !5, !6
+// :7 => !1, !3, !5, !7
+// :9 => !1, !3, !5, !7, !9
+// :11 => !1, !3, !5, !7, !9, !11
+// :13 => !1, !3, !5, !7, !9, !11, !13
+const extensions = /:[1-9]([0-9])*/
+
+// Modifier, inversion, offset
+// Modifier :   [a-z]+\((<note />,)*\)
+// Inversion :  \/<note />
+// Offset :     \\\<note />
+// Quality:               list of main qualities
+// Full quality :   <quality /> <modifiers? /> <inversion? /> <offset? />
+const modifier = new RegExp(`[a-z]+\\((${note.source})?(,${note.source})*\\)`)
+const modifiers = new RegExp(`(${modifier.source})(${modifier.source})*`)
+const inversion = new RegExp(`/(${note.source})`)
+// const offset = new RegExp(`\(${note.source})`)
+const backslash = /\\/
+const offset = new RegExp(`(${backslash.source})(${note.source})`)
+const quality = new RegExp(`[WIP]`)
+const fullQuality = new RegExp(`(${quality.source})(${modifiers.source})?(${inversion.source})?(${offset.source})?`)
+
+/* Chord */
+// Root :           <step-marker? /> <alteration? /> <roman | capital /> <octaver? /> (:<extensions />)?
+// Chord :                <alteration? /> <context?> <chord-root /> </context?> <full-quality />
+const root = new RegExp(`(${stepMarker.source})?(${alteration.source})?(${romanOrCapital.source})(${octaver.source})?(${extensions.source})?`)
+const chord = new RegExp(`(${alteration.source})?(${contextStart.source})?(${root.source})(${contextEnd.source})?(${fullQuality.source})?`)
+const chordOrNote = new RegExp(`(${chord.source})|(${note.source})`)
+
+
+
+export enum InstructionType {
+  RAW = 'raw',
+  CHORD_OR_NOTE = 'chord-or-note',
+  CHORD = 'chord',
+  NOTE = 'note',
+  UNKNOWN = 'unknown'
+}
+type Instruction = { string: string, type: InstructionType }
+export function lol (instruction: Instruction): Instruction[] {
+  console.log(instruction)
+  // Raw
+  if (instruction.type === InstructionType.RAW) {
+    const chordsOrNotes = stringStartsWith(instruction.string, setFlags(chordOrNote, 'igm'), true)
+    if (chordsOrNotes === null) return [instruction]
+    const subInstructions = chordsOrNotes?.map(chordOrNoteStr => ({
+      type: InstructionType.CHORD_OR_NOTE,
+      string: chordOrNoteStr
+    }))
+    return subInstructions.map(instruction => lol(instruction)).flat()
+
+  // Chord or note
+  } else if (instruction.type === InstructionType.CHORD_OR_NOTE) {
+    const chordStr = stringStartsWith(instruction.string, setFlags(chord, 'gm'), true)?.at(0)
+    const noteStr = stringStartsWith(instruction.string, setFlags(note, 'gm'), true)?.at(0)
+    if (chordStr !== undefined) {
+      return lol({ type: InstructionType.CHORD, string: chordStr })
+    } else if (noteStr !== undefined) {
+      return lol({ type: InstructionType.NOTE, string: noteStr })
+    } else {
+      return [instruction]
+    }
+
+  // Chord
+  } else if (instruction.type === InstructionType.CHORD) {
+    alteration
+    contextStart
+    root
+    contextEnd
+    fullQuality
+  // Note
+  } else if (instruction.type === InstructionType.NOTE) {
+  
+  }
+  return [instruction]
+}
+
+
+export default function parse (str: string) {
+  let walter = str
+  const results: [string, string][] = []
+  while (true) {
+    // Security
+    const inputLength = walter.length
+    
+    console.log('walter', walter)
+    const isChordOrNote = stringStartsWith(walter, chordOrNote, true)
+    
+    // Chord or note
+    if (isChordOrNote) {
+      const chordOrNoteStr = isChordOrNote.at(0) ?? ''
+      console.log('chordOrNoteStr', chordOrNoteStr)
+      const isChord = stringStartsWith(chordOrNoteStr, chord, true)
+      const isNote = stringStartsWith(chordOrNoteStr, note, true)
+      
+      if (isChord) results.push
+      // Chord
+      if (isChord) {
+        const chordStr = isChord.at(0) ?? ''
+        console.log('chordStr', chordStr)
+        const isAlteration = stringStartsWith(chordStr, alteration, true)
+        const isContextStart = stringStartsWith(chordStr, contextStart, true)
+        const isRoot = stringStartsWith(chordStr, root, true)
+        const isContextEnd = stringStartsWith(chordStr, contextEnd, true)
+        const isFullQuality = stringStartsWith(chordStr, fullQuality, true)
+        
+        // Alteration
+        if (isAlteration) {
+          const alterationStr = isAlteration.at(0) ?? ''
+          results.push(['alteration', alterationStr])
+          walter = walter.replace(alterationStr, '')  
+        
+        // Context start
+        } else if (isContextStart) {
+          const contextStartStr = isContextStart.at(0) ?? ''
+          results.push(['contextStart', contextStartStr])
+          walter = walter.replace(contextStartStr, '')  
+        
+        // Root
+        } else if (isRoot) {
+          const rootStr = isRoot.at(0) ?? ''
+          console.log('rootStr', rootStr)
+          const isStepMarker = stringStartsWith(rootStr, stepMarker, true)
+          const isAlteration = stringStartsWith(rootStr, alteration, true)
+          const isRomanOrCapital = stringStartsWith(rootStr, romanOrCapital, true)
+          const isOctaver = stringStartsWith(rootStr, octaver, true)
+          const isExtensions = stringStartsWith(rootStr, extensions, true)
+          
+          // Step marker
+          if (isStepMarker) {
+            const stepMarkerStr = isStepMarker.at(0) ?? ''
+            results.push(['stepMarker', stepMarkerStr])
+            walter = walter.replace(stepMarkerStr, '')
+          }
+
+          // Alteration
+          else if (isAlteration) {
+            const alterationStr = isAlteration.at(0) ?? ''
+            results.push(['alteration', alterationStr])
+            walter = walter.replace(alterationStr, '')
+          }
+
+          // Roman or capital
+          else if (isRomanOrCapital) {
+            const romanOrCapitalStr = isRomanOrCapital.at(0) ?? ''
+            results.push(['romanOrCapital', romanOrCapitalStr])
+            walter = walter.replace(romanOrCapitalStr, '')
+          }
+
+          // Octaver
+          else if (isOctaver) {
+            const octaverStr = isOctaver.at(0) ?? ''
+            results.push(['octaver', octaverStr])
+            walter = walter.replace(octaverStr, '')
+          }
+
+          // Extensions
+          else if (isExtensions) {
+            const extensionsStr = isExtensions.at(0) ?? ''
+            results.push(['extensions', extensionsStr])
+            walter = walter.replace(extensionsStr, '')
+          }
+
+          else {
+            results.push(['root', rootStr])
+            walter = walter.replace(rootStr, '')  
+          }
+
+        // Context end
+        } else if (isContextEnd) {
+          const contextEndStr = isContextEnd.at(0) ?? ''
+          results.push(['contextEnd', contextEndStr])
+          walter = walter.replace(contextEndStr, '')  
+        
+        // Full quality
+        } else if (isFullQuality) {
+          const fullQualityStr = isFullQuality.at(0) ?? ''
+          results.push(['fullQuality', fullQualityStr])
+          walter = walter.replace(fullQualityStr, '')  
+        
+        // Other chord root stuff ?
+        } else {
+          results.push(['chord', chordStr])
+          walter = walter.replace(chordStr, '')
+        }
+      
+      // Note
+      } else if (isNote) {
+        const noteStr = isNote.at(0) ?? ''
+        results.push(['note', noteStr])
+        walter = walter.replace(noteStr, '')
+      
+      // Other Chord or note
+      } else {
+        results.push(['chord-or-note', chordOrNoteStr])
+        walter = walter.replace(chordOrNoteStr, '')
+      }
+
+    // Non parsable
+    } else {
+      console.log('what is it ?')
+      results.push(['walter', walter])
+      walter = walter.replace(walter, '')
+    }
+    // Parsing
+    // - chord ou note
+    // - chordOrNote = <alteration? /> <context?> <chord-root-step-int-or-pitch /> </context?> <full-quality />
+    // <alteration? /> <context?> <chord-root /> </context?> <full-quality /> | 
+    // <alteration? /> <context?> <step-int-or-pitch /> </context?>
+
+    // Before return
+    const outputLength = walter.length
+    if (inputLength <= outputLength) break;
+    
+    // Return
+  }
+  console.log(results)
+  return results
+}
+
 
 export namespace NoteTypes {
   export enum Context {
@@ -493,7 +787,7 @@ const organPart = track.getPart('organ', new Part())
 const guitarPart = track.getPart('guitar', new Part())
 
 drumsPart
-  .setTuning('none')
+  .setTuning('none') // Not sure about all these, should be events in sequence no ?
   .setKey('C^4 major') // parsed with context being the current values of the track and/or part
   .setChord('<!I>')
   .addSequence('after intro', '<descriptor>')
