@@ -191,6 +191,7 @@ const chord = new RegExp(`(${alteration.source})?(${contextStart.source})?(${roo
 const chordOrNote = new RegExp(`(${chord.source})|(${note.source})`)
 
 
+/* Parsing attempts below, then class Note */
 
 export enum InstructionType {
   RAW = 'raw',
@@ -483,7 +484,7 @@ export class Tuning {
   }
 }
 
-/* PART */
+/* PART (INSTRUMENT) */
 
 type Texture = {}
 
