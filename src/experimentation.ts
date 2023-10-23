@@ -1,6 +1,9 @@
-/* ALTERATION */
+import {
+  setFlags,
+  stringStartsWith
+} from './modules/regexp-utils/index.js'
 
-import { mergeFlags, setFlags, stringStartsWith } from "./modules/regexp-utils/index.js"
+/* ALTERATION */
 
 export namespace AlterationTypes {
   export type Value = number
@@ -190,197 +193,207 @@ const root = new RegExp(`(${stepMarker.source})?(${alteration.source})?(${romanO
 const chord = new RegExp(`(${alteration.source})?(${contextStart.source})?(${root.source})(${contextEnd.source})?(${fullQuality.source})?`)
 const chordOrNote = new RegExp(`(${chord.source})|(${note.source})`)
 
+export function parse (string: string): any {
+  console.log(string)
+  const chordsOrNotes = string.match(setFlags(chordOrNote, 'gm'))
+  console.log(chordsOrNotes)
+}
+
 
 /* Parsing attempts below, then class Note */
 
-export enum InstructionType {
-  RAW = 'raw',
-  CHORD_OR_NOTE = 'chord-or-note',
-  CHORD = 'chord',
-  NOTE = 'note',
-  UNKNOWN = 'unknown'
-}
-type Instruction = { string: string, type: InstructionType }
-export function lol (instruction: Instruction): Instruction[] {
-  console.log(instruction)
-  // Raw
-  if (instruction.type === InstructionType.RAW) {
-    const chordsOrNotes = stringStartsWith(instruction.string, setFlags(chordOrNote, 'igm'), true)
-    if (chordsOrNotes === null) return [instruction]
-    const subInstructions = chordsOrNotes?.map(chordOrNoteStr => ({
-      type: InstructionType.CHORD_OR_NOTE,
-      string: chordOrNoteStr
-    }))
-    return subInstructions.map(instruction => lol(instruction)).flat()
+// export enum InstructionType {
+//   RAW = 'raw',
+//   CHORD_OR_NOTE = 'chord-or-note',
+//   CHORD = 'chord',
+//   NOTE = 'note',
+//   UNKNOWN = 'unknown'
+// }
+// type Instruction = { string: string, type: InstructionType }
 
-  // Chord or note
-  } else if (instruction.type === InstructionType.CHORD_OR_NOTE) {
-    const chordStr = stringStartsWith(instruction.string, setFlags(chord, 'gm'), true)?.at(0)
-    const noteStr = stringStartsWith(instruction.string, setFlags(note, 'gm'), true)?.at(0)
-    if (chordStr !== undefined) {
-      return lol({ type: InstructionType.CHORD, string: chordStr })
-    } else if (noteStr !== undefined) {
-      return lol({ type: InstructionType.NOTE, string: noteStr })
-    } else {
-      return [instruction]
-    }
 
-  // Chord
-  } else if (instruction.type === InstructionType.CHORD) {
-    alteration
-    contextStart
-    root
-    contextEnd
-    fullQuality
-  // Note
-  } else if (instruction.type === InstructionType.NOTE) {
+// export function lol (instruction: Instruction): Instruction[] {
+//   console.log(instruction)
+//   // Raw
+//   if (instruction.type === InstructionType.RAW) {
+//     const chordsOrNotes = stringStartsWith(instruction.string, setFlags(chordOrNote, 'igm'), true)
+//     if (chordsOrNotes === null) return [instruction]
+//     const subInstructions = chordsOrNotes?.map(chordOrNoteStr => ({
+//       type: InstructionType.CHORD_OR_NOTE,
+//       string: chordOrNoteStr
+//     }))
+//     return subInstructions.map(instruction => lol(instruction)).flat()
+
+//   // Chord or note
+//   } else if (instruction.type === InstructionType.CHORD_OR_NOTE) {
+//     const chordStr = stringStartsWith(instruction.string, setFlags(chord, 'gm'), true)?.at(0)
+//     const noteStr = stringStartsWith(instruction.string, setFlags(note, 'gm'), true)?.at(0)
+//     if (chordStr !== undefined) {
+//       return lol({ type: InstructionType.CHORD, string: chordStr })
+//     } else if (noteStr !== undefined) {
+//       return lol({ type: InstructionType.NOTE, string: noteStr })
+//     } else {
+//       return [instruction]
+//     }
+
+//   // Chord
+//   } else if (instruction.type === InstructionType.CHORD) {
+//     alteration
+//     contextStart
+//     root
+//     contextEnd
+//     fullQuality
+//   // Note
+//   } else if (instruction.type === InstructionType.NOTE) {
   
-  }
-  return [instruction]
-}
+//   }
+//   return [instruction]
+// }
 
 
-export default function parse (str: string) {
-  let walter = str
-  const results: [string, string][] = []
-  while (true) {
-    // Security
-    const inputLength = walter.length
+// export default function parse (str: string) {
+//   let walter = str
+//   const results: [string, string][] = []
+//   while (true) {
+//     // Security
+//     const inputLength = walter.length
     
-    console.log('walter', walter)
-    const isChordOrNote = stringStartsWith(walter, chordOrNote, true)
+//     console.log('walter', walter)
+//     const isChordOrNote = stringStartsWith(walter, chordOrNote, true)
     
-    // Chord or note
-    if (isChordOrNote) {
-      const chordOrNoteStr = isChordOrNote.at(0) ?? ''
-      console.log('chordOrNoteStr', chordOrNoteStr)
-      const isChord = stringStartsWith(chordOrNoteStr, chord, true)
-      const isNote = stringStartsWith(chordOrNoteStr, note, true)
+//     // Chord or note
+//     if (isChordOrNote) {
+//       const chordOrNoteStr = isChordOrNote.at(0) ?? ''
+//       console.log('chordOrNoteStr', chordOrNoteStr)
+//       const isChord = stringStartsWith(chordOrNoteStr, chord, true)
+//       const isNote = stringStartsWith(chordOrNoteStr, note, true)
       
-      if (isChord) results.push
-      // Chord
-      if (isChord) {
-        const chordStr = isChord.at(0) ?? ''
-        console.log('chordStr', chordStr)
-        const isAlteration = stringStartsWith(chordStr, alteration, true)
-        const isContextStart = stringStartsWith(chordStr, contextStart, true)
-        const isRoot = stringStartsWith(chordStr, root, true)
-        const isContextEnd = stringStartsWith(chordStr, contextEnd, true)
-        const isFullQuality = stringStartsWith(chordStr, fullQuality, true)
+//       if (isChord) results.push
+//       // Chord
+//       if (isChord) {
+//         const chordStr = isChord.at(0) ?? ''
+//         console.log('chordStr', chordStr)
+//         const isAlteration = stringStartsWith(chordStr, alteration, true)
+//         const isContextStart = stringStartsWith(chordStr, contextStart, true)
+//         const isRoot = stringStartsWith(chordStr, root, true)
+//         const isContextEnd = stringStartsWith(chordStr, contextEnd, true)
+//         const isFullQuality = stringStartsWith(chordStr, fullQuality, true)
         
-        // Alteration
-        if (isAlteration) {
-          const alterationStr = isAlteration.at(0) ?? ''
-          results.push(['alteration', alterationStr])
-          walter = walter.replace(alterationStr, '')  
+//         // Alteration
+//         if (isAlteration) {
+//           const alterationStr = isAlteration.at(0) ?? ''
+//           results.push(['alteration', alterationStr])
+//           walter = walter.replace(alterationStr, '')  
         
-        // Context start
-        } else if (isContextStart) {
-          const contextStartStr = isContextStart.at(0) ?? ''
-          results.push(['contextStart', contextStartStr])
-          walter = walter.replace(contextStartStr, '')  
+//         // Context start
+//         } else if (isContextStart) {
+//           const contextStartStr = isContextStart.at(0) ?? ''
+//           results.push(['contextStart', contextStartStr])
+//           walter = walter.replace(contextStartStr, '')  
         
-        // Root
-        } else if (isRoot) {
-          const rootStr = isRoot.at(0) ?? ''
-          console.log('rootStr', rootStr)
-          const isStepMarker = stringStartsWith(rootStr, stepMarker, true)
-          const isAlteration = stringStartsWith(rootStr, alteration, true)
-          const isRomanOrCapital = stringStartsWith(rootStr, romanOrCapital, true)
-          const isOctaver = stringStartsWith(rootStr, octaver, true)
-          const isExtensions = stringStartsWith(rootStr, extensions, true)
+//         // Root
+//         } else if (isRoot) {
+//           const rootStr = isRoot.at(0) ?? ''
+//           console.log('rootStr', rootStr)
+//           const isStepMarker = stringStartsWith(rootStr, stepMarker, true)
+//           const isAlteration = stringStartsWith(rootStr, alteration, true)
+//           const isRomanOrCapital = stringStartsWith(rootStr, romanOrCapital, true)
+//           const isOctaver = stringStartsWith(rootStr, octaver, true)
+//           const isExtensions = stringStartsWith(rootStr, extensions, true)
           
-          // Step marker
-          if (isStepMarker) {
-            const stepMarkerStr = isStepMarker.at(0) ?? ''
-            results.push(['stepMarker', stepMarkerStr])
-            walter = walter.replace(stepMarkerStr, '')
-          }
+//           // Step marker
+//           if (isStepMarker) {
+//             const stepMarkerStr = isStepMarker.at(0) ?? ''
+//             results.push(['stepMarker', stepMarkerStr])
+//             walter = walter.replace(stepMarkerStr, '')
+//           }
 
-          // Alteration
-          else if (isAlteration) {
-            const alterationStr = isAlteration.at(0) ?? ''
-            results.push(['alteration', alterationStr])
-            walter = walter.replace(alterationStr, '')
-          }
+//           // Alteration
+//           else if (isAlteration) {
+//             const alterationStr = isAlteration.at(0) ?? ''
+//             results.push(['alteration', alterationStr])
+//             walter = walter.replace(alterationStr, '')
+//           }
 
-          // Roman or capital
-          else if (isRomanOrCapital) {
-            const romanOrCapitalStr = isRomanOrCapital.at(0) ?? ''
-            results.push(['romanOrCapital', romanOrCapitalStr])
-            walter = walter.replace(romanOrCapitalStr, '')
-          }
+//           // Roman or capital
+//           else if (isRomanOrCapital) {
+//             const romanOrCapitalStr = isRomanOrCapital.at(0) ?? ''
+//             results.push(['romanOrCapital', romanOrCapitalStr])
+//             walter = walter.replace(romanOrCapitalStr, '')
+//           }
 
-          // Octaver
-          else if (isOctaver) {
-            const octaverStr = isOctaver.at(0) ?? ''
-            results.push(['octaver', octaverStr])
-            walter = walter.replace(octaverStr, '')
-          }
+//           // Octaver
+//           else if (isOctaver) {
+//             const octaverStr = isOctaver.at(0) ?? ''
+//             results.push(['octaver', octaverStr])
+//             walter = walter.replace(octaverStr, '')
+//           }
 
-          // Extensions
-          else if (isExtensions) {
-            const extensionsStr = isExtensions.at(0) ?? ''
-            results.push(['extensions', extensionsStr])
-            walter = walter.replace(extensionsStr, '')
-          }
+//           // Extensions
+//           else if (isExtensions) {
+//             const extensionsStr = isExtensions.at(0) ?? ''
+//             results.push(['extensions', extensionsStr])
+//             walter = walter.replace(extensionsStr, '')
+//           }
 
-          else {
-            results.push(['root', rootStr])
-            walter = walter.replace(rootStr, '')  
-          }
+//           else {
+//             results.push(['root', rootStr])
+//             walter = walter.replace(rootStr, '')  
+//           }
 
-        // Context end
-        } else if (isContextEnd) {
-          const contextEndStr = isContextEnd.at(0) ?? ''
-          results.push(['contextEnd', contextEndStr])
-          walter = walter.replace(contextEndStr, '')  
+//         // Context end
+//         } else if (isContextEnd) {
+//           const contextEndStr = isContextEnd.at(0) ?? ''
+//           results.push(['contextEnd', contextEndStr])
+//           walter = walter.replace(contextEndStr, '')  
         
-        // Full quality
-        } else if (isFullQuality) {
-          const fullQualityStr = isFullQuality.at(0) ?? ''
-          results.push(['fullQuality', fullQualityStr])
-          walter = walter.replace(fullQualityStr, '')  
+//         // Full quality
+//         } else if (isFullQuality) {
+//           const fullQualityStr = isFullQuality.at(0) ?? ''
+//           results.push(['fullQuality', fullQualityStr])
+//           walter = walter.replace(fullQualityStr, '')  
         
-        // Other chord root stuff ?
-        } else {
-          results.push(['chord', chordStr])
-          walter = walter.replace(chordStr, '')
-        }
+//         // Other chord root stuff ?
+//         } else {
+//           results.push(['chord', chordStr])
+//           walter = walter.replace(chordStr, '')
+//         }
       
-      // Note
-      } else if (isNote) {
-        const noteStr = isNote.at(0) ?? ''
-        results.push(['note', noteStr])
-        walter = walter.replace(noteStr, '')
+//       // Note
+//       } else if (isNote) {
+//         const noteStr = isNote.at(0) ?? ''
+//         results.push(['note', noteStr])
+//         walter = walter.replace(noteStr, '')
       
-      // Other Chord or note
-      } else {
-        results.push(['chord-or-note', chordOrNoteStr])
-        walter = walter.replace(chordOrNoteStr, '')
-      }
+//       // Other Chord or note
+//       } else {
+//         results.push(['chord-or-note', chordOrNoteStr])
+//         walter = walter.replace(chordOrNoteStr, '')
+//       }
 
-    // Non parsable
-    } else {
-      console.log('what is it ?')
-      results.push(['walter', walter])
-      walter = walter.replace(walter, '')
-    }
-    // Parsing
-    // - chord ou note
-    // - chordOrNote = <alteration? /> <context?> <chord-root-step-int-or-pitch /> </context?> <full-quality />
-    // <alteration? /> <context?> <chord-root /> </context?> <full-quality /> | 
-    // <alteration? /> <context?> <step-int-or-pitch /> </context?>
+//     // Non parsable
+//     } else {
+//       console.log('what is it ?')
+//       results.push(['walter', walter])
+//       walter = walter.replace(walter, '')
+//     }
+//     // Parsing
+//     // - chord ou note
+//     // - chordOrNote = <alteration? /> <context?> <chord-root-step-int-or-pitch /> </context?> <full-quality />
+//     // <alteration? /> <context?> <chord-root /> </context?> <full-quality /> | 
+//     // <alteration? /> <context?> <step-int-or-pitch /> </context?>
 
-    // Before return
-    const outputLength = walter.length
-    if (inputLength <= outputLength) break;
+//     // Before return
+//     const outputLength = walter.length
+//     if (inputLength <= outputLength) break;
     
-    // Return
-  }
-  console.log(results)
-  return results
-}
+//     // Return
+//   }
+//   console.log(results)
+//   return results
+// }
+
+
 
 
 export namespace NoteTypes {
@@ -426,14 +439,14 @@ export class Action {
   }
 }
 
-/* RELATIVE TIME */
+/* FRACTION */
 
-export namespace RelativeTimeTypes {
+export namespace FractionTypes {
   export type Value = [number, number]
 }
 
-export class RelativeTime {
-  value: RelativeTimeTypes.Value
+export class Fraction {
+  value: FractionTypes.Value
   constructor () {
     this.value = [1, 1]
   }
@@ -442,11 +455,11 @@ export class RelativeTime {
 /* SEQUENCE */
 
 export namespace SequenceTypes {
-  export type ValueDuration = string | number | RelativeTime
+  export type ValueDuration = string | number | Fraction
   export type Value = {
-    duration: string | number | RelativeTime
+    duration: string | number | Fraction
     timedEvents: Array<{
-      relativeTime: RelativeTime
+      relativeTime: Fraction
       event: Note | Action
     }>
   }
@@ -471,7 +484,7 @@ export namespace TuningTypes {
 }
 
 export class Tuning {
-  static commonTunings = {
+  static commonTunings: Record<string, TuningTypes.Value> = {
     none: () => 0
   }
   value: TuningTypes.Value
@@ -479,7 +492,9 @@ export class Tuning {
     if (descriptor instanceof Tuning) this.value = descriptor.value
     else if (typeof descriptor === 'function') this.value = descriptor
     else {
-      this.value = Tuning.commonTunings[descriptor as 'none'] ?? Tuning.commonTunings.none
+      const { commonTunings: tunings } = Tuning
+      const tuning = tunings[descriptor] ?? tunings.none as TuningTypes.Value
+      this.value = tuning
     }
   }
 }
@@ -794,6 +809,27 @@ drumsPart
   .addSequence('after intro', '<descriptor>')
 
 track.play()
+
+/*
+const rythm = '|4~~~----•--------|--------•--------|'
+// Un rythme, c'est une séquence dans le temps : vélocités, sustain, silences
+const rythm = [[[.4, true, true, true, null, null, null, null], []], [[], []]]
+sequence('2m', [
+  [chordNoteOrDescriptor, rythmOrDescriptor],
+  [chordNoteOrDescriptor, rythmOrDescriptor]
+]).loop(4, (seq, loopNb) => seq)
+
+// Comment on matérialise les slide ? Comment on matérialise les bends ?
+
+
+const line = '<I> | <II:7> | <V:7> • <v:7> | <I>'
+const line = [chord, chord, [chord, chord], chord]
+
+// Tout doit être signal modulable, non ?
+// Pas sûr
+
+
+*/
 
 /* 
 

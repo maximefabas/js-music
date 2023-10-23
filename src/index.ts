@@ -6,18 +6,20 @@ import * as regexpUtils from './modules/regexp-utils/index.js'
 import { MainQualities, mainQualitiesToIntervalsNameMap } from './data/scales-qualities.js'
 import * as scalesData from './data/scales-names.js'
 import { Synth, now, start, Time, Transport } from 'tone'
-import { lol, InstructionType } from './experimentation.js'
+import { parse } from './experimentation.js'
 
-// parse('#C^4')
-console.log(lol({
-  string: '#C-^^4',
-  type: InstructionType.RAW
-}))
+// // parse('#C^4')
+// console.log(lol({
+//   string: '#C-^^4',
+//   type: InstructionType.RAW
+// }))
 
-console.log(lol({
-  string: '#c-^^4',
-  type: InstructionType.RAW
-}))
+// console.log(lol({
+//   string: '#c-^^4',
+//   type: InstructionType.RAW
+// }))
+
+parse(`<II:3>M7`)
 
 /* Alteration */
 
@@ -2136,7 +2138,6 @@ export class Sequence {
 }
 
 const majorScale = Scale.fromCommonName('harmonic-minor') ?? []
-console.log(Scale.intervalsName(majorScale))
 const c4note: IntervalTypes.Value = {
   step: 4 * 7 - 3,
   alteration: 0
@@ -2314,7 +2315,7 @@ const mySeq = sequence([1 / 4], [
 // ])
 const voiced = Voice.fromChord(cMajorChord, [[0, 2, 4, 6]])
 const notes = Note.fromVoice(voiced, '4n', 1)
-console.log(notes)
+// console.log(notes)
 const sounds = notes.map(note => Sound.fromNote(note))
 const upAndDownSounds = [
   ...sounds,
