@@ -2137,15 +2137,15 @@ export class Sequence {
   }
 }
 
-const majorScale = Scale.fromCommonName('harmonic-minor') ?? []
-const c4note: IntervalTypes.Value = {
-  step: 4 * 7 - 3,
-  alteration: 0
-}
-const cMajorChord: ChordTypes.Value = {
-  base: c4note,
-  scale: majorScale
-}
+// const majorScale = Scale.fromCommonName('harmonic-minor') ?? []
+// const c4note: IntervalTypes.Value = {
+//   step: 4 * 7 - 3,
+//   alteration: 0
+// }
+// const cMajorChord: ChordTypes.Value = {
+//   base: c4note,
+//   scale: majorScale
+// }
 
 
 /*

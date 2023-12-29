@@ -199,7 +199,6 @@ export function parse (string: string): any {
   console.log(chordsOrNotes)
 }
 
-
 /* Parsing attempts below, then class Note */
 
 // export enum InstructionType {
@@ -849,4 +848,20 @@ track.parts
 track.play()
 track.pause()
 track.stop()
+*/
+
+
+
+
+
+/*
+
+const sequence = sequence('2m', [
+  { event: '<I:5>', rythm: [10, true, true, true, null, null, null, null] },
+  { event: '<V:5>', rythm: [null, null, null, null, 10, true, true, true] },
+  { event: '<I:5>', rythm: 'x~~~|----' },
+  { event: '<V:5>', rythm: '----|x~~~' }
+])
+
+
 */
