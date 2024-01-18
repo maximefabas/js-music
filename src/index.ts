@@ -14,6 +14,7 @@ type AlterationSetter = ValueSetter<AlterationDescriptor, AlterationValue>
 class Alteration {
   private _value: AlterationValue
   get value () { return this._value }
+  get flatValue () { return this._value }
   
   setValue (setter: AlterationSetter) {
     if (setter instanceof Alteration) { this._value = setter.value }
@@ -65,6 +66,7 @@ class SimpleStep {
   get value () {
     return Math.floor(absoluteModulo(this._value, 7)) as SimpleStepValue
   }
+  get flatValue () { return this._value }
 
   setValue (setter: SimpleStepSetter) {
     if (setter instanceof SimpleStep) { this._value = setter.value }
@@ -97,6 +99,7 @@ type StepSetter = ValueSetter<StepDescriptor, StepValue>
 class Step {
   private _value: StepValue
   get value () { return this._value }
+  get flatValue () { return this._value }
   
   setValue (setter: StepSetter) {
     if (setter instanceof Step) { this._value = setter.value }
@@ -143,6 +146,13 @@ class SimpleInterval {
     return {
       alteration: alteration.clone(),
       step: step.clone()
+    }
+  }
+  get flatValue () {
+    const { alteration, step } = this.value
+    return {
+      alteration: alteration.flatValue,
+      step: step.flatValue
     }
   }
   
@@ -201,6 +211,13 @@ class Interval {
       step: step.clone()
     }
   }
+  get flatValue () {
+    const { alteration, step } = this.value
+    return {
+      alteration: alteration.flatValue,
+      step: step.flatValue
+    }
+  }
 
   setValue (setter: IntervalSetter) {
     if (setter instanceof Interval) { this._value = setter.value }
@@ -246,10 +263,8 @@ type ScaleSetter = ValueSetter<ScaleDescriptor, ScaleValue>
 class Scale {
   private _value: ScaleValue
 
-  get value () {
-    /* [WIP] sort/dedupe steps here */
-    return this._value.map(int => int.clone())
-  }
+  get value () { /* [WIP] sort/dedupe steps here */ return this._value.map(int => int.clone()) }
+  get flatValue () { return this.value.map(e => e.flatValue) }
 
   setValue (setter: ScaleSetter) {
     if (setter instanceof Scale) { this._value = setter.value }
@@ -297,6 +312,14 @@ class Note {
     return {
       base: base instanceof Interval ? base.clone() : base,
       interval: interval.clone()
+    }
+  }
+
+  get flatValue () {
+    const { base, interval } = this.value
+    return {
+      base: base instanceof Interval ? base.flatValue : base,
+      interval: interval.flatValue
     }
   }
 
@@ -361,6 +384,14 @@ class Chord {
       scale: scale.clone()
     }
   }
+
+  get flatValue () {
+    const { base, scale } = this.value
+    return {
+      base: base instanceof Interval ? base.flatValue : base,
+      scale: scale.flatValue
+    }
+  }
   
   setValue (setter: ChordSetter) {
     if (setter instanceof Chord) { this._value = setter.value }
@@ -401,13 +432,14 @@ class Chord {
 }
 
 /* # Duration */
-type DurationValue = number
+type DurationValue = number // As beats
 type DurationDescriptor = Duration | number
 type DurationSetter = ValueSetter<DurationDescriptor, DurationValue>
 
 class Duration {
   private _value: DurationValue
   get value () { return this._value }
+  get flatValue () { return this.value }
   
   setValue (setter: DurationSetter) {
     if (setter instanceof Duration) { this._value = setter.value }
@@ -446,9 +478,8 @@ type VelocitySetter = ValueSetter<VelocityDescriptor, VelocityValue>
 class Velocity {
   private _value: VelocityValue
   
-  get value () {
-    return clamp(this._value, 0, 1)
-  }
+  get value () { return clamp(this._value, 0, 1) }
+  get flatValue () { return this.value }
   
   setValue (setter: VelocitySetter) {
     if (setter instanceof Velocity) { this._value = setter.value }
@@ -499,6 +530,15 @@ class NoteEvent {
       velocity: velocity.clone()
     }
   }
+
+  get flatValue () {
+    const { payload, duration, velocity } = this.value
+    return {
+      payload: payload.flatValue,
+      duration: duration.flatValue,
+      velocity: velocity.flatValue
+    }
+  }
   
   setValue (setter: NoteEventSetter) {
     if (setter instanceof NoteEvent) { this._value = setter.value }
@@ -547,6 +587,7 @@ type BpmSetter = ValueSetter<BpmDescriptor, BpmValue>
 class Bpm {
   private _value: BpmValue
   get value () { return this._value }
+  get flatValue () { return this._value }
   
   setValue (setter: BpmSetter) {
     if (setter instanceof Bpm) { this._value = setter.value }
@@ -592,6 +633,14 @@ class BpmEvent {
     return {
       payload: payload.clone(),
       duration: duration.clone()
+    }
+  }
+
+  get flatValue () {
+    const { payload, duration } = this.value
+    return {
+      payload: payload.flatValue,
+      duration: duration.flatValue
     }
   }
 
@@ -643,6 +692,11 @@ class KeyEvent {
     const { payload } = this._value
     return { payload: payload.clone() }
   }
+
+  get flatValue () {
+    const { payload } = this.value
+    return { payload: payload.flatValue }
+  }
   
   setValue (setter: KeyEventSetter) {
     if (setter instanceof KeyEvent) { this._value = setter.value }
@@ -686,6 +740,11 @@ class ChordEvent {
   get value () {
     const { payload } = this._value
     return { payload: payload.clone() }
+  }
+
+  get flatValue () {
+    const { payload } = this.value
+    return { payload: payload.flatValue }
   }
   
   setValue (setter: ChordEventSetter) {
@@ -764,8 +823,19 @@ class Sequence {
       }))
     }
   }
+
+  get flatValue () {
+    const { duration, events } = this.value
+    return {
+      duration: duration.flatValue,
+      events: events.map(e => ({
+        event: e.event.flatValue,
+        offset: e.offset.flatValue
+      }))
+    }
+  }
   
-  setValue (setter: SequenceSetter) {
+  setValue (this: Sequence, setter: SequenceSetter) {
     if (setter instanceof Sequence) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -822,27 +892,34 @@ class Sequence {
     })
   }
 
-  addEvents (...timedEvents: SequenceTimedEventDescriptor[]) {
-    this.setValue(curr => ({
-      ...curr,
-      events: [...curr.events, ...timedEvents.map(({ event, offset }) => {
-        let actualEvent: NoteEvent | BpmEvent | KeyEvent | ChordEvent
-        if (event instanceof NoteEvent) { actualEvent = new NoteEvent(event) }
-        else if (event instanceof BpmEvent) { actualEvent = new BpmEvent(event) }
-        else if (event instanceof KeyEvent) { actualEvent = new KeyEvent(event) }
-        else if (event instanceof ChordEvent) { actualEvent = new ChordEvent(event) }
-        else if (event?.type === 'note') { actualEvent = new NoteEvent(event) }
-        else if (event?.type === 'bpm') { actualEvent = new BpmEvent(event) }
-        else if (event?.type === 'key') { actualEvent = new KeyEvent(event) }
-        else if (event?.type === 'chord') { actualEvent = new ChordEvent(event) }
-        else { actualEvent = new NoteEvent() }
-        return {
-          offset: new Duration(offset),
-          event: actualEvent
-        }
-      })]
-    }))
-    return this
+  addEvents (this: Sequence, ...timedEvents: SequenceTimedEventDescriptor[]) {
+    return this.setValue(curr => {
+      return {
+        ...curr,
+        events: [...curr.events, ...timedEvents.map(({ event, offset }) => {
+          let actualEvent: NoteEvent | BpmEvent | KeyEvent | ChordEvent
+          if (event instanceof NoteEvent) { actualEvent = new NoteEvent(event) }
+          else if (event instanceof BpmEvent) { actualEvent = new BpmEvent(event) }
+          else if (event instanceof KeyEvent) { actualEvent = new KeyEvent(event) }
+          else if (event instanceof ChordEvent) { actualEvent = new ChordEvent(event) }
+          else if (event?.type === 'note') { actualEvent = new NoteEvent(event) }
+          else if (event?.type === 'bpm') { actualEvent = new BpmEvent(event) }
+          else if (event?.type === 'key') { actualEvent = new KeyEvent(event) }
+          else if (event?.type === 'chord') { actualEvent = new ChordEvent(event) }
+          else { actualEvent = new NoteEvent() }
+          return {
+            offset: new Duration(offset),
+            event: actualEvent
+          }
+        })]
+      }
+    })
+  }
+
+  setDuration (this: Sequence, setter: DurationSetter) {
+    const newDuration = this.value.duration.clone()
+    newDuration.setValue(setter)
+    this.setValue(curr => ({ ...curr, duration: newDuration }))
   }
 }
 
@@ -869,6 +946,14 @@ class Track {
       sequences: sequences.map(seq => seq.clone())
     }
   }
+
+  get flatValue () {
+    const { initInstrument, sequences } = this.value
+    return {
+      initInstrument: initInstrument(),
+      sequences: sequences.map(seq => seq.flatValue)
+    }
+  }
   
   setValue (setter: TrackSetter) {
     if (setter instanceof Track) { this._value = setter.value }
@@ -882,10 +967,7 @@ class Track {
   constructor (descriptor?: TrackDescriptor) {
     if (descriptor instanceof Track) { this._value = descriptor.value }
     else {
-      const {
-        initInstrument = () => null,
-        sequences = []
-      } = descriptor ?? {}
+      const { initInstrument = () => null, sequences = [] } = descriptor ?? {}
       this._value = {
         initInstrument: initInstrument,
         sequences: sequences.map(d => new Sequence(d))
@@ -911,35 +993,18 @@ class Track {
   }
 
   get mergedSequences () {
-    console.group('mergedSequences')
     const merged = new Sequence({ duration: 0, events: [] })
     this.value.sequences.forEach(sequence => {
-      console.group('seqence')
-      const { duration: mergedDur, events: mergedEv } = merged.value
-      console.log('mergedDur', mergedDur.value)
-      console.log('mergedEv', mergedEv.map(e => ({ event: e.event.value, offset: e.offset.value })))
-      const { duration, events } = sequence.value
-      const mergedDuration = merged.value.duration
-      const absoluteTimedEvents: SequenceTimedEventDescriptor[] = events.map(({ event, offset }) => {
-        const absoluteOffset = new Duration(offset).add(mergedDuration)
-        const clonedEvent = event.clone()
-        return {
-          offset: absoluteOffset,
-          event: clonedEvent
-        }
-      })
-      console.log('absoluteTimedEvents', absoluteTimedEvents)
-      merged.addEvents(...absoluteTimedEvents)
-      console.groupEnd()
-      merged.setValue(curr => {
-        console.log('curr', curr.duration.value, curr.events)
-        return {
-          ...curr,
-          duration: mergedDuration.add(duration)
-        }
+      const { events: seqEvents, duration: seqDuration } = sequence.value
+      const pMergedDuration = merged.value.duration.clone()
+      merged.setDuration(curr => seqDuration.clone().add(curr))
+      seqEvents.forEach(({ event, offset }) => {
+        merged.addEvents({
+          event,
+          offset: pMergedDuration.add(offset)
+        })
       })
     })
-    console.groupEnd()
     return merged
   }
 }
@@ -971,6 +1036,16 @@ class Song {
       initKey: initKey.clone(),
       initChord: initChord.clone(),
       tracks: tracks.map(track => track.clone())
+    }
+  }
+
+  get flatValue () {
+    const { initBpm, initKey, initChord, tracks } = this.value
+    return {
+      initBpm: initBpm.flatValue,
+      initKey: initKey.flatValue,
+      initChord: initChord.flatValue,
+      tracks: tracks.map(t => t.flatValue)
     }
   }
   
@@ -1014,10 +1089,6 @@ class Song {
       tracks: arrayOf(Track.getRandom, randomInt(8))
     })
   }
-
-  lol () {
-    return this.value.tracks.map(track => track.mergedSequences)
-  }
 }
 
 /* # Player */
@@ -1031,29 +1102,33 @@ class Player {
 
   pause () {}
   stop () {}
+
+  get songAbsoluteEvents () {
+    const { currentSong } = this
+    if (currentSong === null) return null
+    const { initBpm, initKey, initChord, tracks } = currentSong.value
+    const initBpmEvent = new BpmEvent({ payload: initBpm })
+    const initKeyEvent = new KeyEvent({ payload: initKey })
+    const initChordEvent = new ChordEvent({ payload: initChord })
+    
+  }
 }
 
 const song = Song.getRandom()
-const enableBtn = document.querySelector('.audio-enable')
 const playBtn = document.querySelector('.play')
 const pauseBtn = document.querySelector('.pause')
 const stopBtn = document.querySelector('.stop')
 
-// Enable audio
-enableBtn?.addEventListener('click', () => {
-  start()
-  if (enableBtn !== undefined) {
-    enableBtn.setAttribute('disabled', '')
-    enableBtn.innerHTML = 'Audio enabled.'
-  }
-})
-
+let isStarted = false
 // Play song
 playBtn?.addEventListener('click', () => {
-  console.log('should play the song, hihih')
-  console.log(song.lol().at(0)?.value.events.length)
+  if (isStarted) {
+    start()
+    isStarted = true
+  }
+  console.log(song.flatValue)
 })
 // Pause song
-pauseBtn?.addEventListener('click', () => { console.log('should pause the song') })
+pauseBtn?.addEventListener('click', () => { console.log('pause the song') })
 // Stop song
-stopBtn?.addEventListener('click', () => { console.log('should stop the song') })
+stopBtn?.addEventListener('click', () => { console.log('stop the song') })
