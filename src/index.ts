@@ -1,9 +1,7 @@
 import {
-  start as toneStart,
-  Transport
+  Transport,
+  start as startAudioContext
 } from 'tone'
-
-
 import absoluteModulo from './modules/absolute-modulo/index.js'
 import arrayOf from './modules/array-of/index.js'
 import clamp from './modules/clamp/index.js'
@@ -1223,6 +1221,22 @@ class Song {
 /* # Player */
 class Player {
   currentSong: Song | null = null
+  
+  private pauseTransport (): Player {
+    Transport.pause()
+    return this
+  }
+  
+  private stopTransport (): Player {
+    Transport.stop()
+    return this
+  }
+
+  private cancelTransportEvents (): Player {
+    Transport.cancel()
+    return this
+  }
+
   play (song?: Song, from?: Duration): Player {
     const pSong = this.currentSong
     if (song === undefined && this.currentSong === null) return this
@@ -1340,7 +1354,7 @@ const stopBtn = document.querySelector('.stop')
 let audioStarted = false
 playBtn?.addEventListener('click', () => {
   if (audioStarted) {
-    toneStart()
+    startAudioContext()
     audioStarted = true
   }
   console.log(song.timedEventsArray.map(timedEvent => {
