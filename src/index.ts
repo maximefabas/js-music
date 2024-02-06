@@ -19,7 +19,7 @@ class Alteration {
   get value () { return this._value }
   get flatValue () { return this._value }
   
-  setValue (setter: AlterationSetter) {
+  mutate (setter: AlterationSetter): Alteration {
     if (setter instanceof Alteration) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -33,11 +33,11 @@ class Alteration {
     else { this._value = descriptor ?? 0 }
   }
 
-  clone () {
+  clone (): Alteration {
     return new Alteration(this.value)
   }
 
-  static getRandom () {
+  static getRandom (): Alteration {
     const rand = Math.random()
     let value: number
     if (rand < .1) { value = -2 }
@@ -48,14 +48,31 @@ class Alteration {
     return new Alteration(value)
   }
 
-  add (desc: AlterationDescriptor = 1) {
+  add (desc: AlterationDescriptor = 1): Alteration {
     const toAdd = new Alteration(desc)
-    this.setValue(this.value + toAdd.value)
+    return new Alteration(this.value + toAdd.value)
   }
 
-  subtract (desc: AlterationDescriptor = 1) {
+  subtract (desc: AlterationDescriptor = 1): Alteration {
     const toAdd = new Alteration(desc)
-    this.setValue(this.value - toAdd.value)
+    return new Alteration(this.value - toAdd.value)
+  }
+
+  static lessAltered (...alterationsDescs: AlterationDescriptor[]): Alteration | undefined {
+    const sorted = alterationsDescs
+      .map(altDesc => new Alteration(altDesc))
+      .map(alt => {
+        const altValue = alt.value
+        return {
+          alteration: alt,
+          weight: altValue > 0
+            ? altValue + .5
+            : Math.abs(altValue)
+        }
+      })
+      .sort((itemA, itemB) => itemA.weight - itemB.weight)
+      .map(item => item.alteration)
+    return sorted.at(0)
   }
 }
 
@@ -66,12 +83,13 @@ type SimpleStepSetter = ValueSetter<SimpleStepDescriptor, SimpleStepValue>
 class SimpleStep {
   private _value: SimpleStepValue
   
-  get value () {
+  get value (): SimpleStepValue {
     return Math.floor(absoluteModulo(this._value, 7)) as SimpleStepValue
   }
+
   get flatValue () { return this._value }
 
-  setValue (setter: SimpleStepSetter) {
+  mutate (setter: SimpleStepSetter): SimpleStep {
     if (setter instanceof SimpleStep) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -85,13 +103,23 @@ class SimpleStep {
     else { this._value = descriptor ?? 0 }
   }
 
-  clone () {
+  clone (): SimpleStep {
     return new SimpleStep(this.value)
   }
 
-  static getRandom () {
+  static getRandom (): SimpleStep {
     const value = randomInt(7) as SimpleStepValue
     return new SimpleStep(value)
+  }
+
+  static semitonesValues: [0, 2, 4, 5, 7, 9, 11] = [0, 2, 4, 5, 7, 9, 11]
+  
+  asSemitones (): number {
+    return SimpleStep.semitonesValues[this.value]
+  }
+
+  toStep (): Step {
+    return new Step(this.value)
   }
 }
 
@@ -104,7 +132,7 @@ class Step {
   get value () { return this._value }
   get flatValue () { return this._value }
   
-  setValue (setter: StepSetter) {
+  mutate (setter: StepSetter): Step {
     if (setter instanceof Step) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -118,13 +146,26 @@ class Step {
     else { this._value = descriptor ?? 0 }
   }
 
-  clone () {
+  clone (): Step {
     return new Step(this.value)
   }
 
-  static getRandom () {
+  static getRandom (): Step {
     const value = randomInt(14, -14) as StepValue
     return new Step(value)
+  }
+
+  toSimpleStep (): SimpleStep {
+    const simpleValue = Math.floor(absoluteModulo(this.value, 7)) as SimpleStepValue
+    return new SimpleStep(simpleValue)
+  }
+
+  asSemitones (): number {
+    const { value } = this
+    const asSimpleStep = this.toSimpleStep()
+    const { value: simpleValue } = asSimpleStep
+    const octavesCovered = Math.floor((value - simpleValue) / 7)
+    return asSimpleStep.asSemitones() + 12 * octavesCovered
   }
 }
 
@@ -137,20 +178,21 @@ type SimpleIntervalValue = {
 type SimpleIntervalDescriptor = SimpleInterval | {
   alteration?: AlterationDescriptor
   step?: SimpleStepDescriptor
-} // [WIP] maybe a number of semitones here, that translates to the most probable interval?
+}
 
 type SimpleIntervalSetter = ValueSetter<SimpleIntervalDescriptor, SimpleIntervalValue>
 
 class SimpleInterval {
   private _value: SimpleIntervalValue
   
-  get value () {
+  get value (): SimpleIntervalValue {
     const { alteration, step } = this._value
     return {
       alteration: alteration.clone(),
       step: step.clone()
     }
   }
+  
   get flatValue () {
     const { alteration, step } = this.value
     return {
@@ -159,7 +201,7 @@ class SimpleInterval {
     }
   }
   
-  setValue (setter: SimpleIntervalSetter) {
+  mutate (setter: SimpleIntervalSetter): SimpleInterval {
     if (setter instanceof SimpleInterval) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -179,7 +221,7 @@ class SimpleInterval {
     }
   }
 
-  clone () {
+  clone (): SimpleInterval {
     const { alteration, step } = this.value
     return new SimpleInterval({
       alteration: alteration.clone(),
@@ -187,11 +229,35 @@ class SimpleInterval {
     })
   }
 
-  static getRandom () {
+  static getRandom (): SimpleInterval {
     return new SimpleInterval({
       alteration: Alteration.getRandom(),
       step: SimpleStep.getRandom()
     })
+  }
+
+  // [WIP] Maybe this asSemitones and distanceBetween should only belong to Interval ?
+  asSemitones (): number {
+   const { step, alteration } = this.value
+   return step.asSemitones() + alteration.value
+  }
+
+  static distanceBetween (
+    siADesc: SimpleIntervalDescriptor,
+    siBDesc: SimpleIntervalDescriptor): Interval {
+    // [WIP] distance between {4/0} and {2/0} is negative here, and maybe shouldn't ?
+    // or create static absoluteDistanceBetween ? <= maybe better
+    const siA = new SimpleInterval(siADesc)
+    const siB = new SimpleInterval(siBDesc)
+    const stepBetweenSis = siB.value.step.value - siA.value.step.value
+    const semitonesBetweenSiSteps = new Interval({ step: stepBetweenSis, alteration: 0 }).asSemitones()
+    const semitonesBetweenSis = siB.asSemitones() - siA.asSemitones()
+    const alteration = semitonesBetweenSis - semitonesBetweenSiSteps
+    return new Interval({ step: stepBetweenSis, alteration })
+  }
+
+  toInterval (): Interval {
+    return new Interval(this.flatValue)
   }
 }
 
@@ -207,13 +273,14 @@ type IntervalSetter = ValueSetter<IntervalDescriptor, IntervalValue>
 class Interval {
   private _value: IntervalValue
   
-  get value () {
+  get value (): IntervalValue {
     const { alteration, step } = this._value
     return {
       alteration: alteration.clone(),
       step: step.clone()
     }
   }
+
   get flatValue () {
     const { alteration, step } = this.value
     return {
@@ -222,7 +289,7 @@ class Interval {
     }
   }
 
-  setValue (setter: IntervalSetter) {
+  mutate (setter: IntervalSetter): Interval {
     if (setter instanceof Interval) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -242,7 +309,7 @@ class Interval {
     }
   }
 
-  clone () {
+  clone (): Interval {
     const { alteration, step } = this.value
     return new Interval({
       alteration: alteration.clone(),
@@ -250,11 +317,170 @@ class Interval {
     })
   }
 
-  static getRandom () {
+  static getRandom (): Interval {
     return new Interval({
       alteration: Alteration.getRandom(),
       step: Step.getRandom()
     })
+  }
+
+  toSimpleInterval (): SimpleInterval {
+    const { value: { step, alteration } } = this
+    const simpleStep = step.toSimpleStep()
+    return new SimpleInterval({ step: simpleStep, alteration })
+  }
+
+  asSemitones (): number {
+    const { step, alteration } = this.value
+    return step.asSemitones() + alteration.value
+  }
+
+  static distanceBetween (
+    intADesc: IntervalDescriptor,
+    intBDesc: IntervalDescriptor): Interval {
+    const intA = new Interval(intADesc)
+    const intB = new Interval(intBDesc)
+    const siA = intA.toSimpleInterval()
+    const siB = intB.toSimpleInterval()
+    const distanceBetweenSis = SimpleInterval.distanceBetween(siA, siB).value
+    const fullOctavesBetweenInts = Math.floor((intB.asSemitones() - intA.asSemitones()) / 12)
+    const resultSteps = fullOctavesBetweenInts * 7 + distanceBetweenSis.step.value
+    return new Interval({
+      step: resultSteps,
+      alteration: distanceBetweenSis.alteration
+    })
+  }
+
+  add (intervalDesc: IntervalDescriptor) {
+    const interval = new Interval(intervalDesc)
+    const { step: thisStep } = this.value
+    const { step: intStep } = interval.value
+    const sumAsSemitones = this.asSemitones() + interval.asSemitones()
+    const resultStep = thisStep.value + intStep.value
+    const stepsAsSemitones = new Interval({ step: resultStep, alteration: 0 }).asSemitones()
+    const alteration = sumAsSemitones - stepsAsSemitones
+    return new Interval({ step: resultStep, alteration })
+  }
+
+  invert () {
+    const unison = new Interval({ step: 0, alteration: 0 })
+    return Interval.distanceBetween(this, unison)
+  }
+
+  subtract (
+    intADesc: IntervalDescriptor,
+    intBDesc: IntervalDescriptor): Interval {
+    const invertedB = new Interval(intBDesc).invert()
+    return new Interval(intADesc).add(invertedB)
+  }
+
+  negate (
+    _mainAxis: IntervalDescriptor = { step: 2, alteration: -1 },
+    _secondaryAxis?: IntervalDescriptor
+  ): Interval {
+    const mainAxis = new Interval(_mainAxis)
+    const mainAxisValue = mainAxis.value
+    const secondaryAxis = _secondaryAxis instanceof Interval ? _secondaryAxis : {
+      step: mainAxisValue.step,
+      alteration: mainAxisValue.alteration.value + 1,
+      ..._secondaryAxis
+    }
+    const distanceToMainAxis = Interval.distanceBetween(this, mainAxis)
+    return distanceToMainAxis.add(secondaryAxis)
+  }
+
+  static sort (...descriptors: IntervalDescriptor[]) {
+    const sortedIntervals = [...descriptors]
+      .map(desc => new Interval(desc))
+      .sort((intA, intB) => {
+        const { step: stepA, alteration: alterationA } = intA.flatValue
+        const { step: stepB, alteration: alterationB } = intB.flatValue
+        if (stepA === stepB) return alterationA - alterationB
+        return stepA - stepB
+      })
+    return sortedIntervals
+  }
+
+  static dedupe (...descriptors: IntervalDescriptor[]): Interval[] {
+    const deduped: Interval[] = []
+    descriptors.forEach(desc => {
+      const int = new Interval(desc)
+      const { step, alteration } = int.flatValue
+      const existsAlready = deduped.find(dedupedInt => {
+        const val = dedupedInt.value
+        return val.step.value === step
+          && val.alteration.value === alteration
+      })
+      if (!existsAlready) deduped.push(int)
+    })
+    return deduped
+  }
+
+  static semitoneDedupe (...descriptors: IntervalDescriptor[]): Interval[] {
+    const intervals = descriptors.map(desc => new Interval(desc))
+    const intervalsSemitonesMap = new Map<Interval, number>(intervals.map(i => ([i, i.asSemitones()])))
+    const dedupedSemitones = [...new Set(intervalsSemitonesMap.values())]
+    const semitonesAndIntervals = dedupedSemitones.map(semitoneValue => {
+      const intervals = [...intervalsSemitonesMap]
+        .filter(([_, sem]) => (sem === semitoneValue))
+        .map(([int]) => int)
+      return { semitoneValue, intervals }
+    })
+    const semitonesIntervalsMap = new Map<number, Interval[]>(semitonesAndIntervals.map(({
+      semitoneValue,
+      intervals
+    }) => [semitoneValue, intervals]))
+    return [...semitonesIntervalsMap].map(([sem, ints]) => {
+      const lesserAlterationValue = Math.min(...ints.map(int => Math.abs(int.value.alteration.value)))
+      const intervalWithLesserAltValue = ints.find(int => Math.abs(int.value.alteration.value) === lesserAlterationValue)
+      const chosenInterval = intervalWithLesserAltValue ?? ints[0] ?? new Interval({
+        step: 0,
+        alteration: sem
+      })
+      return chosenInterval
+    })
+  }
+
+  shiftStep (targetStep: StepDescriptor): Interval {
+    const { value: thisValue } = this
+    const unalteredInputInterval = new Interval({ ...thisValue, alteration: 0 })
+    const unalteredTargetInterval = new Interval({ step: targetStep, alteration: 0 })
+    const intervalBetweenUnalteredInputAndTarget = Interval.distanceBetween(unalteredInputInterval, unalteredTargetInterval)
+    const semitonesBeteenInputAndTarget = intervalBetweenUnalteredInputAndTarget.asSemitones()
+    const alteration = thisValue.alteration.value - semitonesBeteenInputAndTarget
+    return new Interval({ step: targetStep, alteration })
+  }
+  
+  rationalize (forceFlatOutput: boolean = false): Interval {
+    const { step: thisStep, alteration: thisAlteration } = this.flatValue
+    if (thisAlteration === 0) return this
+    let rationalized = { step: thisStep, alteration: thisAlteration }
+    const signsAreEqual = (nbr1: number, nbr2: number) => {
+      if (nbr1 === 0) return true
+      if (nbr1 > 0) return nbr2 >= 0
+      return nbr2 <= 0
+    }
+    while (true) {
+      if (rationalized.alteration === 0) break;
+      const rationalizedOnceMore = new Interval(rationalized).shiftStep(
+        thisAlteration >= 0 // technically could just check if strictly superior
+          ? rationalized.step + 1
+          : rationalized.step - 1
+      ).flatValue      
+      const alterationSignsAreEqual = signsAreEqual(thisAlteration, rationalizedOnceMore.alteration)
+      if (!forceFlatOutput || thisAlteration <= 0) {
+        if (alterationSignsAreEqual) { rationalized = rationalizedOnceMore }
+        else break;
+      } else {
+        // interval.alteration is > 0 here
+        if (alterationSignsAreEqual) { rationalized = rationalizedOnceMore }
+        else {
+          rationalized = rationalizedOnceMore;
+          break;
+        }
+      }
+    }
+    return new Interval(rationalized)
   }
 }
 
@@ -266,10 +492,16 @@ type ScaleSetter = ValueSetter<ScaleDescriptor, ScaleValue>
 class Scale {
   private _value: ScaleValue
 
-  get value () { /* [WIP] sort/dedupe steps here */ return this._value.map(int => int.clone()) }
+  get value (): SimpleInterval[] {
+    const valueAsIntervals = this._value.map(sInt => new Interval(sInt.flatValue))
+    const sorted = Interval.sort(...valueAsIntervals)
+    const deduped = Interval.semitoneDedupe(...sorted)
+    return deduped.map(int => int.toSimpleInterval())
+  }
+
   get flatValue () { return this.value.map(e => e.flatValue) }
 
-  setValue (setter: ScaleSetter) {
+  mutate (setter: ScaleSetter) {
     if (setter instanceof Scale) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -296,12 +528,12 @@ class Scale {
 
 /* # Note */
 type NoteValue = {
-  base: 'absolute' | 'chord' | 'key' | Interval
+  context: 'absolute' | 'chord' | 'key' | Interval
   interval: Interval
 }
 
 type NoteDescriptor = Note | {
-  base?: NoteValue['base']
+  context?: NoteValue['context']
   interval?: IntervalDescriptor
 }
 
@@ -311,22 +543,22 @@ class Note {
   private _value: NoteValue
   
   get value () {
-    const { base, interval } = this._value
+    const { context, interval } = this._value
     return {
-      base: base instanceof Interval ? base.clone() : base,
+      context: context instanceof Interval ? context.clone() : context,
       interval: interval.clone()
     }
   }
 
   get flatValue () {
-    const { base, interval } = this.value
+    const { context, interval } = this.value
     return {
-      base: base instanceof Interval ? base.flatValue : base,
+      context: context instanceof Interval ? context.flatValue : context,
       interval: interval.flatValue
     }
   }
 
-  setValue (setter: NoteSetter) {
+  mutate (setter: NoteSetter) {
     if (setter instanceof Note) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -338,40 +570,50 @@ class Note {
   constructor (descriptor?: NoteDescriptor) {
     if (descriptor instanceof Note) { this._value = descriptor.value }
     else {
-      const { base, interval } = descriptor ?? {}
+      const { context, interval } = descriptor ?? {}
       this._value = {
-        base: base ?? 'absolute',
+        context: context ?? 'absolute',
         interval: new Interval(interval)
       }
     }
   }
 
   clone () {
-    const { base, interval } = this.value
+    const { context, interval } = this.value
     return new Note({
-      base: base instanceof Interval ? base.clone() : base,
+      context: context instanceof Interval ? context.clone() : context,
       interval: interval.clone()
     })
   }
 
   static getRandom () {
-    const basePos = randomInt(4) as 0 | 1 | 2 | 3
-    const base = (['absolute', 'chord', 'key'].at(basePos) ?? Interval.getRandom()) as NoteValue['base']
+    const contextPos = randomInt(4) as 0 | 1 | 2 | 3
+    const context = (['absolute', 'chord', 'key'].at(contextPos) ?? Interval.getRandom()) as NoteValue['context']
     return new Note({
-      base: base,
+      context: context,
       interval: Interval.getRandom()
     })
+  }
+
+  toAbsolute (reference: IntervalDescriptor = new Interval({
+    step: 0,
+    alteration: 0
+  })): Interval {
+    const { interval } = this.value
+    return new Interval(reference).add(interval)
   }
 }
 
 /* # Chord */
 type ChordValue = {
-  base: 'absolute' | 'chord' | 'key' | Interval
+  context: 'absolute' | 'chord' | 'key' | Interval
+  base: Interval
   scale: Scale
 }
 
 type ChordDescriptor = Chord | {
-  base?: ChordValue['base']
+  context?: ChordValue['context']
+  base?: IntervalDescriptor
   scale?: ScaleDescriptor
 }
 
@@ -381,22 +623,28 @@ class Chord {
   private _value: ChordValue
   
   get value () {
-    const { base, scale } = this._value
+    const { context, base, scale } = this._value
     return {
-      base: base instanceof Interval ? base.clone() : base,
+      context: context instanceof Interval
+        ? context.clone()
+        : context,
+      base: base.clone(),
       scale: scale.clone()
     }
   }
 
   get flatValue () {
-    const { base, scale } = this.value
+    const { context, base, scale } = this.value
     return {
-      base: base instanceof Interval ? base.flatValue : base,
+      context: context instanceof Interval
+        ? context.flatValue
+        : context,
+      base: base.flatValue,
       scale: scale.flatValue
     }
   }
   
-  setValue (setter: ChordSetter) {
+  mutate (setter: ChordSetter) {
     if (setter instanceof Chord) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -408,27 +656,30 @@ class Chord {
   constructor (descriptor?: ChordDescriptor) {
     if (descriptor instanceof Chord) { this._value = descriptor.value }
     else {
-      const { base, scale } = descriptor ?? {}
+      const { context, base, scale } = descriptor ?? {}
       this._value = {
-        base: base ?? 'absolute',
+        context: context ?? 'absolute',
+        base: new Interval(base),
         scale: new Scale(scale)
       }
     }
   }
 
   clone () {
-    const { base, scale } = this.value
+    const { context, base, scale } = this.value
     return new Chord({
-      base: base instanceof Interval ? base.clone() : base,
+      context: context instanceof Interval ? context.clone() : context,
+      base: base.clone(),
       scale: scale.clone()
     })
   }
 
   static getRandom () {
-    const basePos = randomInt(4) as 0 | 1 | 2 | 3
-    const base = (['absolute', 'chord', 'key'].at(basePos) ?? Interval.getRandom()) as ChordValue['base']
+    const contextPos = randomInt(4) as 0 | 1 | 2 | 3
+    const context = (['absolute', 'chord', 'key'].at(contextPos) ?? Interval.getRandom()) as ChordValue['context']
     return new Chord({
-      base: base,
+      context: context,
+      base: Interval.getRandom(),
       scale: Scale.getRandom()
     })
   }
@@ -444,7 +695,7 @@ class Duration {
   get value () { return this._value }
   get flatValue () { return this.value }
   
-  setValue (setter: DurationSetter) {
+  mutate (setter: DurationSetter) {
     if (setter instanceof Duration) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -468,7 +719,7 @@ class Duration {
 
   add (desc: DurationDescriptor) {
     const toAdd = new Duration(desc)
-    this.setValue(this.value + toAdd.value)
+    this.mutate(this.value + toAdd.value)
     return this
   }
 
@@ -492,7 +743,7 @@ class Velocity {
   get value () { return clamp(this._value, 0, 1) }
   get flatValue () { return this.value }
   
-  setValue (setter: VelocitySetter) {
+  mutate (setter: VelocitySetter) {
     if (setter instanceof Velocity) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -551,7 +802,7 @@ class NoteEvent {
     }
   }
   
-  setValue (setter: NoteEventSetter) {
+  mutate (setter: NoteEventSetter) {
     if (setter instanceof NoteEvent) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -600,7 +851,7 @@ class Bpm {
   get value () { return this._value }
   get flatValue () { return this._value }
   
-  setValue (setter: BpmSetter) {
+  mutate (setter: BpmSetter) {
     if (setter instanceof Bpm) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -655,7 +906,7 @@ class BpmEvent {
     }
   }
 
-  setValue (setter: BpmEventSetter) {
+  mutate (setter: BpmEventSetter) {
     if (setter instanceof BpmEvent) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -709,7 +960,7 @@ class KeyEvent {
     return { payload: payload.flatValue }
   }
   
-  setValue (setter: KeyEventSetter) {
+  mutate (setter: KeyEventSetter) {
     if (setter instanceof KeyEvent) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -758,7 +1009,7 @@ class ChordEvent {
     return { payload: payload.flatValue }
   }
   
-  setValue (setter: ChordEventSetter) {
+  mutate (setter: ChordEventSetter) {
     if (setter instanceof ChordEvent) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -798,7 +1049,7 @@ class Instrument {
   get value () { return this._value }
   get flatValue () { return this._value }
   
-  setValue (setter: InstrumentSetter) {
+  mutate (setter: InstrumentSetter) {
     if (setter instanceof Instrument) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -838,7 +1089,7 @@ class InstrumentEvent {
     return { ...this.value }
   }
   
-  setValue (setter: InstrumentEventSetter) {
+  mutate (setter: InstrumentEventSetter) {
     if (setter instanceof InstrumentEvent) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -925,7 +1176,7 @@ class Sequence {
     }
   }
   
-  setValue (this: Sequence, setter: SequenceSetter) {
+  mutate (this: Sequence, setter: SequenceSetter) {
     if (setter instanceof Sequence) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -985,7 +1236,7 @@ class Sequence {
   }
 
   addEvents (this: Sequence, ...timedEvents: SequenceTimedEventDescriptor[]) {
-    return this.setValue(curr => {
+    return this.mutate(curr => {
       return {
         ...curr,
         timedEvents: [...curr.timedEvents, ...timedEvents.map(({ event, offset }) => {
@@ -1012,8 +1263,8 @@ class Sequence {
 
   setDuration (this: Sequence, setter: DurationSetter) {
     const newDuration = this.value.duration.clone()
-    newDuration.setValue(setter)
-    this.setValue(curr => ({ ...curr, duration: newDuration }))
+    newDuration.mutate(setter)
+    this.mutate(curr => ({ ...curr, duration: newDuration }))
   }
 }
 
@@ -1049,7 +1300,7 @@ class Track {
     }
   }
   
-  setValue (setter: TrackSetter): Track {
+  mutate (setter: TrackSetter): Track {
     if (setter instanceof Track) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -1146,7 +1397,7 @@ class Song {
     }
   }
   
-  setValue (setter: SongSetter) {
+  mutate (setter: SongSetter) {
     if (setter instanceof Song) { this._value = setter.value }
     else {
       const desc = typeof setter === 'function' ? setter(this._value) : setter
@@ -1214,13 +1465,39 @@ class Song {
         track
       }))
     })
-    return returned.sort((a, b) => (a.offset.value - b.offset.value))
+    return returned.sort((a, b) => {
+        const aValue = a.offset.value
+        const bValue = b.offset.value
+        if (aValue !== bValue) return aValue - bValue
+        const eventTypesOrder = [KeyEvent, ChordEvent, BpmEvent, InstrumentEvent, NoteEvent]
+        const aWeight = eventTypesOrder.findIndex(construct => a instanceof construct) ?? 0
+        const bWeight = eventTypesOrder.findIndex(construct => b instanceof construct) ?? 0
+        return aWeight - bWeight
+      })
+  }
+
+  get absolutizedTimedEventsArray () {
+    const { timedEventsArray, value: { initKey, initChord } } = this
+    let currentKey = initKey
+    let currentChord = initChord
+    timedEventsArray.map(({ event, offset, track }) => {
+      if (event instanceof KeyEvent) {
+        const newKey = event.value.payload
+        const newKeyValue = newKey.value
+        // [WIP] convert to absolute
+        currentKey = event.value.payload
+      }
+      else if (event instanceof ChordEvent) {}
+
+    })
+    return null
   }
 }
 
 /* # Player */
 class Player {
   currentSong: Song | null = null
+
   
   private pauseTransport (): Player {
     Transport.pause()
@@ -1236,6 +1513,7 @@ class Player {
     Transport.cancel()
     return this
   }
+
 
   play (song?: Song, from?: Duration): Player {
     const pSong = this.currentSong
@@ -1253,6 +1531,8 @@ class Player {
         if (from === undefined) return this;
         // Same song, playing, with from
         else {
+          this.pauseTransport()
+          this.cancelTransportEvents()
           /*
             - pause
             - annule tous les évènements du transport
