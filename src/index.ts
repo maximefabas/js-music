@@ -499,7 +499,7 @@ class Scale {
     return deduped.map(int => int.toSimpleInterval())
   }
 
-  get flatValue () { return this.value.map(e => e.flatValue) }
+  get flatValue () { return this.value.map(s => s.flatValue) }
 
   mutate (setter: ScaleSetter) {
     if (setter instanceof Scale) { this._value = setter.value }
@@ -528,13 +528,13 @@ class Scale {
 
 /* # Note */
 type NoteValue = {
-  context: 'absolute' | 'chord' | 'key' | Interval
-  interval: Interval
+  context: 'absolute' | 'chord' | 'key'
+  height: Interval | Step
 }
 
 type NoteDescriptor = Note | {
   context?: NoteValue['context']
-  interval?: IntervalDescriptor
+  height?: IntervalDescriptor | StepDescriptor
 }
 
 type NoteSetter = ValueSetter<NoteDescriptor, NoteValue>
@@ -543,18 +543,18 @@ class Note {
   private _value: NoteValue
   
   get value () {
-    const { context, interval } = this._value
+    const { context, height } = this._value
     return {
-      context: context instanceof Interval ? context.clone() : context,
-      interval: interval.clone()
+      context,
+      height: height.clone()
     }
   }
 
   get flatValue () {
-    const { context, interval } = this.value
+    const { context, height } = this.value
     return {
-      context: context instanceof Interval ? context.flatValue : context,
-      interval: interval.flatValue
+      context,
+      height: height.flatValue
     }
   }
 
@@ -570,50 +570,50 @@ class Note {
   constructor (descriptor?: NoteDescriptor) {
     if (descriptor instanceof Note) { this._value = descriptor.value }
     else {
-      const { context, interval } = descriptor ?? {}
+      const { context, height } = descriptor ?? {}
+      let valueHeight: Interval | Step
+      if (height instanceof Interval) { valueHeight = height.clone() }
+      else if (height instanceof Step) { valueHeight = height.clone() }
+      else if (typeof height === 'number') { valueHeight = new Step(height) }
+      else if (height === undefined) { valueHeight = new Step(0) }
+      else { valueHeight = new Interval(height) }
       this._value = {
         context: context ?? 'absolute',
-        interval: new Interval(interval)
+        height: valueHeight
       }
     }
   }
 
   clone () {
-    const { context, interval } = this.value
+    const { context, height } = this.value
     return new Note({
-      context: context instanceof Interval ? context.clone() : context,
-      interval: interval.clone()
+      context,
+      height: height.clone()
     })
   }
 
   static getRandom () {
-    const contextPos = randomInt(4) as 0 | 1 | 2 | 3
-    const context = (['absolute', 'chord', 'key'].at(contextPos) ?? Interval.getRandom()) as NoteValue['context']
+    const contextPos = randomInt(3) as 0 | 1 | 2
+    const context = ['absolute', 'chord', 'key'].at(contextPos) as NoteValue['context']
     return new Note({
       context: context,
-      interval: Interval.getRandom()
+      height: Math.random() > .5
+        ? Interval.getRandom()
+        : Step.getRandom()
     })
-  }
-
-  toAbsolute (reference: IntervalDescriptor = new Interval({
-    step: 0,
-    alteration: 0
-  })): Interval {
-    const { interval } = this.value
-    return new Interval(reference).add(interval)
   }
 }
 
 /* # Chord */
 type ChordValue = {
-  context: 'absolute' | 'chord' | 'key' | Interval
-  base: Interval
+  context: 'absolute' | 'chord' | 'key'
+  base: Interval | Step
   scale: Scale
 }
 
 type ChordDescriptor = Chord | {
   context?: ChordValue['context']
-  base?: IntervalDescriptor
+  base?: IntervalDescriptor | StepDescriptor
   scale?: ScaleDescriptor
 }
 
@@ -625,9 +625,7 @@ class Chord {
   get value () {
     const { context, base, scale } = this._value
     return {
-      context: context instanceof Interval
-        ? context.clone()
-        : context,
+      context,
       base: base.clone(),
       scale: scale.clone()
     }
@@ -636,9 +634,7 @@ class Chord {
   get flatValue () {
     const { context, base, scale } = this.value
     return {
-      context: context instanceof Interval
-        ? context.flatValue
-        : context,
+      context,
       base: base.flatValue,
       scale: scale.flatValue
     }
@@ -657,9 +653,15 @@ class Chord {
     if (descriptor instanceof Chord) { this._value = descriptor.value }
     else {
       const { context, base, scale } = descriptor ?? {}
+      let actualBase: Interval | Step
+      if (base instanceof Step) { actualBase = new Step(base) }
+      else if (base instanceof Interval) { actualBase = new Interval(base) }
+      else if (typeof base === 'number') { actualBase = new Step(base) }
+      else if (base === undefined) { actualBase = new Step(0) }
+      else { actualBase = new Interval(base) }
       this._value = {
         context: context ?? 'absolute',
-        base: new Interval(base),
+        base: actualBase,
         scale: new Scale(scale)
       }
     }
@@ -668,15 +670,15 @@ class Chord {
   clone () {
     const { context, base, scale } = this.value
     return new Chord({
-      context: context instanceof Interval ? context.clone() : context,
+      context,
       base: base.clone(),
       scale: scale.clone()
     })
   }
 
   static getRandom () {
-    const contextPos = randomInt(4) as 0 | 1 | 2 | 3
-    const context = (['absolute', 'chord', 'key'].at(contextPos) ?? Interval.getRandom()) as ChordValue['context']
+    const contextPos = randomInt(3) as 0 | 1 | 2
+    const context = ['absolute', 'chord', 'key'].at(contextPos) as ChordValue['context']
     return new Chord({
       context: context,
       base: Interval.getRandom(),
@@ -875,35 +877,21 @@ class Bpm {
 }
 
 /* # BpmEvent */
-type BpmEventValue = {
-  payload: Bpm
-  duration: Duration
-}
-
-type BpmEventDescriptor = BpmEvent | {
-  payload?: BpmDescriptor
-  duration?: DurationDescriptor
-}
-
+type BpmEventValue = { payload: Bpm }
+type BpmEventDescriptor = BpmEvent | { payload?: BpmDescriptor }
 type BpmEventSetter = ValueSetter<BpmEventDescriptor, BpmEventValue>
 
 class BpmEvent {
   private _value: BpmEventValue
   
   get value () {
-    const { payload, duration } = this._value
-    return {
-      payload: payload.clone(),
-      duration: duration.clone()
-    }
+    const { payload } = this._value
+    return { payload: payload.clone() }
   }
 
   get flatValue () {
-    const { payload, duration } = this.value
-    return {
-      payload: payload.flatValue,
-      duration: duration.flatValue
-    }
+    const { payload } = this.value
+    return { payload: payload.flatValue }
   }
 
   mutate (setter: BpmEventSetter) {
@@ -918,27 +906,18 @@ class BpmEvent {
   constructor (descriptor?: BpmEventDescriptor) {
     if (descriptor instanceof BpmEvent) { this._value = descriptor.value }
     else {
-      const { payload, duration } = descriptor ?? {}
-      this._value = {
-        payload: new Bpm(payload),
-        duration: new Duration(duration)
-      }
+      const { payload } = descriptor ?? {}
+      this._value = { payload: new Bpm(payload) }
     }
   }
 
   clone () {
-    const { payload, duration } = this.value
-    return new BpmEvent({
-      payload: payload.clone(),
-      duration: duration.clone()
-    })
+    const { payload } = this.value
+    return new BpmEvent({ payload: payload.clone() })
   }
 
   static getRandom () {
-    return new BpmEvent({
-      payload: Bpm.getRandom(),
-      duration: Duration.getRandom()
-    })
+    return new BpmEvent({ payload: Bpm.getRandom() })
   }
 }
 
@@ -1355,6 +1334,11 @@ class Track {
     })
     return mergedSequence
   }
+
+  handleEvent (eventDescriptor: InstrumentEventDescriptor) {
+    const event = new InstrumentEvent(eventDescriptor)
+    event.value.payload
+  }
 }
 
 /* # Song */
@@ -1466,38 +1450,25 @@ class Song {
       }))
     })
     return returned.sort((a, b) => {
-        const aValue = a.offset.value
-        const bValue = b.offset.value
-        if (aValue !== bValue) return aValue - bValue
-        const eventTypesOrder = [KeyEvent, ChordEvent, BpmEvent, InstrumentEvent, NoteEvent]
-        const aWeight = eventTypesOrder.findIndex(construct => a instanceof construct) ?? 0
-        const bWeight = eventTypesOrder.findIndex(construct => b instanceof construct) ?? 0
-        return aWeight - bWeight
-      })
-  }
-
-  get absolutizedTimedEventsArray () {
-    const { timedEventsArray, value: { initKey, initChord } } = this
-    let currentKey = initKey
-    let currentChord = initChord
-    timedEventsArray.map(({ event, offset, track }) => {
-      if (event instanceof KeyEvent) {
-        const newKey = event.value.payload
-        const newKeyValue = newKey.value
-        // [WIP] convert to absolute
-        currentKey = event.value.payload
-      }
-      else if (event instanceof ChordEvent) {}
-
+      const aValue = a.offset.value
+      const bValue = b.offset.value
+      if (aValue !== bValue) return aValue - bValue
+      const eventTypesOrder = [KeyEvent, ChordEvent, BpmEvent, InstrumentEvent, NoteEvent]
+      const aWeight = eventTypesOrder.findIndex(construct => a instanceof construct) ?? 0
+      const bWeight = eventTypesOrder.findIndex(construct => b instanceof construct) ?? 0
+      return aWeight - bWeight
     })
-    return null
   }
 }
 
 /* # Player */
+// [WIP] take currentSong, currentKey, etc... into value ?
 class Player {
   currentSong: Song | null = null
-
+  currentKey: Chord | null = null
+  currentChord: Chord | null = null
+  currentBpm: Bpm | null = null
+  currentTrackToInstrumentMap: Map<Track, Instrument> = new Map()
   
   private pauseTransport (): Player {
     Transport.pause()
@@ -1509,11 +1480,113 @@ class Player {
     return this
   }
 
+  private startTransport (): Player {
+    Transport.start()
+    return this
+  }
+
   private cancelTransportEvents (): Player {
     Transport.cancel()
     return this
   }
 
+  get isPlaying (): boolean {
+    return Transport.state === 'started'
+  }
+
+  private fastForwardEvents (
+    _from: DurationDescriptor = 0,
+    _to: DurationDescriptor = Infinity): Player {
+    const { currentSong, currentTrackToInstrumentMap } = this
+    if (currentSong === null) return this
+    const from = new Duration(_from)
+    const to = new Duration(_to)
+    currentSong.timedEventsArray.forEach(({ event, offset, track }) => {
+      if (offset.value < from.value) return;
+      if (offset.value >= to.value) return;
+      if (event instanceof NoteEvent) return;
+      if (event instanceof KeyEvent) {
+        // [WIP] need absolute values here
+        this.currentKey = event.value.payload
+      }
+      if (event instanceof ChordEvent) {
+        // [WIP] need absolute values here
+        this.currentChord = event.value.payload
+      }
+      if (event instanceof BpmEvent) {
+        const newBpm = event.value.payload.value
+        this.currentBpm = new Bpm(newBpm)
+        Transport.bpm.value = newBpm
+      }
+      if (event instanceof InstrumentEvent) {
+        if (track === null) return;
+        const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+        const newInstrument = event.value.payload(currInstrument)
+        currentTrackToInstrumentMap.set(track, newInstrument)
+      }
+    })
+    return this
+  }
+
+  private scheduleEvents (
+    _from: DurationDescriptor = 0,
+    _to: DurationDescriptor = Infinity): Player {
+    const { currentSong } = this
+    if (currentSong === null) return this
+    const from = new Duration(_from)
+    const to = new Duration(_to)
+    currentSong.timedEventsArray.forEach(({ event, offset, track }) => {
+      if (offset.value < from.value) return;
+      if (offset.value >= to.value) return;
+      Transport.schedule((toneTime) => {
+        if (event instanceof KeyEvent) {
+          // [WIP] need absolute values here
+          this.currentKey = event.value.payload
+        }
+        if (event instanceof ChordEvent) {
+          // [WIP] need absolute values here
+          this.currentChord = event.value.payload
+        }
+        if (event instanceof BpmEvent) {
+          const newBpm = event.value.payload.value
+          this.currentBpm = new Bpm(newBpm)
+          Transport.bpm.value = newBpm
+        }
+        const { currentTrackToInstrumentMap } = this
+        if (event instanceof InstrumentEvent) {
+          if (track === null) return;
+          const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+          const newInstrument = event.value.payload(currInstrument)
+          currentTrackToInstrumentMap.set(track, newInstrument)
+        }
+        if (event instanceof NoteEvent) {
+          if (track === null) return;
+          const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+          const { payload: note, duration, velocity } = event.value
+          const { height, context } = note.value
+          // [WIP] need absolute values here
+          
+        }
+      }, offset.asBeatNotation)
+    })
+    return this
+  }
+
+  private reset (): Player {
+    this.currentSong = null
+    this.currentKey = null
+    this.currentChord = null
+    this.currentBpm = null
+    this.currentTrackToInstrumentMap = new Map()
+    return this
+  }
+
+  private transportPositionToDuration (): Duration {
+    // [WIP] This assumes 192 PPQ. Later, PPQ could be assigned to a Song instance
+    const { ticks } = Transport
+    const beats = ticks / 192
+    return new Duration(beats)
+  }
 
   play (song?: Song, from?: Duration): Player {
     const pSong = this.currentSong
@@ -1533,13 +1606,9 @@ class Player {
         else {
           this.pauseTransport()
           this.cancelTransportEvents()
-          /*
-            - pause
-            - annule tous les évènements du transport
-            - rejoue les silent events jusqu'à from
-            - schedule les évènements suivants
-            - démarre le transport
-          */
+          this.fastForwardEvents(0, from)
+          this.scheduleEvents(from)
+          this.startTransport()
           return this
         }
 
@@ -1547,22 +1616,18 @@ class Player {
       } else {
         // Same song, paused, no from
         if (from === undefined) {
-          /*
-            - annule tous les évènements du transport
-            - récupère la position courante du transport, devient from
-            - rejoue les silent events jusqu'à from
-            - schedule les évènements suivants
-            - démarre le transport
-          */
+          this.cancelTransportEvents()
+          const actualFrom = this.transportPositionToDuration()
+          this.fastForwardEvents(0, actualFrom)
+          this.scheduleEvents(actualFrom)
+          this.startTransport()
           return this
         // Same song, paused, with from
         } else {
-          /*
-            - annule tous les évènements du transport
-            - rejoue les silent events jusqu'à from
-            - schedule les évènements suivants
-            - démarre le transport
-          */
+          this.cancelTransportEvents()
+          this.fastForwardEvents(0, from)
+          this.scheduleEvents(from)
+          this.startTransport()
           return this
         }
       }
@@ -1573,23 +1638,19 @@ class Player {
       if (isPlaying) {
         // New song, playng, no from
         if (from === undefined) {
-          /*
-            - pause
-            - reset transport
-            - annule tout
-            - schedule tout
-            - démarre
-          */
+          this.stopTransport()
+          this.cancelTransportEvents()
+          this.scheduleEvents(0)
+          this.startTransport()
           return this
         // New song, playng, with from
         } else {
-          /*
-            - pause
-            - set transport to from
-            - annule tout
-            - schedule depuis from
-            - démarre
-          */
+          this.stopTransport()
+          this.cancelTransportEvents()
+          Transport.position = from.asBeatNotation
+          this.fastForwardEvents(0, from)
+          this.scheduleEvents(from)
+          this.startTransport()
           return this
         }
 
@@ -1597,31 +1658,33 @@ class Player {
       } else {
         // New song, paused, no from
         if (from === undefined) {
-          /*
-            - reset transport
-            - annule tous les évènements du transport
-            - schedule les évènements depuis 0
-            - démarre le transport
-          */
+          this.stopTransport()
+          this.cancelTransportEvents()
+          this.scheduleEvents(0)
+          this.startTransport()
           return this
-
         // New song, paused, with from
         } else {
-          /*
-            - set transport to from
-            - annule tous les évènements du transport
-            - rejoue les silent events jusqu'à from
-            - schedule les évènements depuis from
-            - démarre le transport
-          */
+          Transport.position = from.asBeatNotation
+          this.cancelTransportEvents()
+          this.fastForwardEvents(0, from)
+          this.scheduleEvents(from)
+          this.startTransport()
           return this
         }
       }
     }
   }
 
-  pause () {}
-  stop () {}
+  pause () {
+    this.pauseTransport()
+  }
+
+  stop () {
+    this.stopTransport()
+    this.cancelTransportEvents()
+    this.reset()
+  }
 }
 
 // Create song
