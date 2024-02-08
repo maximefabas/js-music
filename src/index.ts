@@ -1582,9 +1582,8 @@ class Player {
   }
 
   private transportPositionToDuration (): Duration {
-    // [WIP] This assumes 192 PPQ. Later, PPQ could be assigned to a Song instance
-    const { ticks } = Transport
-    const beats = ticks / 192
+    const { ticks, PPQ } = Transport
+    const beats = ticks / PPQ
     return new Duration(beats)
   }
 
