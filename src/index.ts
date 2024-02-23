@@ -29,6 +29,10 @@ class Alteration {
   }
 
   constructor (descriptor?: AlterationDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.add = this.add.bind(this)
+    this.subtract = this.subtract.bind(this)
     if (descriptor instanceof Alteration) { this._value = descriptor._value }
     else { this._value = descriptor ?? 0 }
   }
@@ -58,8 +62,12 @@ class Alteration {
     return new Alteration(this.value - toAdd.value)
   }
 
-  static lessAltered (...alterationsDescs: AlterationDescriptor[]): Alteration | undefined {
-    const sorted = alterationsDescs
+  static lessAltered (
+    firstAlterationDesc: AlterationDescriptor,
+    ...alterationsDescs: AlterationDescriptor[]
+  ): Alteration {
+    const allAlterationsDescs = [firstAlterationDesc, ...alterationsDescs]
+    const sorted = allAlterationsDescs
       .map(altDesc => new Alteration(altDesc))
       .map(alt => {
         const altValue = alt.value
@@ -72,7 +80,7 @@ class Alteration {
       })
       .sort((itemA, itemB) => itemA.weight - itemB.weight)
       .map(item => item.alteration)
-    return sorted.at(0)
+    return sorted.at(0) as Alteration
   }
 }
 
@@ -99,6 +107,10 @@ class SimpleStep {
   }
 
   constructor (descriptor?: SimpleStepDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.asSemitones = this.asSemitones.bind(this)
+    this.toStep = this.toStep.bind(this)
     if (descriptor instanceof SimpleStep) { this._value = descriptor._value }
     else { this._value = descriptor ?? 0 }
   }
@@ -142,6 +154,10 @@ class Step {
   }
 
   constructor (descriptor?: StepDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.toSimpleStep = this.toSimpleStep.bind(this)
+    this.asSemitones = this.asSemitones.bind(this)
     if (descriptor instanceof Step) { this._value = descriptor._value }
     else { this._value = descriptor ?? 0 }
   }
@@ -211,6 +227,10 @@ class SimpleInterval {
   }
 
   constructor (descriptor?: SimpleIntervalDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.asSemitones = this.asSemitones.bind(this)
+    this.toInterval = this.toInterval.bind(this)
     if (descriptor instanceof SimpleInterval) { this._value = descriptor._value }
     else {
       const { alteration, step } = descriptor ?? {}
@@ -244,16 +264,14 @@ class SimpleInterval {
 
   static distanceBetween (
     siADesc: SimpleIntervalDescriptor,
-    siBDesc: SimpleIntervalDescriptor): Interval {
-    // [WIP] distance between {4/0} and {2/0} is negative here, and maybe shouldn't ?
-    // or create static absoluteDistanceBetween ? <= maybe better
+    siBDesc: SimpleIntervalDescriptor): SimpleInterval {
     const siA = new SimpleInterval(siADesc)
     const siB = new SimpleInterval(siBDesc)
     const stepBetweenSis = siB.value.step.value - siA.value.step.value
     const semitonesBetweenSiSteps = new Interval({ step: stepBetweenSis, alteration: 0 }).asSemitones()
     const semitonesBetweenSis = siB.asSemitones() - siA.asSemitones()
     const alteration = semitonesBetweenSis - semitonesBetweenSiSteps
-    return new Interval({ step: stepBetweenSis, alteration })
+    return new Interval({ step: stepBetweenSis, alteration }).toSimpleInterval()
   }
 
   toInterval (): Interval {
@@ -299,6 +317,16 @@ class Interval {
   }
 
   constructor (descriptor?: IntervalDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.toSimpleInterval = this.toSimpleInterval.bind(this)
+    this.asSemitones = this.asSemitones.bind(this)
+    this.add = this.add.bind(this)
+    this.invert = this.invert.bind(this)
+    this.subtract = this.subtract.bind(this)
+    this.negate = this.negate.bind(this)
+    this.shiftStep = this.shiftStep.bind(this)
+    this.rationalize = this.rationalize.bind(this)
     if (descriptor instanceof Interval) { this._value = descriptor._value }
     else {
       const { alteration, step } = descriptor ?? {}
@@ -482,6 +510,16 @@ class Interval {
     }
     return new Interval(rationalized)
   }
+
+  static lessAltered (
+    firstIntervalDescriptor: IntervalDescriptor,
+    ...intervalDescriptors: IntervalDescriptor[]): Interval {
+    const intervals = [firstIntervalDescriptor, ...intervalDescriptors].map(i => new Interval(i))
+    const alterations = intervals.map(i => i.value.alteration)
+    const lesserAlteration = Alteration.lessAltered(...alterations as [Alteration])
+    const found = intervals.find(i => i.value.alteration.value === lesserAlteration.value) as Interval
+    return found
+  }
 }
 
 /* # Scale */
@@ -511,6 +549,9 @@ class Scale {
   }
 
   constructor (descriptor: ScaleDescriptor = []) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.getIntervalAtStep = this.getIntervalAtStep.bind(this)
     if (descriptor instanceof Scale) { this._value = descriptor.value }
     else { this._value = descriptor.map(int => new SimpleInterval(int)) }
   }
@@ -524,17 +565,29 @@ class Scale {
     const value = arrayOf(SimpleInterval.getRandom, length)
     return new Scale(value)
   }
+
+  getIntervalAtStep (stepDescriptor: StepDescriptor): Interval | undefined {
+    const step = new Step(stepDescriptor)
+    const simpleStep = step.toSimpleStep()
+    const simpleStepValue = simpleStep.value
+    const thisSimpleIntervals = this.value.filter(sI => (sI.value.step.value === simpleStepValue))
+    if (thisSimpleIntervals.length === 0) return;
+    const thisIntervals = thisSimpleIntervals.map(si => si.toInterval())
+    const lessAlteredSimpleInterval = Interval.lessAltered(...thisIntervals as [Interval]).toSimpleInterval()
+    const distanceBetweenStepAndSimple = Interval.distanceBetween({ step: simpleStep.toStep() }, { step: step })
+    return lessAlteredSimpleInterval.toInterval().add(distanceBetweenStepAndSimple)
+  }
 }
 
 /* # Note */
 type NoteValue = {
   context: 'absolute' | 'chord' | 'key'
-  height: Interval | Step
+  base: Interval | Step
 }
 
 type NoteDescriptor = Note | {
   context?: NoteValue['context']
-  height?: IntervalDescriptor | StepDescriptor
+  base?: IntervalDescriptor | StepDescriptor
 }
 
 type NoteSetter = ValueSetter<NoteDescriptor, NoteValue>
@@ -543,18 +596,18 @@ class Note {
   private _value: NoteValue
   
   get value () {
-    const { context, height } = this._value
+    const { context, base } = this._value
     return {
       context,
-      height: height.clone()
+      base: base.clone()
     }
   }
 
   get flatValue () {
-    const { context, height } = this.value
+    const { context, base } = this.value
     return {
       context,
-      height: height.flatValue
+      base: base.flatValue
     }
   }
 
@@ -568,27 +621,29 @@ class Note {
   }
 
   constructor (descriptor?: NoteDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof Note) { this._value = descriptor.value }
     else {
-      const { context, height } = descriptor ?? {}
-      let valueHeight: Interval | Step
-      if (height instanceof Interval) { valueHeight = height.clone() }
-      else if (height instanceof Step) { valueHeight = height.clone() }
-      else if (typeof height === 'number') { valueHeight = new Step(height) }
-      else if (height === undefined) { valueHeight = new Step(0) }
-      else { valueHeight = new Interval(height) }
+      const { context, base } = descriptor ?? {}
+      let valueBase: Interval | Step
+      if (base instanceof Interval) { valueBase = base.clone() }
+      else if (base instanceof Step) { valueBase = base.clone() }
+      else if (typeof base === 'number') { valueBase = new Step(base) }
+      else if (base === undefined) { valueBase = new Step(0) }
+      else { valueBase = new Interval(base) }
       this._value = {
         context: context ?? 'absolute',
-        height: valueHeight
+        base: valueBase
       }
     }
   }
 
   clone () {
-    const { context, height } = this.value
+    const { context, base } = this.value
     return new Note({
       context,
-      height: height.clone()
+      base: base.clone()
     })
   }
 
@@ -597,7 +652,7 @@ class Note {
     const context = ['absolute', 'chord', 'key'].at(contextPos) as NoteValue['context']
     return new Note({
       context: context,
-      height: Math.random() > .5
+      base: Math.random() > .5
         ? Interval.getRandom()
         : Step.getRandom()
     })
@@ -650,6 +705,8 @@ class Chord {
   }
 
   constructor (descriptor?: ChordDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof Chord) { this._value = descriptor.value }
     else {
       const { context, base, scale } = descriptor ?? {}
@@ -707,6 +764,9 @@ class Duration {
   }
   
   constructor (descriptor?: DurationDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.add = this.add.bind(this)
     if (descriptor instanceof Duration) { this._value = descriptor.value }
     else { this._value = descriptor ?? 0 }
   }
@@ -755,6 +815,8 @@ class Velocity {
   }
 
   constructor (descriptor?: VelocityDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof Velocity) { this._value = descriptor.value }
     else { this._value = descriptor ?? 1 }
   }
@@ -814,6 +876,8 @@ class NoteEvent {
   }
 
   constructor (descriptor?: NoteEventDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof NoteEvent) { this._value = descriptor.value }
     else {
       const { payload, duration, velocity } = descriptor ?? {}
@@ -863,6 +927,8 @@ class Bpm {
   }
 
   constructor (descriptor?: BpmDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof Bpm) { this._value = descriptor.value }
     else { this._value = descriptor ?? 120 }
   }
@@ -904,6 +970,8 @@ class BpmEvent {
   }
 
   constructor (descriptor?: BpmEventDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof BpmEvent) { this._value = descriptor.value }
     else {
       const { payload } = descriptor ?? {}
@@ -949,6 +1017,8 @@ class KeyEvent {
   }
 
   constructor (descriptor?: KeyEventDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof KeyEvent) { this._value = descriptor.value }
     else {
       const { payload } = descriptor ?? {}
@@ -998,6 +1068,8 @@ class ChordEvent {
   }
 
   constructor (descriptor?: ChordEventDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof ChordEvent) { this._value = descriptor.value }
     else {
       const { payload } = descriptor ?? {}
@@ -1038,6 +1110,9 @@ class Instrument {
   }
 
   constructor (descriptor?: InstrumentDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.play = this.play.bind(this)
     if (descriptor instanceof Instrument) { this._value = descriptor._value }
     else { this._value = descriptor ?? null }
   }
@@ -1048,6 +1123,16 @@ class Instrument {
 
   static getRandom () {
     return new Instrument(null)
+  }
+
+  play (
+    noteDescriptor: NoteDescriptor,
+    durationDescriptor: DurationDescriptor,
+    velocityDescriptor: VelocityDescriptor) {
+    const note = new Note(noteDescriptor)
+    const duration = new Duration(durationDescriptor)
+    const velocity = new Velocity(velocityDescriptor)
+    console.log('you want me to play:', note.value, duration.value, velocity.value)
   }
 }
 
@@ -1078,6 +1163,8 @@ class InstrumentEvent {
   }
 
   constructor (descriptor?: InstrumentEventDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
     if (descriptor instanceof InstrumentEvent) { this._value = descriptor.value }
     else {
       const descriptorPayload = descriptor?.payload
@@ -1165,6 +1252,10 @@ class Sequence {
   }
 
   constructor (descriptor?: SequenceDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.addEvents = this.addEvents.bind(this)
+    this.setDuration = this.setDuration.bind(this)
     if (descriptor instanceof Sequence) { this._value = descriptor.value }
     else {
       const { duration, timedEvents } = descriptor ?? {}
@@ -1289,6 +1380,9 @@ class Track {
   }
   
   constructor (descriptor?: TrackDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.handleEvent = this.handleEvent.bind(this)
     if (descriptor instanceof Track) { this._value = descriptor.value }
     else {
       const {
@@ -1391,6 +1485,9 @@ class Song {
   }
 
   constructor (descriptor?: SongDescriptor) {
+    this.mutate = this.mutate.bind(this)
+    this.clone = this.clone.bind(this)
+    this.addTrack = this.addTrack.bind(this)
     if (descriptor instanceof Song) { this._value = descriptor.value }
     else {
       const { initBpm, initKey, initChord, tracks = [] } = descriptor ?? {}
@@ -1459,6 +1556,15 @@ class Song {
       return aWeight - bWeight
     })
   }
+
+  addTrack (trackDescriptor: TrackDescriptor) {
+    return this.mutate(songValue => {
+      return {
+        ...songValue,
+        tracks: [...songValue.tracks, new Track(trackDescriptor)]
+      }
+    })
+  }
 }
 
 /* # Player */
@@ -1469,6 +1575,22 @@ class Player {
   currentChord: Chord | null = null
   currentBpm: Bpm | null = null
   currentTrackToInstrumentMap: Map<Track, Instrument> = new Map()
+
+  constructor () {
+    this.pauseTransport = this.pauseTransport.bind(this)
+    this.stopTransport = this.stopTransport.bind(this)
+    this.startTransport = this.startTransport.bind(this)
+    this.cancelTransportEvents = this.cancelTransportEvents.bind(this)
+    this.absolutizeNote = this.absolutizeNote.bind(this)
+    this.absolutizeChord = this.absolutizeChord.bind(this)
+    this.fastForwardEvents = this.fastForwardEvents.bind(this)
+    this.scheduleEvents = this.scheduleEvents.bind(this)
+    this.reset = this.reset.bind(this)
+    this.transportPositionToDuration = this.transportPositionToDuration.bind(this)
+    this.play = this.play.bind(this)
+    this.pause = this.pause.bind(this)
+    this.stop = this.stop.bind(this)
+  }
   
   private pauseTransport (): Player {
     Transport.pause()
@@ -1494,6 +1616,59 @@ class Player {
     return Transport.state === 'started'
   }
 
+  private absolutizeNote (noteDescriptor: NoteDescriptor): Note {
+    const note = new Note(noteDescriptor)
+    const { base, context } = note.value
+
+    // Access the current chord/key reference
+    const defaultReference = new Chord({
+      base: { step: 0 },
+      context: 'absolute',
+      scale: [ // [WIP] generate the major scale instead
+        { step: 0 },
+        { step: 1 },
+        { step: 2 },
+        { step: 3 },
+        { step: 4 },
+        { step: 5 },
+        { step: 6 }
+      ] })
+    let reference: Chord
+    if (context === 'absolute') { reference = defaultReference }
+    else if (context === 'chord') { reference = this.currentChord ?? defaultReference }
+    else { reference = this.currentKey ?? defaultReference }
+
+    // Access the current interval reference
+    const { base: referenceBase, scale: referenceScale } = reference.value
+    let referenceInterval: Interval
+    if (referenceBase instanceof Interval) { referenceInterval = referenceBase }
+    else { referenceInterval = new Interval({ step: referenceBase.value }) }
+
+    // Create the target interval
+    let targetInterval: Interval
+    if (base instanceof Interval) { targetInterval = referenceInterval.add(base) }
+    else {
+      const scaleInterval = referenceScale.getIntervalAtStep(base) ?? new Interval()
+      targetInterval = referenceInterval.add(scaleInterval)
+    }
+
+    return new Note({
+      base: targetInterval,
+      context: 'absolute'
+    })
+  }
+
+  private absolutizeChord (chordDescriptor: ChordDescriptor): Chord {
+    const chord = new Chord(chordDescriptor)
+    const { base, context, scale } = chord.value
+    const { base: targetBase } = this.absolutizeNote({ base, context }).value
+    return new Chord({
+      base: targetBase,
+      scale,
+      context: 'absolute'
+    })
+  }
+
   private fastForwardEvents (
     _from: DurationDescriptor = 0,
     _to: DurationDescriptor = Infinity): Player {
@@ -1506,12 +1681,14 @@ class Player {
       if (offset.value >= to.value) return;
       if (event instanceof NoteEvent) return;
       if (event instanceof KeyEvent) {
-        // [WIP] need absolute values here
-        this.currentKey = event.value.payload
+        const newRelativeKey = event.value.payload
+        const newAbsoluteKey = this.absolutizeChord(newRelativeKey)
+        this.currentKey = newAbsoluteKey
       }
       if (event instanceof ChordEvent) {
-        // [WIP] need absolute values here
-        this.currentChord = event.value.payload
+        const newRelativeChord = event.value.payload
+        const newAbsoluteChord = this.absolutizeChord(newRelativeChord)
+        this.currentChord = newAbsoluteChord
       }
       if (event instanceof BpmEvent) {
         const newBpm = event.value.payload.value
@@ -1520,7 +1697,8 @@ class Player {
       }
       if (event instanceof InstrumentEvent) {
         if (track === null) return;
-        const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+        const currInstrument = currentTrackToInstrumentMap.get(track)
+        if (currInstrument === undefined) return;
         const newInstrument = event.value.payload(currInstrument)
         currentTrackToInstrumentMap.set(track, newInstrument)
       }
@@ -1540,12 +1718,14 @@ class Player {
       if (offset.value >= to.value) return;
       Transport.schedule((toneTime) => {
         if (event instanceof KeyEvent) {
-          // [WIP] need absolute values here
-          this.currentKey = event.value.payload
+          const newRelativeKey = event.value.payload
+          const newAbsoluteKey = this.absolutizeChord(newRelativeKey)
+          this.currentKey = newAbsoluteKey
         }
         if (event instanceof ChordEvent) {
-          // [WIP] need absolute values here
-          this.currentChord = event.value.payload
+          const newRelativeChord = event.value.payload
+          const newAbsoluteChord = this.absolutizeChord(newRelativeChord)
+          this.currentChord = newAbsoluteChord
         }
         if (event instanceof BpmEvent) {
           const newBpm = event.value.payload.value
@@ -1555,17 +1735,18 @@ class Player {
         const { currentTrackToInstrumentMap } = this
         if (event instanceof InstrumentEvent) {
           if (track === null) return;
-          const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+          const currInstrument = currentTrackToInstrumentMap.get(track)
+          if (currInstrument === undefined) return;
           const newInstrument = event.value.payload(currInstrument)
           currentTrackToInstrumentMap.set(track, newInstrument)
         }
         if (event instanceof NoteEvent) {
           if (track === null) return;
-          const currInstrument = currentTrackToInstrumentMap.get(track) ?? new Instrument()
+          const currInstrument = currentTrackToInstrumentMap.get(track)
+          if (currInstrument === undefined) return;
           const { payload: note, duration, velocity } = event.value
-          const { height, context } = note.value
-          // [WIP] need absolute values here
-          
+          const absoluteNote = this.absolutizeNote(note)
+          currInstrument.play(absoluteNote, duration, velocity)
         }
       }, offset.asBeatNotation)
     })
@@ -1686,27 +1867,26 @@ class Player {
   }
 }
 
+// Create player
+const player = new Player()
+
 // Create song
-const song = Song.getRandom()
+const song = new Song()
+const mainTrack = new Track()
+
+
+// Interactions
 const playBtn = document.querySelector('.play')
 const pauseBtn = document.querySelector('.pause')
 const stopBtn = document.querySelector('.stop')
 
-// Play song
 let audioStarted = false
 playBtn?.addEventListener('click', () => {
-  if (audioStarted) {
+  if (!audioStarted) {
     startAudioContext()
     audioStarted = true
   }
-  console.log(song.timedEventsArray.map(timedEvent => {
-    const { event, offset, track } = timedEvent
-    console.log(offset.value, event.value, track)
-  }))
+  player.play(song)
 })
-
-// Pause song
-pauseBtn?.addEventListener('click', () => { console.log('pause the song') })
-
-// Stop song
-stopBtn?.addEventListener('click', () => { console.log('stop the song') })
+pauseBtn?.addEventListener('click', () => player.pause())
+stopBtn?.addEventListener('click', () => player.stop())
