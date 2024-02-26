@@ -1,7 +1,4 @@
-import {
-  Transport,
-  start as startAudioContext
-} from 'tone'
+import * as Tone from 'tone'
 import absoluteModulo from './modules/absolute-modulo/index.js'
 import arrayOf from './modules/array-of/index.js'
 import clamp from './modules/clamp/index.js'
@@ -1593,27 +1590,27 @@ class Player {
   }
   
   private pauseTransport (): Player {
-    Transport.pause()
+    Tone.Transport.pause()
     return this
   }
   
   private stopTransport (): Player {
-    Transport.stop()
+    Tone.Transport.stop()
     return this
   }
 
   private startTransport (): Player {
-    Transport.start()
+    Tone.Transport.start()
     return this
   }
 
   private cancelTransportEvents (): Player {
-    Transport.cancel()
+    Tone.Transport.cancel()
     return this
   }
 
   get isPlaying (): boolean {
-    return Transport.state === 'started'
+    return Tone.Transport.state === 'started'
   }
 
   private absolutizeNote (noteDescriptor: NoteDescriptor): Note {
@@ -1693,7 +1690,7 @@ class Player {
       if (event instanceof BpmEvent) {
         const newBpm = event.value.payload.value
         this.currentBpm = new Bpm(newBpm)
-        Transport.bpm.value = newBpm
+        Tone.Transport.bpm.value = newBpm
       }
       if (event instanceof InstrumentEvent) {
         if (track === null) return;
@@ -1716,7 +1713,7 @@ class Player {
     currentSong.timedEventsArray.forEach(({ event, offset, track }) => {
       if (offset.value < from.value) return;
       if (offset.value >= to.value) return;
-      Transport.schedule((toneTime) => {
+      Tone.Transport.schedule((toneTime) => {
         if (event instanceof KeyEvent) {
           const newRelativeKey = event.value.payload
           const newAbsoluteKey = this.absolutizeChord(newRelativeKey)
@@ -1730,7 +1727,7 @@ class Player {
         if (event instanceof BpmEvent) {
           const newBpm = event.value.payload.value
           this.currentBpm = new Bpm(newBpm)
-          Transport.bpm.value = newBpm
+          Tone.Transport.bpm.value = newBpm
         }
         const { currentTrackToInstrumentMap } = this
         if (event instanceof InstrumentEvent) {
@@ -1763,7 +1760,7 @@ class Player {
   }
 
   private transportPositionToDuration (): Duration {
-    const { ticks, PPQ } = Transport
+    const { ticks, PPQ } = Tone.Transport
     const beats = ticks / PPQ
     return new Duration(beats)
   }
@@ -1774,7 +1771,7 @@ class Player {
     if (song !== undefined && song !== this.currentSong) { this.currentSong = song }
     if (this.currentSong === null) return this
     const isNewSong = pSong !== this.currentSong
-    const isPlaying = Transport.state === 'started'
+    const isPlaying = Tone.Transport.state === 'started'
     
     // Same song
     if (!isNewSong) {
@@ -1827,7 +1824,7 @@ class Player {
         } else {
           this.stopTransport()
           this.cancelTransportEvents()
-          Transport.position = from.asBeatNotation
+          Tone.Transport.position = from.asBeatNotation
           this.fastForwardEvents(0, from)
           this.scheduleEvents(from)
           this.startTransport()
@@ -1845,7 +1842,7 @@ class Player {
           return this
         // New song, paused, with from
         } else {
-          Transport.position = from.asBeatNotation
+          Tone.Transport.position = from.asBeatNotation
           this.cancelTransportEvents()
           this.fastForwardEvents(0, from)
           this.scheduleEvents(from)
@@ -1871,22 +1868,48 @@ class Player {
 const player = new Player()
 
 // Create song
-const song = new Song()
-const mainTrack = new Track()
-
+const song = Song.getRandom()
+// const bassTrack = new Track()
+// const drumsTrack = new Track()
+// song
+//   .addTrack(bassTrack)
+//   .addTrack(drumsTrack)
 
 // Interactions
+
+function getNextBeatTime() {
+  const now = Tone.Transport.seconds; // Current transport time in seconds
+  const bpm = Tone.Transport.bpm.value; // Current BPM
+  const secondsPerBeat = 60 / bpm; // Calculate seconds per beat
+  const currentBeat = Math.ceil(now / secondsPerBeat); // Find the next beat
+  const nextBeatTime = currentBeat * secondsPerBeat; // Calculate time for the next beat
+  return nextBeatTime;
+}
+
+
 const playBtn = document.querySelector('.play')
 const pauseBtn = document.querySelector('.pause')
 const stopBtn = document.querySelector('.stop')
 
 let audioStarted = false
-playBtn?.addEventListener('click', () => {
+playBtn?.addEventListener('click', async () => {
   if (!audioStarted) {
-    startAudioContext()
+    await Tone.start()
     audioStarted = true
   }
-  player.play(song)
+  player.play(song);
+  Tone.Transport.scheduleRepeat(() => {
+    console.log(Tone.Transport.position)
+  }, '4n', getNextBeatTime())
+  console.log('playing...')
 })
-pauseBtn?.addEventListener('click', () => player.pause())
-stopBtn?.addEventListener('click', () => player.stop())
+pauseBtn?.addEventListener('click', () => {
+  player.pause()
+  console.log('paused.')
+})
+stopBtn?.addEventListener('click', () => {
+  player.stop()
+  console.log('stopped.')
+})
+
+;(window as any).Tone = Tone
